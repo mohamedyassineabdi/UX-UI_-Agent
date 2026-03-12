@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Home",
+    "url": "https://example.com/"
+  },
+  {
+    "name": "Example Home Duplicate With Slash Difference",
+    "url": "https://example.com"
+  },
+  {
+    "name": "IANA Domains",
+    "url": "https://www.iana.org/domains/reserved"
+  },
+  {
+    "name": "Example With Hash",
+    "url": "https://example.com/#top"
+  }
+]
