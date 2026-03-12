@@ -108,5 +108,15 @@ export const AUDIT_CONFIG = {
       'unsubscribe',
       'deactivate'
     ]
+  },
+
+  interactionTesting: {
+    enabled: true,
+    onlyVisible: true,
+    maxSafeInteractionsPerPage: 25,
+    actionTimeoutMs: 10000,
+    postClickDelayMs: 1200,
+    testSamePageAnchors: false,
+    skipExternalOrigins: true
   }
 };

@@ -5,6 +5,7 @@ import {
   classifyClickables,
   summarizeClassification
 } from './interaction-classifier.js';
+import { testSafeClickables } from './safe-interaction-tester.js';
 
 export async function runPageAudit({
   browser,
@@ -30,7 +31,22 @@ export async function runPageAudit({
       forbidden: 0,
       unknown: 0
     },
+    interactionSummary: {
+      safeCandidates: 0,
+      tested: 0,
+      skippedSafe: 0,
+      successful: 0,
+      failed: 0,
+      navigations: 0,
+      domChanges: 0,
+      popups: 0,
+      dialogs: 0,
+      noEffects: 0,
+      errors: 0,
+      notFound: 0
+    },
     clickables: [],
+    safeInteractionResults: [],
     error: null
   };
 
@@ -67,6 +83,29 @@ export async function runPageAudit({
       safe: classificationSummary.safe,
       forbidden: classificationSummary.forbidden,
       unknown: classificationSummary.unknown
+    };
+
+    const interactionTestOutput = await testSafeClickables({
+      browser,
+      pageInfo,
+      classifiedClickables,
+      config
+    });
+
+    result.safeInteractionResults = interactionTestOutput.safeInteractionResults;
+    result.interactionSummary = {
+      safeCandidates: classificationSummary.safe,
+      tested: interactionTestOutput.testedCount,
+      skippedSafe: interactionTestOutput.skippedSafeCount,
+      successful: interactionTestOutput.safeInteractionResults.filter((r) => r.success).length,
+      failed: interactionTestOutput.safeInteractionResults.filter((r) => !r.success).length,
+      navigations: interactionTestOutput.safeInteractionResults.filter((r) => r.outcomeType === 'navigation').length,
+      domChanges: interactionTestOutput.safeInteractionResults.filter((r) => r.outcomeType === 'dom_change').length,
+      popups: interactionTestOutput.safeInteractionResults.filter((r) => r.outcomeType === 'popup').length,
+      dialogs: interactionTestOutput.safeInteractionResults.filter((r) => r.outcomeType === 'dialog').length,
+      noEffects: interactionTestOutput.safeInteractionResults.filter((r) => r.outcomeType === 'no_effect').length,
+      errors: interactionTestOutput.safeInteractionResults.filter((r) => r.outcomeType === 'error').length,
+      notFound: interactionTestOutput.safeInteractionResults.filter((r) => r.outcomeType === 'not_found').length
     };
 
     result.status = 'success';

@@ -46,6 +46,14 @@ export function normalizeUrl(rawUrl, options = {}) {
   return normalized;
 }
 
+export function safeNormalizeUrl(rawUrl, options = {}) {
+  try {
+    return normalizeUrl(rawUrl, options);
+  } catch {
+    return null;
+  }
+}
+
 export function slugify(input) {
   return String(input)
     .normalize('NFKD')
@@ -84,9 +92,9 @@ export function deduplicatePages(pages, normalizationOptions = {}) {
   };
 }
 
-export function safeNormalizeUrl(rawUrl, options = {}) {
+export function getOriginSafe(rawUrl) {
   try {
-    return normalizeUrl(rawUrl, options);
+    return new URL(rawUrl).origin;
   } catch {
     return null;
   }

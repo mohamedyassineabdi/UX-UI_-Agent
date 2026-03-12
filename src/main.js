@@ -27,7 +27,19 @@ function summarizeRun(pageResults) {
     totalClickablesDetected: 0,
     safeClickables: 0,
     forbiddenClickables: 0,
-    unknownClickables: 0
+    unknownClickables: 0,
+    safeCandidates: 0,
+    testedInteractions: 0,
+    skippedSafeInteractions: 0,
+    successfulInteractions: 0,
+    failedInteractions: 0,
+    navigationInteractions: 0,
+    domChangeInteractions: 0,
+    popupInteractions: 0,
+    dialogInteractions: 0,
+    noEffectInteractions: 0,
+    errorInteractions: 0,
+    notFoundInteractions: 0
   };
 
   for (const pageResult of pageResults) {
@@ -35,6 +47,19 @@ function summarizeRun(pageResults) {
     aggregate.safeClickables += pageResult.clickableSummary?.safe || 0;
     aggregate.forbiddenClickables += pageResult.clickableSummary?.forbidden || 0;
     aggregate.unknownClickables += pageResult.clickableSummary?.unknown || 0;
+
+    aggregate.safeCandidates += pageResult.interactionSummary?.safeCandidates || 0;
+    aggregate.testedInteractions += pageResult.interactionSummary?.tested || 0;
+    aggregate.skippedSafeInteractions += pageResult.interactionSummary?.skippedSafe || 0;
+    aggregate.successfulInteractions += pageResult.interactionSummary?.successful || 0;
+    aggregate.failedInteractions += pageResult.interactionSummary?.failed || 0;
+    aggregate.navigationInteractions += pageResult.interactionSummary?.navigations || 0;
+    aggregate.domChangeInteractions += pageResult.interactionSummary?.domChanges || 0;
+    aggregate.popupInteractions += pageResult.interactionSummary?.popups || 0;
+    aggregate.dialogInteractions += pageResult.interactionSummary?.dialogs || 0;
+    aggregate.noEffectInteractions += pageResult.interactionSummary?.noEffects || 0;
+    aggregate.errorInteractions += pageResult.interactionSummary?.errors || 0;
+    aggregate.notFoundInteractions += pageResult.interactionSummary?.notFound || 0;
   }
 
   return aggregate;
@@ -43,7 +68,7 @@ function summarizeRun(pageResults) {
 async function main() {
   const startedAt = new Date();
 
-  console.log('Starting Milestone 2 audit...');
+  console.log('Starting Milestone 3 audit...');
   console.log(`Reading input file: ${AUDIT_CONFIG.paths.inputFile}`);
 
   await ensureOutputDirs(AUDIT_CONFIG.paths);
@@ -108,6 +133,9 @@ async function main() {
         console.log(
           `  Clickables -> total: ${result.clickableSummary.totalDetected}, safe: ${result.clickableSummary.safe}, forbidden: ${result.clickableSummary.forbidden}, unknown: ${result.clickableSummary.unknown}`
         );
+        console.log(
+          `  Interactions -> tested: ${result.interactionSummary.tested}, success: ${result.interactionSummary.successful}, navigation: ${result.interactionSummary.navigations}, dom changes: ${result.interactionSummary.domChanges}, popups: ${result.interactionSummary.popups}, no effect: ${result.interactionSummary.noEffects}, errors: ${result.interactionSummary.errors}`
+        );
       } else {
         console.log(`  Failed -> ${result.error}`);
       }
@@ -118,7 +146,7 @@ async function main() {
 
   const finishedAt = new Date();
   const timestamp = buildTimestampForFileName(finishedAt);
-  const clickablesSummary = summarizeRun(pageResults);
+  const runSummary = summarizeRun(pageResults);
 
   const summary = {
     runStartedAt: startedAt.toISOString(),
@@ -131,10 +159,22 @@ async function main() {
     duplicatePagesSkipped: duplicates.length,
     pagesSucceeded: pageResults.filter((r) => r.status === 'success').length,
     pagesFailed: pageResults.filter((r) => r.status === 'failed').length,
-    totalClickablesDetected: clickablesSummary.totalClickablesDetected,
-    safeClickables: clickablesSummary.safeClickables,
-    forbiddenClickables: clickablesSummary.forbiddenClickables,
-    unknownClickables: clickablesSummary.unknownClickables
+    totalClickablesDetected: runSummary.totalClickablesDetected,
+    safeClickables: runSummary.safeClickables,
+    forbiddenClickables: runSummary.forbiddenClickables,
+    unknownClickables: runSummary.unknownClickables,
+    safeCandidates: runSummary.safeCandidates,
+    testedInteractions: runSummary.testedInteractions,
+    skippedSafeInteractions: runSummary.skippedSafeInteractions,
+    successfulInteractions: runSummary.successfulInteractions,
+    failedInteractions: runSummary.failedInteractions,
+    navigationInteractions: runSummary.navigationInteractions,
+    domChangeInteractions: runSummary.domChangeInteractions,
+    popupInteractions: runSummary.popupInteractions,
+    dialogInteractions: runSummary.dialogInteractions,
+    noEffectInteractions: runSummary.noEffectInteractions,
+    errorInteractions: runSummary.errorInteractions,
+    notFoundInteractions: runSummary.notFoundInteractions
   };
 
   const output = {
@@ -151,7 +191,7 @@ async function main() {
   await writeJsonFile(resultsFilePath, output);
 
   console.log(`Results written to: ${resultsFilePath}`);
-  console.log('Milestone 2 audit completed.');
+  console.log('Milestone 3 audit completed.');
 }
 
 main().catch((error) => {
