@@ -1,7 +1,7 @@
 {
   "name": "ux-ui-auditor",
   "version": "1.0.0",
-  "description": "Milestone 1 for UX/UI Auditor: visit pages once, take full-page screenshots, write results JSON",
+  "description": "Milestone 2 for UX/UI Auditor: visit pages once, take full-page screenshots, detect and classify clickables, write results JSON",
   "type": "module",
   "main": "src/main.js",
   "scripts": {

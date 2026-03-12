@@ -27,11 +27,12 @@ export function normalizeUrl(rawUrl, options = {}) {
     }
   }
 
-  // Sort remaining query params for stable equality
   const sortedParams = [...parsed.searchParams.entries()].sort(([a], [b]) =>
     a.localeCompare(b)
   );
+
   parsed.search = '';
+
   for (const [key, value] of sortedParams) {
     parsed.searchParams.append(key, value);
   }
@@ -81,4 +82,12 @@ export function deduplicatePages(pages, normalizationOptions = {}) {
     uniquePages,
     duplicates
   };
+}
+
+export function safeNormalizeUrl(rawUrl, options = {}) {
+  try {
+    return normalizeUrl(rawUrl, options);
+  } catch {
+    return null;
+  }
 }

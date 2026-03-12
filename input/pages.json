@@ -1,18 +1,26 @@
 [
   {
     "name": "Home",
-    "url": "https://example.com/"
+    "url": "https://automationexercise.com/"
   },
   {
-    "name": "Example Home Duplicate With Slash Difference",
-    "url": "https://example.com"
+    "name": "Products",
+    "url": "https://automationexercise.com/products"
   },
   {
-    "name": "IANA Domains",
-    "url": "https://www.iana.org/domains/reserved"
+    "name": "Test Cases",
+    "url": "https://automationexercise.com/test_cases"
   },
   {
-    "name": "Example With Hash",
-    "url": "https://example.com/#top"
+    "name": "API Testing",
+    "url": "https://automationexercise.com/api_list"
+  },
+  {
+    "name": "Video Tutorials",
+    "url": "https://automationexercise.com/video_tutorials"
+  },
+  {
+    "name": "Contact Us",
+    "url": "https://automationexercise.com/contact_us"
   }
 ]

@@ -22,10 +22,28 @@ function getBrowserLauncher(browserType) {
   }
 }
 
+function summarizeRun(pageResults) {
+  const aggregate = {
+    totalClickablesDetected: 0,
+    safeClickables: 0,
+    forbiddenClickables: 0,
+    unknownClickables: 0
+  };
+
+  for (const pageResult of pageResults) {
+    aggregate.totalClickablesDetected += pageResult.clickableSummary?.totalDetected || 0;
+    aggregate.safeClickables += pageResult.clickableSummary?.safe || 0;
+    aggregate.forbiddenClickables += pageResult.clickableSummary?.forbidden || 0;
+    aggregate.unknownClickables += pageResult.clickableSummary?.unknown || 0;
+  }
+
+  return aggregate;
+}
+
 async function main() {
   const startedAt = new Date();
 
-  console.log('Starting Milestone 1 audit...');
+  console.log('Starting Milestone 2 audit...');
   console.log(`Reading input file: ${AUDIT_CONFIG.paths.inputFile}`);
 
   await ensureOutputDirs(AUDIT_CONFIG.paths);
@@ -87,6 +105,9 @@ async function main() {
 
       if (result.status === 'success') {
         console.log(`  Success -> screenshot saved: ${result.screenshotPath}`);
+        console.log(
+          `  Clickables -> total: ${result.clickableSummary.totalDetected}, safe: ${result.clickableSummary.safe}, forbidden: ${result.clickableSummary.forbidden}, unknown: ${result.clickableSummary.unknown}`
+        );
       } else {
         console.log(`  Failed -> ${result.error}`);
       }
@@ -97,6 +118,7 @@ async function main() {
 
   const finishedAt = new Date();
   const timestamp = buildTimestampForFileName(finishedAt);
+  const clickablesSummary = summarizeRun(pageResults);
 
   const summary = {
     runStartedAt: startedAt.toISOString(),
@@ -108,7 +130,11 @@ async function main() {
     uniquePagesVisited: uniquePages.length,
     duplicatePagesSkipped: duplicates.length,
     pagesSucceeded: pageResults.filter((r) => r.status === 'success').length,
-    pagesFailed: pageResults.filter((r) => r.status === 'failed').length
+    pagesFailed: pageResults.filter((r) => r.status === 'failed').length,
+    totalClickablesDetected: clickablesSummary.totalClickablesDetected,
+    safeClickables: clickablesSummary.safeClickables,
+    forbiddenClickables: clickablesSummary.forbiddenClickables,
+    unknownClickables: clickablesSummary.unknownClickables
   };
 
   const output = {
@@ -125,7 +151,7 @@ async function main() {
   await writeJsonFile(resultsFilePath, output);
 
   console.log(`Results written to: ${resultsFilePath}`);
-  console.log('Milestone 1 audit completed.');
+  console.log('Milestone 2 audit completed.');
 }
 
 main().catch((error) => {

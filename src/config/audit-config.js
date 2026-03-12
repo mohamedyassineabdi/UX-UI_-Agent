@@ -38,5 +38,75 @@ export const AUDIT_CONFIG = {
       'gclid',
       'fbclid'
     ]
+  },
+
+  clickableDetection: {
+    selectors: [
+      'a[href]',
+      'button',
+      '[role="button"]',
+      'input[type="button"]',
+      'input[type="submit"]'
+    ],
+    maxElementsPerPage: 500
+  },
+
+  classification: {
+    forbiddenKeywords: [
+      'logout',
+      'log out',
+      'sign out',
+      'delete',
+      'remove',
+      'remove account',
+      'deactivate',
+      'unsubscribe',
+      'pay',
+      'buy',
+      'purchase',
+      'checkout',
+      'place order',
+      'confirm',
+      'submit',
+      'send',
+      'save',
+      'publish',
+      'reset',
+      'clear cart',
+      'cancel subscription',
+      'close account'
+    ],
+
+    safeKeywords: [
+      'home',
+      'about',
+      'contact',
+      'learn more',
+      'read more',
+      'details',
+      'view details',
+      'open',
+      'menu',
+      'next',
+      'previous',
+      'back',
+      'search',
+      'filter',
+      'sort',
+      'show more',
+      'see more'
+    ],
+
+    forbiddenHrefKeywords: [
+      'logout',
+      'signout',
+      'delete',
+      'remove',
+      'checkout',
+      'payment',
+      'purchase',
+      'unsubscribe',
+      'deactivate'
+    ]
   }
 };

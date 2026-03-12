@@ -1,5 +1,10 @@
 import { joinPath } from '../utils/file-utils.js';
 import { slugify } from '../utils/url-utils.js';
+import { detectClickables } from './element-detector.js';
+import {
+  classifyClickables,
+  summarizeClassification
+} from './interaction-classifier.js';
 
 export async function runPageAudit({
   browser,
@@ -19,6 +24,13 @@ export async function runPageAudit({
     finalUrl: null,
     status: 'pending',
     screenshotPath: null,
+    clickableSummary: {
+      totalDetected: 0,
+      safe: 0,
+      forbidden: 0,
+      unknown: 0
+    },
+    clickables: [],
     error: null
   };
 
@@ -44,6 +56,19 @@ export async function runPageAudit({
     });
 
     result.screenshotPath = screenshotPath;
+
+    const detectedClickables = await detectClickables(page, config);
+    const classifiedClickables = classifyClickables(detectedClickables, config);
+    const classificationSummary = summarizeClassification(classifiedClickables);
+
+    result.clickables = classifiedClickables;
+    result.clickableSummary = {
+      totalDetected: classifiedClickables.length,
+      safe: classificationSummary.safe,
+      forbidden: classificationSummary.forbidden,
+      unknown: classificationSummary.unknown
+    };
+
     result.status = 'success';
   } catch (error) {
     result.status = 'failed';
