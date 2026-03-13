@@ -1,26 +1,154 @@
-[
-  {
-    "name": "Home",
-    "url": "https://automationexercise.com/"
+{
+  "homepage": "https://stripe.com",
+  "auth": {
+    "signin": {
+      "name": "Anmelden",
+      "url": "https://dashboard.stripe.com/login"
+    },
+    "signup": {
+      "name": "Jetzt starten",
+      "url": "https://dashboard.stripe.com/register"
+    }
   },
-  {
-    "name": "Products",
-    "url": "https://automationexercise.com/products"
-  },
-  {
-    "name": "Test Cases",
-    "url": "https://automationexercise.com/test_cases"
-  },
-  {
-    "name": "API Testing",
-    "url": "https://automationexercise.com/api_list"
-  },
-  {
-    "name": "Video Tutorials",
-    "url": "https://automationexercise.com/video_tutorials"
-  },
-  {
-    "name": "Contact Us",
-    "url": "https://automationexercise.com/contact_us"
+  "navbars": [
+    {
+      "id": 1,
+      "name": "Main Navigation",
+      "menu_count": 10,
+      "navbar_score": 1.0,
+      "container_selector": "nav#:r4:.hds-navigation-menu__popup",
+      "urls": [
+        {
+          "name": "Blog",
+          "url": "https://stripe.com/de/blog"
+        },
+        {
+          "name": "Stripe Sessions",
+          "url": "https://stripe.com/de/sessions"
+        },
+        {
+          "name": "Sales-Team kontaktieren",
+          "url": "https://stripe.com/de/contact/sales"
+        },
+        {
+          "name": "Kundenstories",
+          "url": "https://stripe.com/de/customers"
+        },
+        {
+          "name": "Verwaltete Support-Pläne",
+          "url": "https://stripe.com/de/support-plans"
+        },
+        {
+          "name": "Karriere",
+          "url": "https://stripe.com/de/jobs"
+        },
+        {
+          "name": "Partner werden",
+          "url": "https://stripe.com/de/partners/become-a-partner"
+        },
+        {
+          "name": "Leitfäden",
+          "url": "https://stripe.com/de/guides"
+        },
+        {
+          "name": "Fachdienstleistungen",
+          "url": "https://stripe.com/de/professional-services"
+        },
+        {
+          "name": "Aktuelles",
+          "url": "https://stripe.com/de/newsroom"
+        }
+      ],
+      "sections": [
+        {
+          "title": "",
+          "urls": [
+            {
+              "name": "Blog",
+              "url": "https://stripe.com/de/blog"
+            },
+            {
+              "name": "Stripe Sessions",
+              "url": "https://stripe.com/de/sessions"
+            },
+            {
+              "name": "Sales-Team kontaktieren",
+              "url": "https://stripe.com/de/contact/sales"
+            },
+            {
+              "name": "Kundenstories",
+              "url": "https://stripe.com/de/customers"
+            },
+            {
+              "name": "Verwaltete Support-Pläne",
+              "url": "https://stripe.com/de/support-plans"
+            },
+            {
+              "name": "Karriere",
+              "url": "https://stripe.com/de/jobs"
+            },
+            {
+              "name": "Partner werden",
+              "url": "https://stripe.com/de/partners/become-a-partner"
+            },
+            {
+              "name": "Leitfäden",
+              "url": "https://stripe.com/de/guides"
+            },
+            {
+              "name": "Fachdienstleistungen",
+              "url": "https://stripe.com/de/professional-services"
+            },
+            {
+              "name": "Aktuelles",
+              "url": "https://stripe.com/de/newsroom"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Secondary Navigation",
+      "menu_count": 2,
+      "navbar_score": 1.0,
+      "container_selector": "header.hds-mode.navigation.section.section--white",
+      "urls": [
+        {
+          "name": "Sales-Team kontaktieren",
+          "url": "https://stripe.com/de/contact/sales"
+        },
+        {
+          "name": "Preisgestaltung",
+          "url": "https://stripe.com/de/pricing"
+        }
+      ],
+      "sections": [
+        {
+          "title": "",
+          "urls": [
+            {
+              "name": "Sales-Team kontaktieren",
+              "url": "https://stripe.com/de/contact/sales"
+            },
+            {
+              "name": "Preisgestaltung",
+              "url": "https://stripe.com/de/pricing"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "extra": {
+    "forms_detected": 0,
+    "total_internal_links": 155,
+    "external_links": 31,
+    "sitemap_found": "https://stripe.com/sitemap/sitemap.xml",
+    "robots_txt": "https://stripe.com/robots.txt",
+    "title": "Online-Bezahldienst und Zahlungsdienstleister | Stripe",
+    "crawl_time_ms": 20290,
+    "page_size_kb": 704.0,
+    "images_found": 42
   }
-]
+}

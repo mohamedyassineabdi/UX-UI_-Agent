@@ -40,6 +40,13 @@ export const AUDIT_CONFIG = {
     ]
   },
 
+  inputParsing: {
+    includeHomepage: true,
+    includeAuthPages: false,
+    includeNavbarUrls: true,
+    includeSectionUrls: true
+  },
+
   clickableDetection: {
     selectors: [
       'a[href]',
@@ -74,7 +81,12 @@ export const AUDIT_CONFIG = {
       'reset',
       'clear cart',
       'cancel subscription',
-      'close account'
+      'close account',
+      'login',
+      'log in',
+      'sign in',
+      'register',
+      'sign up'
     ],
 
     safeKeywords: [
@@ -106,7 +118,11 @@ export const AUDIT_CONFIG = {
       'payment',
       'purchase',
       'unsubscribe',
-      'deactivate'
+      'deactivate',
+      'login',
+      'register',
+      'signup',
+      'signin'
     ]
   },
 

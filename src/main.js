@@ -22,6 +22,111 @@ function getBrowserLauncher(browserType) {
   }
 }
 
+function normalizeFlatPage(page, index = 0) {
+  if (!page || typeof page !== 'object') {
+    throw new Error(`Item at index ${index} is not a valid object.`);
+  }
+
+  if (!page.url || typeof page.url !== 'string') {
+    throw new Error(`Item at index ${index} is missing a valid "url".`);
+  }
+
+  return {
+    name:
+      typeof page.name === 'string' && page.name.trim()
+        ? page.name.trim()
+        : `Page_${index + 1}`,
+    url: page.url.trim()
+  };
+}
+
+function extractPagesFromPartnerJson(input, config) {
+  const pages = [];
+
+  if (config.inputParsing.includeHomepage && typeof input.homepage === 'string') {
+    pages.push({
+      name: 'Home',
+      url: input.homepage
+    });
+  }
+
+  if (config.inputParsing.includeAuthPages && input.auth && typeof input.auth === 'object') {
+    if (input.auth.signin?.url) {
+      pages.push({
+        name: input.auth.signin.name || 'Sign In',
+        url: input.auth.signin.url
+      });
+    }
+
+    if (input.auth.signup?.url) {
+      pages.push({
+        name: input.auth.signup.name || 'Sign Up',
+        url: input.auth.signup.url
+      });
+    }
+  }
+
+  if (Array.isArray(input.navbars)) {
+    for (const navbar of input.navbars) {
+      const navbarName =
+        typeof navbar?.name === 'string' && navbar.name.trim()
+          ? navbar.name.trim()
+          : 'Navbar';
+
+      if (config.inputParsing.includeNavbarUrls && Array.isArray(navbar?.urls)) {
+        for (const entry of navbar.urls) {
+          if (!entry?.url) continue;
+
+          pages.push({
+            name: entry.name?.trim()
+              ? `${entry.name.trim()}`
+              : `${navbarName}_Link`,
+            url: entry.url
+          });
+        }
+      }
+
+      if (config.inputParsing.includeSectionUrls && Array.isArray(navbar?.sections)) {
+        for (const section of navbar.sections) {
+          const sectionTitle =
+            typeof section?.title === 'string' && section.title.trim()
+              ? section.title.trim()
+              : '';
+
+          if (!Array.isArray(section?.urls)) continue;
+
+          for (const entry of section.urls) {
+            if (!entry?.url) continue;
+
+            pages.push({
+              name: entry.name?.trim()
+                ? `${entry.name.trim()}`
+                : sectionTitle
+                  ? `${sectionTitle}_Link`
+                  : `${navbarName}_Section_Link`,
+              url: entry.url
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return pages.map((page, index) => normalizeFlatPage(page, index));
+}
+
+function parseInputToPages(rawInput, config) {
+  if (Array.isArray(rawInput)) {
+    return rawInput.map((page, index) => normalizeFlatPage(page, index));
+  }
+
+  if (rawInput && typeof rawInput === 'object') {
+    return extractPagesFromPartnerJson(rawInput, config);
+  }
+
+  throw new Error('Input JSON must be either an array of pages or the partner navigation object.');
+}
+
 function summarizeRun(pageResults) {
   const aggregate = {
     totalClickablesDetected: 0,
@@ -39,7 +144,8 @@ function summarizeRun(pageResults) {
     dialogInteractions: 0,
     noEffectInteractions: 0,
     errorInteractions: 0,
-    notFoundInteractions: 0
+    notFoundInteractions: 0,
+    interactionScreenshotsCreated: 0
   };
 
   for (const pageResult of pageResults) {
@@ -60,6 +166,8 @@ function summarizeRun(pageResults) {
     aggregate.noEffectInteractions += pageResult.interactionSummary?.noEffects || 0;
     aggregate.errorInteractions += pageResult.interactionSummary?.errors || 0;
     aggregate.notFoundInteractions += pageResult.interactionSummary?.notFound || 0;
+    aggregate.interactionScreenshotsCreated +=
+      pageResult.interactionSummary?.interactionScreenshotsCreated || 0;
   }
 
   return aggregate;
@@ -68,40 +176,20 @@ function summarizeRun(pageResults) {
 async function main() {
   const startedAt = new Date();
 
-  console.log('Starting Milestone 3 audit...');
+  console.log('Starting audit...');
   console.log(`Reading input file: ${AUDIT_CONFIG.paths.inputFile}`);
 
   await ensureOutputDirs(AUDIT_CONFIG.paths);
 
-  const rawPages = await readJsonFile(AUDIT_CONFIG.paths.inputFile);
-
-  if (!Array.isArray(rawPages)) {
-    throw new Error('Input JSON must be an array of page objects.');
-  }
-
-  const pagesValidated = rawPages.map((page, index) => {
-    if (!page || typeof page !== 'object') {
-      throw new Error(`Item at index ${index} is not a valid object.`);
-    }
-
-    if (!page.url || typeof page.url !== 'string') {
-      throw new Error(`Item at index ${index} is missing a valid "url".`);
-    }
-
-    return {
-      name: typeof page.name === 'string' && page.name.trim()
-        ? page.name.trim()
-        : `Page_${index + 1}`,
-      url: page.url.trim()
-    };
-  });
+  const rawInput = await readJsonFile(AUDIT_CONFIG.paths.inputFile);
+  const pagesParsed = parseInputToPages(rawInput, AUDIT_CONFIG);
 
   const { uniquePages, duplicates } = deduplicatePages(
-    pagesValidated,
+    pagesParsed,
     AUDIT_CONFIG.urlNormalization
   );
 
-  console.log(`Total pages in input: ${pagesValidated.length}`);
+  console.log(`Total pages extracted from input: ${pagesParsed.length}`);
   console.log(`Unique pages to visit: ${uniquePages.length}`);
   console.log(`Duplicates skipped: ${duplicates.length}`);
 
@@ -134,7 +222,7 @@ async function main() {
           `  Clickables -> total: ${result.clickableSummary.totalDetected}, safe: ${result.clickableSummary.safe}, forbidden: ${result.clickableSummary.forbidden}, unknown: ${result.clickableSummary.unknown}`
         );
         console.log(
-          `  Interactions -> tested: ${result.interactionSummary.tested}, success: ${result.interactionSummary.successful}, navigation: ${result.interactionSummary.navigations}, dom changes: ${result.interactionSummary.domChanges}, popups: ${result.interactionSummary.popups}, no effect: ${result.interactionSummary.noEffects}, errors: ${result.interactionSummary.errors}`
+          `  Interactions -> tested: ${result.interactionSummary.tested}, success: ${result.interactionSummary.successful}, screenshots: ${result.interactionSummary.interactionScreenshotsCreated}`
         );
       } else {
         console.log(`  Failed -> ${result.error}`);
@@ -154,7 +242,7 @@ async function main() {
     inputFile: AUDIT_CONFIG.paths.inputFile,
     browserType: AUDIT_CONFIG.browser.browserType,
     headless: AUDIT_CONFIG.browser.headless,
-    totalPagesInInput: pagesValidated.length,
+    totalPagesExtractedFromInput: pagesParsed.length,
     uniquePagesVisited: uniquePages.length,
     duplicatePagesSkipped: duplicates.length,
     pagesSucceeded: pageResults.filter((r) => r.status === 'success').length,
@@ -174,7 +262,8 @@ async function main() {
     dialogInteractions: runSummary.dialogInteractions,
     noEffectInteractions: runSummary.noEffectInteractions,
     errorInteractions: runSummary.errorInteractions,
-    notFoundInteractions: runSummary.notFoundInteractions
+    notFoundInteractions: runSummary.notFoundInteractions,
+    interactionScreenshotsCreated: runSummary.interactionScreenshotsCreated
   };
 
   const output = {
@@ -191,7 +280,7 @@ async function main() {
   await writeJsonFile(resultsFilePath, output);
 
   console.log(`Results written to: ${resultsFilePath}`);
-  console.log('Milestone 3 audit completed.');
+  console.log('Audit completed.');
 }
 
 main().catch((error) => {

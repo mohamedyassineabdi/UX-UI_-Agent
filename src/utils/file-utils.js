@@ -12,7 +12,6 @@ export function joinPath(...segments) {
 export async function ensureOutputDirs(pathsConfig) {
   await ensureDir(pathsConfig.screenshotDir);
   await ensureDir(pathsConfig.resultsDir);
-  await ensureDir(joinPath(pathsConfig.screenshotDir, 'interactions'));
 }
 
 export async function readJsonFile(filePath) {

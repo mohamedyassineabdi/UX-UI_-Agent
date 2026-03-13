@@ -99,3 +99,20 @@ export function getOriginSafe(rawUrl) {
     return null;
   }
 }
+
+export function getHostnameSafe(rawUrl) {
+  try {
+    return new URL(rawUrl).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+export function buildWebsiteFolderName(rawUrl) {
+  const hostname = getHostnameSafe(rawUrl);
+  return slugify(hostname || 'website') || 'website';
+}
+
+export function buildPageFolderName(pageName, fallback = 'page') {
+  return slugify(pageName || fallback) || fallback;
+}

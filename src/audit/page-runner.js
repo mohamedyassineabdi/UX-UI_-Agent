@@ -1,5 +1,8 @@
-import { joinPath } from '../utils/file-utils.js';
-import { slugify } from '../utils/url-utils.js';
+import { joinPath, ensureDir } from '../utils/file-utils.js';
+import {
+  buildWebsiteFolderName,
+  buildPageFolderName
+} from '../utils/url-utils.js';
 import { detectClickables } from './element-detector.js';
 import {
   classifyClickables,
@@ -17,6 +20,14 @@ export async function runPageAudit({
     viewport: config.browser.viewport
   });
 
+  const websiteFolderName = buildWebsiteFolderName(pageInfo.url);
+  const pageFolderName = buildPageFolderName(pageInfo.name, `page_${pageIndex + 1}`);
+  const pageFolderPath = joinPath(
+    config.paths.screenshotDir,
+    websiteFolderName,
+    pageFolderName
+  );
+
   const result = {
     index: pageIndex + 1,
     name: pageInfo.name,
@@ -25,6 +36,7 @@ export async function runPageAudit({
     finalUrl: null,
     status: 'pending',
     screenshotPath: null,
+    screenshotFolder: pageFolderPath,
     clickableSummary: {
       totalDetected: 0,
       safe: 0,
@@ -43,7 +55,8 @@ export async function runPageAudit({
       dialogs: 0,
       noEffects: 0,
       errors: 0,
-      notFound: 0
+      notFound: 0,
+      interactionScreenshotsCreated: 0
     },
     clickables: [],
     safeInteractionResults: [],
@@ -51,6 +64,8 @@ export async function runPageAudit({
   };
 
   try {
+    await ensureDir(pageFolderPath);
+
     await page.goto(pageInfo.url, {
       waitUntil: config.navigation.waitUntil,
       timeout: config.navigation.timeoutMs
@@ -62,8 +77,10 @@ export async function runPageAudit({
 
     result.finalUrl = page.url();
 
-    const fileName = `${String(pageIndex + 1).padStart(3, '0')}_${slugify(pageInfo.name || 'page')}.${config.screenshot.type}`;
-    const screenshotPath = joinPath(config.paths.screenshotDir, fileName);
+    const screenshotPath = joinPath(
+      pageFolderPath,
+      `page.${config.screenshot.type}`
+    );
 
     await page.screenshot({
       path: screenshotPath,
@@ -89,7 +106,8 @@ export async function runPageAudit({
       browser,
       pageInfo,
       classifiedClickables,
-      config
+      config,
+      pageIndex
     });
 
     result.safeInteractionResults = interactionTestOutput.safeInteractionResults;
@@ -105,7 +123,8 @@ export async function runPageAudit({
       dialogs: interactionTestOutput.safeInteractionResults.filter((r) => r.outcomeType === 'dialog').length,
       noEffects: interactionTestOutput.safeInteractionResults.filter((r) => r.outcomeType === 'no_effect').length,
       errors: interactionTestOutput.safeInteractionResults.filter((r) => r.outcomeType === 'error').length,
-      notFound: interactionTestOutput.safeInteractionResults.filter((r) => r.outcomeType === 'not_found').length
+      notFound: interactionTestOutput.safeInteractionResults.filter((r) => r.outcomeType === 'not_found').length,
+      interactionScreenshotsCreated: interactionTestOutput.interactionScreenshotsCreated
     };
 
     result.status = 'success';

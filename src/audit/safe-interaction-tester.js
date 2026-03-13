@@ -1,6 +1,12 @@
 import { detectClickables } from './element-detector.js';
-import { safeNormalizeUrl, getOriginSafe, slugify } from '../utils/url-utils.js';
-import { joinPath } from '../utils/file-utils.js';
+import {
+  safeNormalizeUrl,
+  getOriginSafe,
+  slugify,
+  buildWebsiteFolderName,
+  buildPageFolderName
+} from '../utils/url-utils.js';
+import { joinPath, ensureDir } from '../utils/file-utils.js';
 
 function cleanText(value) {
   return String(value || '')
@@ -143,28 +149,34 @@ async function saveInteractionScreenshot({
   interactionOrder,
   config
 }) {
-  const safeElementName = slugify(
-    clickable.text ||
+  const websiteFolderName = buildWebsiteFolderName(pageInfo.url);
+  const pageFolderName = buildPageFolderName(pageInfo.name, 'page');
+  const interactionsFolderPath = joinPath(
+    config.paths.screenshotDir,
+    websiteFolderName,
+    pageFolderName,
+    'interactions'
+  );
+
+  await ensureDir(interactionsFolderPath);
+
+  const safeElementName =
+    slugify(
+      clickable.text ||
       clickable.ariaLabel ||
       clickable.title ||
       clickable.name ||
       clickable.tag ||
       'element'
-  );
+    ) || 'element';
 
   const fileName = [
-    slugify(pageInfo.name || 'page'),
-    'interaction',
     String(interactionOrder).padStart(3, '0'),
-    safeElementName || 'element',
+    safeElementName,
     outcomeType
   ].join('_') + `.${config.screenshot.type}`;
 
-  const screenshotPath = joinPath(
-    config.paths.screenshotDir,
-    'interactions',
-    fileName
-  );
+  const screenshotPath = joinPath(interactionsFolderPath, fileName);
 
   await page.screenshot({
     path: screenshotPath,
@@ -206,6 +218,7 @@ export async function testSafeClickables({
     return {
       testedCount: 0,
       skippedSafeCount: 0,
+      interactionScreenshotsCreated: 0,
       safeInteractionResults: []
     };
   }
@@ -216,6 +229,7 @@ export async function testSafeClickables({
 
   const results = [];
   let skippedSafeCount = 0;
+  let interactionScreenshotsCreated = 0;
   const testedTargetUrls = new Set();
 
   for (const clickable of safeClickables) {
@@ -389,6 +403,10 @@ export async function testSafeClickables({
           interactionOrder: clickable.index,
           config
         });
+
+        if (interactionResult.screenshotPath) {
+          interactionScreenshotsCreated += 1;
+        }
       }
     } catch (error) {
       interactionResult.outcomeType = 'error';
@@ -419,6 +437,7 @@ export async function testSafeClickables({
       (r) => r.tested && r.outcomeType !== 'skipped'
     ).length,
     skippedSafeCount,
+    interactionScreenshotsCreated,
     safeInteractionResults: results
   };
 }
