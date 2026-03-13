@@ -9,9 +9,9 @@ export const AUDIT_CONFIG = {
   },
 
   navigation: {
-    timeoutMs: 30000,
+    timeoutMs: 20000,
     waitUntil: 'domcontentloaded',
-    postLoadDelayMs: 1500
+    postLoadDelayMs: 600
   },
 
   paths: {
@@ -113,10 +113,11 @@ export const AUDIT_CONFIG = {
   interactionTesting: {
     enabled: true,
     onlyVisible: true,
-    maxSafeInteractionsPerPage: 25,
-    actionTimeoutMs: 10000,
-    postClickDelayMs: 1200,
+    maxSafeInteractionsPerPage: 12,
+    actionTimeoutMs: 7000,
+    postClickDelayMs: 500,
     testSamePageAnchors: false,
-    skipExternalOrigins: true
+    skipExternalOrigins: true,
+    captureSuccessfulInteractionScreenshots: true
   }
 };

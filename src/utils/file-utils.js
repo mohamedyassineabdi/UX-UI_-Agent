@@ -5,9 +5,14 @@ export async function ensureDir(dirPath) {
   await fs.mkdir(dirPath, { recursive: true });
 }
 
+export function joinPath(...segments) {
+  return path.join(...segments);
+}
+
 export async function ensureOutputDirs(pathsConfig) {
   await ensureDir(pathsConfig.screenshotDir);
   await ensureDir(pathsConfig.resultsDir);
+  await ensureDir(joinPath(pathsConfig.screenshotDir, 'interactions'));
 }
 
 export async function readJsonFile(filePath) {
@@ -29,8 +34,4 @@ export function buildTimestampForFileName(date = new Date()) {
   const ss = String(date.getSeconds()).padStart(2, '0');
 
   return `${yyyy}-${mm}-${dd}_${hh}-${min}-${ss}`;
-}
-
-export function joinPath(...segments) {
-  return path.join(...segments);
 }

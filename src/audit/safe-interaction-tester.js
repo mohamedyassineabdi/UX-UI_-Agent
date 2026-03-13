@@ -1,5 +1,6 @@
 import { detectClickables } from './element-detector.js';
-import { safeNormalizeUrl, getOriginSafe } from '../utils/url-utils.js';
+import { safeNormalizeUrl, getOriginSafe, slugify } from '../utils/url-utils.js';
+import { joinPath } from '../utils/file-utils.js';
 
 function cleanText(value) {
   return String(value || '')
@@ -68,7 +69,12 @@ function shouldSkipSafeClickable(clickable, pageUrl, config) {
       const pageOrigin = getOriginSafe(pageUrl);
       const targetOrigin = getOriginSafe(targetUrl);
 
-      if (config.interactionTesting.skipExternalOrigins && pageOrigin && targetOrigin && pageOrigin !== targetOrigin) {
+      if (
+        config.interactionTesting.skipExternalOrigins &&
+        pageOrigin &&
+        targetOrigin &&
+        pageOrigin !== targetOrigin
+      ) {
         return 'external origin skipped';
       }
     } catch {
@@ -77,6 +83,14 @@ function shouldSkipSafeClickable(clickable, pageUrl, config) {
   }
 
   return null;
+}
+
+function shouldCaptureInteractionScreenshot(outcomeType, config) {
+  if (!config.interactionTesting.captureSuccessfulInteractionScreenshots) {
+    return false;
+  }
+
+  return ['navigation', 'dom_change', 'popup', 'dialog'].includes(outcomeType);
 }
 
 async function waitShortlyAfterAction(page, delayMs) {
@@ -89,6 +103,7 @@ async function capturePageState(page) {
   return page.evaluate(() => {
     const body = document.body;
     const text = body ? body.innerText || '' : '';
+
     return {
       title: document.title || '',
       textLength: text.trim().length,
@@ -114,8 +129,70 @@ async function tryHandleDialog(page) {
   };
 
   page.once('dialog', dialogHandler);
+
   return {
     getDialogInfo: () => dialogInfo
+  };
+}
+
+async function saveInteractionScreenshot({
+  page,
+  pageInfo,
+  clickable,
+  outcomeType,
+  interactionOrder,
+  config
+}) {
+  const safeElementName = slugify(
+    clickable.text ||
+      clickable.ariaLabel ||
+      clickable.title ||
+      clickable.name ||
+      clickable.tag ||
+      'element'
+  );
+
+  const fileName = [
+    slugify(pageInfo.name || 'page'),
+    'interaction',
+    String(interactionOrder).padStart(3, '0'),
+    safeElementName || 'element',
+    outcomeType
+  ].join('_') + `.${config.screenshot.type}`;
+
+  const screenshotPath = joinPath(
+    config.paths.screenshotDir,
+    'interactions',
+    fileName
+  );
+
+  await page.screenshot({
+    path: screenshotPath,
+    fullPage: true,
+    type: config.screenshot.type
+  });
+
+  return screenshotPath;
+}
+
+function buildSkippedResult(clickable, pageUrl, reason) {
+  return {
+    clickableIndex: clickable.index,
+    clickableText: clickable.text,
+    clickableTag: clickable.tag,
+    classification: clickable.classification,
+    tested: false,
+    outcomeType: 'skipped',
+    success: false,
+    reason,
+    beforeUrl: pageUrl,
+    afterUrl: null,
+    normalizedAfterUrl: null,
+    openedNewTab: false,
+    dialog: null,
+    domChanged: false,
+    screenshotPath: null,
+    error: null
   };
 }
 
@@ -139,30 +216,39 @@ export async function testSafeClickables({
 
   const results = [];
   let skippedSafeCount = 0;
+  const testedTargetUrls = new Set();
 
   for (const clickable of safeClickables) {
     const skipReason = shouldSkipSafeClickable(clickable, pageInfo.url, config);
 
     if (skipReason) {
       skippedSafeCount += 1;
-      results.push({
-        clickableIndex: clickable.index,
-        clickableText: clickable.text,
-        clickableTag: clickable.tag,
-        classification: clickable.classification,
-        tested: false,
-        outcomeType: 'skipped',
-        success: false,
-        reason: skipReason,
-        beforeUrl: pageInfo.url,
-        afterUrl: null,
-        normalizedAfterUrl: null,
-        openedNewTab: false,
-        dialog: null,
-        domChanged: false,
-        error: null
-      });
+      results.push(buildSkippedResult(clickable, pageInfo.url, skipReason));
       continue;
+    }
+
+    if (clickable.tag === 'a' && clickable.href) {
+      try {
+        const resolvedUrl = new URL(clickable.href, pageInfo.url).toString();
+        const normalizedTarget = safeNormalizeUrl(
+          resolvedUrl,
+          config.urlNormalization
+        );
+
+        if (normalizedTarget && testedTargetUrls.has(normalizedTarget)) {
+          skippedSafeCount += 1;
+          results.push(
+            buildSkippedResult(clickable, pageInfo.url, 'duplicate target URL skipped')
+          );
+          continue;
+        }
+
+        if (normalizedTarget) {
+          testedTargetUrls.add(normalizedTarget);
+        }
+      } catch {
+        // ignore
+      }
     }
 
     const testPage = await browser.newPage({
@@ -184,6 +270,7 @@ export async function testSafeClickables({
       openedNewTab: false,
       dialog: null,
       domChanged: false,
+      screenshotPath: null,
       error: null
     };
 
@@ -209,7 +296,6 @@ export async function testSafeClickables({
       if (targetIndex === -1) {
         interactionResult.outcomeType = 'not_found';
         interactionResult.reason = 'matching clickable not found on fresh page load';
-        interactionResult.error = null;
         results.push(interactionResult);
         await testPage.close();
         continue;
@@ -218,9 +304,13 @@ export async function testSafeClickables({
       const selector = config.clickableDetection.selectors.join(', ');
       const locator = testPage.locator(selector).nth(targetIndex);
 
-      const popupPromise = testPage.waitForEvent('popup', {
-        timeout: config.interactionTesting.actionTimeoutMs
-      }).catch(() => null);
+      await locator.scrollIntoViewIfNeeded();
+
+      const popupPromise = testPage
+        .waitForEvent('popup', {
+          timeout: config.interactionTesting.actionTimeoutMs
+        })
+        .catch(() => null);
 
       await locator.click({
         timeout: config.interactionTesting.actionTimeoutMs
@@ -228,12 +318,31 @@ export async function testSafeClickables({
 
       popupPage = await popupPromise;
 
-      await waitShortlyAfterAction(testPage, config.interactionTesting.postClickDelayMs);
+      if (popupPage) {
+        try {
+          await popupPage.waitForLoadState('domcontentloaded', {
+            timeout: config.interactionTesting.actionTimeoutMs
+          });
+        } catch {
+          // ignore
+        }
+      }
+
+      await waitShortlyAfterAction(
+        testPage,
+        config.interactionTesting.postClickDelayMs
+      );
 
       const afterUrl = testPage.url();
       const afterState = await capturePageState(testPage);
-      const normalizedAfterUrl = safeNormalizeUrl(afterUrl, config.urlNormalization);
-      const normalizedBeforeUrl = safeNormalizeUrl(beforeUrl, config.urlNormalization);
+      const normalizedAfterUrl = safeNormalizeUrl(
+        afterUrl,
+        config.urlNormalization
+      );
+      const normalizedBeforeUrl = safeNormalizeUrl(
+        beforeUrl,
+        config.urlNormalization
+      );
 
       interactionResult.afterUrl = afterUrl;
       interactionResult.normalizedAfterUrl = normalizedAfterUrl;
@@ -248,7 +357,11 @@ export async function testSafeClickables({
         interactionResult.outcomeType = 'popup';
         interactionResult.success = true;
         interactionResult.reason = 'interaction opened a new tab or window';
-      } else if (normalizedBeforeUrl && normalizedAfterUrl && normalizedBeforeUrl !== normalizedAfterUrl) {
+      } else if (
+        normalizedBeforeUrl &&
+        normalizedAfterUrl &&
+        normalizedBeforeUrl !== normalizedAfterUrl
+      ) {
         interactionResult.outcomeType = 'navigation';
         interactionResult.success = true;
         interactionResult.reason = 'interaction changed the page URL';
@@ -264,6 +377,18 @@ export async function testSafeClickables({
         interactionResult.outcomeType = 'no_effect';
         interactionResult.success = false;
         interactionResult.reason = 'no visible navigation or DOM change detected';
+      }
+
+      if (shouldCaptureInteractionScreenshot(interactionResult.outcomeType, config)) {
+        const screenshotSourcePage = popupPage || testPage;
+        interactionResult.screenshotPath = await saveInteractionScreenshot({
+          page: screenshotSourcePage,
+          pageInfo,
+          clickable,
+          outcomeType: interactionResult.outcomeType,
+          interactionOrder: clickable.index,
+          config
+        });
       }
     } catch (error) {
       interactionResult.outcomeType = 'error';
@@ -290,7 +415,9 @@ export async function testSafeClickables({
   }
 
   return {
-    testedCount: results.filter((r) => r.tested && r.outcomeType !== 'skipped').length,
+    testedCount: results.filter(
+      (r) => r.tested && r.outcomeType !== 'skipped'
+    ).length,
     skippedSafeCount,
     safeInteractionResults: results
   };
