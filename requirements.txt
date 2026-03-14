@@ -1,0 +1,27 @@
+# Core HTTP client
+httpx>=0.27.0
+
+# HTML parsing
+beautifulsoup4>=4.12.3
+lxml>=5.2.2
+
+# Browser automation for JS rendering
+playwright>=1.45.0
+
+# CLI utilities (optional but useful)
+tqdm>=4.66.4
+
+# URL / robots handling
+urllib3>=2.2.2
+
+#playwright install chromium
+#python crawler_smart.py https://3afsatunisie.com/ > website_menu.json
+#python crawler_smart.py https://docs.digitalocean.com/ > website_menu.json
+#python crawler_smart.py https://developer.mozilla.org/en-US/docs/Web > website_menu.json
+#python crawler_smart.py https://stripe.com/ > website_menu.json
+#python crawler_smart.py https://fr.airbnb.com/?_set_bev_on_new_domain=1773298924_EAZjI3ZDRkMDRkYm&set_everest_cookie_on_new_domain=1773298924.EAYmZjMWE1ZmVkZTMwOG.0xVP4jUowcFrTgy_uwAByTM9YlSW4X6kn9nQrlEFZF4 > website_menu.json
+#python crawler_smart.py https://docs.github.com/fr > website_menu.json**********
+#python crawler_smart.py https://docs.python.org/3/ > website_menu.json
+#python crawler_smart.py https://docs.digitalocean.com/ > website_menu.json
+#python crawler_smart.py https://developer.mozilla.org/en-US/docs/Web > website_menu.json
+ #python crawler.py https://stripe.com/
