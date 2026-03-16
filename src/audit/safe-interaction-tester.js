@@ -163,11 +163,11 @@ async function saveInteractionScreenshot({
   const safeElementName =
     slugify(
       clickable.text ||
-      clickable.ariaLabel ||
-      clickable.title ||
-      clickable.name ||
-      clickable.tag ||
-      'element'
+        clickable.ariaLabel ||
+        clickable.title ||
+        clickable.name ||
+        clickable.tag ||
+        'element'
     ) || 'element';
 
   const fileName = [
@@ -232,204 +232,207 @@ export async function testSafeClickables({
   let interactionScreenshotsCreated = 0;
   const testedTargetUrls = new Set();
 
-  for (const clickable of safeClickables) {
-    const skipReason = shouldSkipSafeClickable(clickable, pageInfo.url, config);
+  // Reuse one page for all interaction tests of this source page
+  const testPage = await browser.newPage({
+    viewport: config.browser.viewport
+  });
 
-    if (skipReason) {
-      skippedSafeCount += 1;
-      results.push(buildSkippedResult(clickable, pageInfo.url, skipReason));
-      continue;
-    }
+  try {
+    for (const clickable of safeClickables) {
+      const skipReason = shouldSkipSafeClickable(clickable, pageInfo.url, config);
 
-    if (clickable.tag === 'a' && clickable.href) {
-      try {
-        const resolvedUrl = new URL(clickable.href, pageInfo.url).toString();
-        const normalizedTarget = safeNormalizeUrl(
-          resolvedUrl,
-          config.urlNormalization
-        );
-
-        if (normalizedTarget && testedTargetUrls.has(normalizedTarget)) {
-          skippedSafeCount += 1;
-          results.push(
-            buildSkippedResult(clickable, pageInfo.url, 'duplicate target URL skipped')
-          );
-          continue;
-        }
-
-        if (normalizedTarget) {
-          testedTargetUrls.add(normalizedTarget);
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    const testPage = await browser.newPage({
-      viewport: config.browser.viewport
-    });
-
-    let interactionResult = {
-      clickableIndex: clickable.index,
-      clickableText: clickable.text,
-      clickableTag: clickable.tag,
-      classification: clickable.classification,
-      tested: true,
-      outcomeType: 'unknown',
-      success: false,
-      reason: null,
-      beforeUrl: pageInfo.url,
-      afterUrl: null,
-      normalizedAfterUrl: null,
-      openedNewTab: false,
-      dialog: null,
-      domChanged: false,
-      screenshotPath: null,
-      error: null
-    };
-
-    let popupPage = null;
-
-    try {
-      await testPage.goto(pageInfo.url, {
-        waitUntil: config.navigation.waitUntil,
-        timeout: config.navigation.timeoutMs
-      });
-
-      if (config.navigation.postLoadDelayMs > 0) {
-        await testPage.waitForTimeout(config.navigation.postLoadDelayMs);
-      }
-
-      const beforeUrl = testPage.url();
-      const beforeState = await capturePageState(testPage);
-      const dialogTracker = await tryHandleDialog(testPage);
-
-      const freshClickables = await detectClickables(testPage, config);
-      const targetIndex = findMatchingClickableIndex(clickable, freshClickables);
-
-      if (targetIndex === -1) {
-        interactionResult.outcomeType = 'not_found';
-        interactionResult.reason = 'matching clickable not found on fresh page load';
-        results.push(interactionResult);
-        await testPage.close();
+      if (skipReason) {
+        skippedSafeCount += 1;
+        results.push(buildSkippedResult(clickable, pageInfo.url, skipReason));
         continue;
       }
 
-      const selector = config.clickableDetection.selectors.join(', ');
-      const locator = testPage.locator(selector).nth(targetIndex);
-
-      await locator.scrollIntoViewIfNeeded();
-
-      const popupPromise = testPage
-        .waitForEvent('popup', {
-          timeout: config.interactionTesting.actionTimeoutMs
-        })
-        .catch(() => null);
-
-      await locator.click({
-        timeout: config.interactionTesting.actionTimeoutMs
-      });
-
-      popupPage = await popupPromise;
-
-      if (popupPage) {
+      if (clickable.tag === 'a' && clickable.href) {
         try {
-          await popupPage.waitForLoadState('domcontentloaded', {
-            timeout: config.interactionTesting.actionTimeoutMs
-          });
+          const resolvedUrl = new URL(clickable.href, pageInfo.url).toString();
+          const normalizedTarget = safeNormalizeUrl(
+            resolvedUrl,
+            config.urlNormalization
+          );
+
+          if (normalizedTarget && testedTargetUrls.has(normalizedTarget)) {
+            skippedSafeCount += 1;
+            results.push(
+              buildSkippedResult(clickable, pageInfo.url, 'duplicate target URL skipped')
+            );
+            continue;
+          }
+
+          if (normalizedTarget) {
+            testedTargetUrls.add(normalizedTarget);
+          }
         } catch {
           // ignore
         }
       }
 
-      await waitShortlyAfterAction(
-        testPage,
-        config.interactionTesting.postClickDelayMs
-      );
+      let interactionResult = {
+        clickableIndex: clickable.index,
+        clickableText: clickable.text,
+        clickableTag: clickable.tag,
+        classification: clickable.classification,
+        tested: true,
+        outcomeType: 'unknown',
+        success: false,
+        reason: null,
+        beforeUrl: pageInfo.url,
+        afterUrl: null,
+        normalizedAfterUrl: null,
+        openedNewTab: false,
+        dialog: null,
+        domChanged: false,
+        screenshotPath: null,
+        error: null
+      };
 
-      const afterUrl = testPage.url();
-      const afterState = await capturePageState(testPage);
-      const normalizedAfterUrl = safeNormalizeUrl(
-        afterUrl,
-        config.urlNormalization
-      );
-      const normalizedBeforeUrl = safeNormalizeUrl(
-        beforeUrl,
-        config.urlNormalization
-      );
-
-      interactionResult.afterUrl = afterUrl;
-      interactionResult.normalizedAfterUrl = normalizedAfterUrl;
-      interactionResult.dialog = dialogTracker.getDialogInfo();
-      interactionResult.openedNewTab = Boolean(popupPage);
-      interactionResult.domChanged =
-        beforeState.title !== afterState.title ||
-        beforeState.textLength !== afterState.textLength ||
-        beforeState.bodyLength !== afterState.bodyLength;
-
-      if (popupPage) {
-        interactionResult.outcomeType = 'popup';
-        interactionResult.success = true;
-        interactionResult.reason = 'interaction opened a new tab or window';
-      } else if (
-        normalizedBeforeUrl &&
-        normalizedAfterUrl &&
-        normalizedBeforeUrl !== normalizedAfterUrl
-      ) {
-        interactionResult.outcomeType = 'navigation';
-        interactionResult.success = true;
-        interactionResult.reason = 'interaction changed the page URL';
-      } else if (interactionResult.domChanged) {
-        interactionResult.outcomeType = 'dom_change';
-        interactionResult.success = true;
-        interactionResult.reason = 'interaction changed page DOM without URL change';
-      } else if (interactionResult.dialog) {
-        interactionResult.outcomeType = 'dialog';
-        interactionResult.success = true;
-        interactionResult.reason = 'interaction opened a dialog';
-      } else {
-        interactionResult.outcomeType = 'no_effect';
-        interactionResult.success = false;
-        interactionResult.reason = 'no visible navigation or DOM change detected';
-      }
-
-      if (shouldCaptureInteractionScreenshot(interactionResult.outcomeType, config)) {
-        const screenshotSourcePage = popupPage || testPage;
-        interactionResult.screenshotPath = await saveInteractionScreenshot({
-          page: screenshotSourcePage,
-          pageInfo,
-          clickable,
-          outcomeType: interactionResult.outcomeType,
-          interactionOrder: clickable.index,
-          config
-        });
-
-        if (interactionResult.screenshotPath) {
-          interactionScreenshotsCreated += 1;
-        }
-      }
-    } catch (error) {
-      interactionResult.outcomeType = 'error';
-      interactionResult.success = false;
-      interactionResult.error = error.message;
-      interactionResult.reason = 'interaction threw an error';
-    } finally {
-      if (popupPage) {
-        try {
-          await popupPage.close();
-        } catch {
-          // ignore
-        }
-      }
+      let popupPage = null;
 
       try {
-        await testPage.close();
-      } catch {
-        // ignore
-      }
-    }
+        // Reload original page before each interaction to preserve isolation
+        await testPage.goto(pageInfo.url, {
+          waitUntil: config.navigation.waitUntil,
+          timeout: config.navigation.timeoutMs
+        });
 
-    results.push(interactionResult);
+        if (config.navigation.postLoadDelayMs > 0) {
+          await testPage.waitForTimeout(config.navigation.postLoadDelayMs);
+        }
+
+        const beforeUrl = testPage.url();
+        const beforeState = await capturePageState(testPage);
+        const dialogTracker = await tryHandleDialog(testPage);
+
+        const freshClickables = await detectClickables(testPage, config);
+        const targetIndex = findMatchingClickableIndex(clickable, freshClickables);
+
+        if (targetIndex === -1) {
+          interactionResult.outcomeType = 'not_found';
+          interactionResult.reason = 'matching clickable not found on fresh page load';
+          results.push(interactionResult);
+          continue;
+        }
+
+        const selector = config.clickableDetection.selectors.join(', ');
+        const locator = testPage.locator(selector).nth(targetIndex);
+
+        await locator.scrollIntoViewIfNeeded();
+
+        const popupPromise = testPage
+          .waitForEvent('popup', {
+            timeout: config.interactionTesting.actionTimeoutMs
+          })
+          .catch(() => null);
+
+        await locator.click({
+          timeout: config.interactionTesting.actionTimeoutMs
+        });
+
+        popupPage = await popupPromise;
+
+        if (popupPage) {
+          try {
+            await popupPage.waitForLoadState('domcontentloaded', {
+              timeout: config.interactionTesting.actionTimeoutMs
+            });
+          } catch {
+            // ignore
+          }
+        }
+
+        await waitShortlyAfterAction(
+          testPage,
+          config.interactionTesting.postClickDelayMs
+        );
+
+        const afterUrl = testPage.url();
+        const afterState = await capturePageState(testPage);
+        const normalizedAfterUrl = safeNormalizeUrl(
+          afterUrl,
+          config.urlNormalization
+        );
+        const normalizedBeforeUrl = safeNormalizeUrl(
+          beforeUrl,
+          config.urlNormalization
+        );
+
+        interactionResult.afterUrl = afterUrl;
+        interactionResult.normalizedAfterUrl = normalizedAfterUrl;
+        interactionResult.dialog = dialogTracker.getDialogInfo();
+        interactionResult.openedNewTab = Boolean(popupPage);
+        interactionResult.domChanged =
+          beforeState.title !== afterState.title ||
+          beforeState.textLength !== afterState.textLength ||
+          beforeState.bodyLength !== afterState.bodyLength;
+
+        if (popupPage) {
+          interactionResult.outcomeType = 'popup';
+          interactionResult.success = true;
+          interactionResult.reason = 'interaction opened a new tab or window';
+        } else if (
+          normalizedBeforeUrl &&
+          normalizedAfterUrl &&
+          normalizedBeforeUrl !== normalizedAfterUrl
+        ) {
+          interactionResult.outcomeType = 'navigation';
+          interactionResult.success = true;
+          interactionResult.reason = 'interaction changed the page URL';
+        } else if (interactionResult.domChanged) {
+          interactionResult.outcomeType = 'dom_change';
+          interactionResult.success = true;
+          interactionResult.reason = 'interaction changed page DOM without URL change';
+        } else if (interactionResult.dialog) {
+          interactionResult.outcomeType = 'dialog';
+          interactionResult.success = true;
+          interactionResult.reason = 'interaction opened a dialog';
+        } else {
+          interactionResult.outcomeType = 'no_effect';
+          interactionResult.success = false;
+          interactionResult.reason = 'no visible navigation or DOM change detected';
+        }
+
+        if (shouldCaptureInteractionScreenshot(interactionResult.outcomeType, config)) {
+          const screenshotSourcePage = popupPage || testPage;
+          interactionResult.screenshotPath = await saveInteractionScreenshot({
+            page: screenshotSourcePage,
+            pageInfo,
+            clickable,
+            outcomeType: interactionResult.outcomeType,
+            interactionOrder: clickable.index,
+            config
+          });
+
+          if (interactionResult.screenshotPath) {
+            interactionScreenshotsCreated += 1;
+          }
+        }
+      } catch (error) {
+        interactionResult.outcomeType = 'error';
+        interactionResult.success = false;
+        interactionResult.error = error.message;
+        interactionResult.reason = 'interaction threw an error';
+      } finally {
+        if (popupPage) {
+          try {
+            await popupPage.close();
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      results.push(interactionResult);
+    }
+  } finally {
+    try {
+      await testPage.close();
+    } catch {
+      // ignore
+    }
   }
 
   return {

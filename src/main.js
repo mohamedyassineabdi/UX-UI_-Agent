@@ -173,6 +173,32 @@ function summarizeRun(pageResults) {
   return aggregate;
 }
 
+async function runWithConcurrency(items, worker, concurrency) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function runner() {
+    while (true) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+
+      if (currentIndex >= items.length) {
+        return;
+      }
+
+      results[currentIndex] = await worker(items[currentIndex], currentIndex);
+    }
+  }
+
+  const runners = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    () => runner()
+  );
+
+  await Promise.all(runners);
+  return results;
+}
+
 async function main() {
   const startedAt = new Date();
 
@@ -192,42 +218,46 @@ async function main() {
   console.log(`Total pages extracted from input: ${pagesParsed.length}`);
   console.log(`Unique pages to visit: ${uniquePages.length}`);
   console.log(`Duplicates skipped: ${duplicates.length}`);
+  console.log(`Page concurrency: ${AUDIT_CONFIG.execution.pageConcurrency}`);
 
   const browserLauncher = getBrowserLauncher(AUDIT_CONFIG.browser.browserType);
   const browser = await browserLauncher.launch({
     headless: AUDIT_CONFIG.browser.headless
   });
 
-  const pageResults = [];
+  let pageResults = [];
 
   try {
-    for (let i = 0; i < uniquePages.length; i++) {
-      const pageInfo = uniquePages[i];
-      console.log(
-        `[${i + 1}/${uniquePages.length}] Visiting: ${pageInfo.name} -> ${pageInfo.url}`
-      );
-
-      const result = await runPageAudit({
-        browser,
-        pageInfo,
-        pageIndex: i,
-        config: AUDIT_CONFIG
-      });
-
-      pageResults.push(result);
-
-      if (result.status === 'success') {
-        console.log(`  Success -> screenshot saved: ${result.screenshotPath}`);
+    pageResults = await runWithConcurrency(
+      uniquePages,
+      async (pageInfo, i) => {
         console.log(
-          `  Clickables -> total: ${result.clickableSummary.totalDetected}, safe: ${result.clickableSummary.safe}, forbidden: ${result.clickableSummary.forbidden}, unknown: ${result.clickableSummary.unknown}`
+          `[${i + 1}/${uniquePages.length}] Visiting: ${pageInfo.name} -> ${pageInfo.url}`
         );
-        console.log(
-          `  Interactions -> tested: ${result.interactionSummary.tested}, success: ${result.interactionSummary.successful}, screenshots: ${result.interactionSummary.interactionScreenshotsCreated}`
-        );
-      } else {
-        console.log(`  Failed -> ${result.error}`);
-      }
-    }
+
+        const result = await runPageAudit({
+          browser,
+          pageInfo,
+          pageIndex: i,
+          config: AUDIT_CONFIG
+        });
+
+        if (result.status === 'success') {
+          console.log(`  Success -> screenshot saved: ${result.screenshotPath}`);
+          console.log(
+            `  Clickables -> total: ${result.clickableSummary.totalDetected}, safe: ${result.clickableSummary.safe}, forbidden: ${result.clickableSummary.forbidden}, unknown: ${result.clickableSummary.unknown}`
+          );
+          console.log(
+            `  Interactions -> tested: ${result.interactionSummary.tested}, success: ${result.interactionSummary.successful}, screenshots: ${result.interactionSummary.interactionScreenshotsCreated}`
+          );
+        } else {
+          console.log(`  Failed -> ${result.error}`);
+        }
+
+        return result;
+      },
+      AUDIT_CONFIG.execution.pageConcurrency
+    );
   } finally {
     await browser.close();
   }
@@ -242,6 +272,7 @@ async function main() {
     inputFile: AUDIT_CONFIG.paths.inputFile,
     browserType: AUDIT_CONFIG.browser.browserType,
     headless: AUDIT_CONFIG.browser.headless,
+    pageConcurrency: AUDIT_CONFIG.execution.pageConcurrency,
     totalPagesExtractedFromInput: pagesParsed.length,
     uniquePagesVisited: uniquePages.length,
     duplicatePagesSkipped: duplicates.length,

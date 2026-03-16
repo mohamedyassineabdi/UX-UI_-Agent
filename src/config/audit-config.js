@@ -1,7 +1,7 @@
 export const AUDIT_CONFIG = {
   browser: {
     headless: true,
-    browserType: 'chromium', // 'chromium' | 'firefox' | 'webkit'
+    browserType: 'chromium',
     viewport: {
       width: 1440,
       height: 900
@@ -9,15 +9,15 @@ export const AUDIT_CONFIG = {
   },
 
   navigation: {
-    timeoutMs: 20000,
+    timeoutMs: 15000,
     waitUntil: 'domcontentloaded',
-    postLoadDelayMs: 600
+    postLoadDelayMs: 300
   },
 
   paths: {
-    inputFile: 'input/pages.json',
-    screenshotDir: 'output/screenshots',
-    resultsDir: 'output/results'
+    inputFile: 'shared/generated/website_menu.json',
+    screenshotDir: 'shared/output/screenshots',
+    resultsDir: 'shared/output/results'
   },
 
   screenshot: {
@@ -130,10 +130,14 @@ export const AUDIT_CONFIG = {
     enabled: true,
     onlyVisible: true,
     maxSafeInteractionsPerPage: 12,
-    actionTimeoutMs: 7000,
-    postClickDelayMs: 500,
+    actionTimeoutMs: 5000,
+    postClickDelayMs: 250,
     testSamePageAnchors: false,
     skipExternalOrigins: true,
     captureSuccessfulInteractionScreenshots: true
+  },
+
+  execution: {
+    pageConcurrency: 2
   }
 };

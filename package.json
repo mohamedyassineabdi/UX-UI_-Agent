@@ -1,22 +1,9 @@
 {
-  "name": "ux-ui-auditor",
+  "name": "ux-ui-auditor-pipeline",
   "version": "1.0.0",
-  "description": "Milestone 3 for UX/UI Auditor: visit pages once, take full-page screenshots, detect and classify clickables, safely test safe interactions, write results JSON",
+  "private": true,
   "type": "module",
-  "main": "src/main.js",
   "scripts": {
-    "start": "node src/main.js",
-    "run": "node src/main.js"
-  },
-  "keywords": [
-    "playwright",
-    "ui-audit",
-    "ux-audit",
-    "automation"
-  ],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "playwright": "^1.52.0"
+    "scan": "node scripts/run-pipeline.js"
   }
 }
