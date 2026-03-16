@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib import robotparser
 from urllib.parse import urljoin, urlparse, urlunparse
-from typing import List, Dict, Any, Tuple
+
 import httpx
 from bs4 import BeautifulSoup
 from playwright.async_api import (
@@ -23,12 +23,9 @@ from playwright.async_api import (
     TimeoutError as PlaywrightTimeoutError,
     async_playwright,
 )
-import sys
-import json
-from pathlib import Path
-
 
 DEFAULT_OUTPUT_FILE = "website_menu.json"
+
 # ============================================================
 # Output safety
 # ============================================================
@@ -77,16 +74,28 @@ DEFAULT_HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
-# Only weak hints — never primary logic.
 WEAK_AUTH_HINTS = {
-    "sign in", "signin", "login", "log in",
-    "sign up", "signup", "register", "get started",
-    "contact sales", "book demo", "request demo",
+    "sign in",
+    "signin",
+    "login",
+    "log in",
+    "sign up",
+    "signup",
+    "register",
+    "get started",
+    "contact sales",
+    "book demo",
+    "request demo",
 }
 
 WEAK_UI_HINTS = {
-    "menu", "toggle navigation menu", "open menu", "close menu",
-    "search", "open search", "close search",
+    "menu",
+    "toggle navigation menu",
+    "open menu",
+    "close menu",
+    "search",
+    "open search",
+    "close search",
 }
 
 LIKELY_SIGNIN_PATHS = [
@@ -238,7 +247,6 @@ def normalize_menu_label(text: str) -> str:
     if not t:
         return ""
 
-    # remove repeated spaces and repeated halves like "Products Products"
     parts = t.split()
     if len(parts) % 2 == 0 and len(parts) >= 2:
         half = len(parts) // 2
@@ -341,7 +349,7 @@ def classify_item_type(name: str, url: Optional[str], has_popup: bool, is_button
     n = normalize_menu_label(name).lower()
 
     if weak_is_auth_or_cta(n, url):
-        if "contact sales" in n or "demo" in n or "sales" == n:
+        if "contact sales" in n or "demo" in n or n == "sales":
             return "cta"
         return "auth"
 
@@ -505,7 +513,7 @@ async def click_expandable_menu_buttons(page: Page, debug: bool) -> None:
     debug_log(debug, "Searching for expandable menu buttons")
 
     script = """
-    async () => {
+    (async () => {
       function visible(el) {
         if (!el) return false;
         const s = window.getComputedStyle(el);
@@ -559,7 +567,7 @@ async def click_expandable_menu_buttons(page: Page, debug: bool) -> None:
       }
 
       return true;
-    }
+    })()
     """
     try:
         await page.evaluate(script)
@@ -1001,7 +1009,6 @@ def build_top_level_items(base_url: str, candidate: Dict[str, Any]) -> List[Dict
 
     return cleaned
 
-
 async def extract_submenus_from_top_nav(page: Page, debug: bool) -> List[Dict[str, Any]]:
     debug_log(debug, "Extracting structured submenus from top navigation")
 
@@ -1020,14 +1027,6 @@ async def extract_submenus_from_top_nav(page: Page, debug: bool) -> List[Dict[st
 
       function cleanText(s) {
         return (s || '').replace(/\s+/g, ' ').trim();
-      }
-
-      function selectorish(el) {
-        if (!el) return '';
-        const tag = (el.tagName || '').toLowerCase();
-        const id = el.id ? '#' + el.id : '';
-        const classes = Array.from(el.classList || []).slice(0, 4).map(c => '.' + c).join('');
-        return tag + id + classes;
       }
 
       function uniqBy(items, keyFn) {
@@ -1072,75 +1071,500 @@ async def extract_submenus_from_top_nav(page: Page, debug: bool) -> List[Dict[st
         return out;
       }
 
-      function parseLinkText(raw) {
-  const text = cleanText(raw);
-  if (!text) return { name: '', description: '' };
+      function parseLinkTextFromElement(a) {
+        function uniqueTexts(values) {
+          const out = [];
+          const seen = new Set();
 
-  const lines = text.split(/\n+/).map(cleanText).filter(Boolean);
+          for (const value of values) {
+            const text = cleanText(value);
+            const key = text.toLowerCase();
+            if (!text || seen.has(key)) continue;
+            seen.add(key);
+            out.push(text);
+          }
 
-  // best case: real multiline layout
-  if (lines.length >= 2) {
-    return {
-      name: lines[0],
-      description: cleanText(lines.slice(1).join(' '))
-    };
-  }
+          return out;
+        }
 
-  // stripe / modern UI pattern:
-  // "Checkout Prebuilt payment form"
-  const tokens = text.split(' ');
+        const fullText = cleanText(a.innerText || a.textContent || '');
+        if (!fullText) {
+          return { name: '', description: '' };
+        }
 
-  if (tokens.length >= 4) {
-    const splitIndex = 1;
+        const childTexts = uniqueTexts(
+          Array.from(a.querySelectorAll('span, div, p, strong, b, small, label'))
+            .map(el => el.innerText || el.textContent || '')
+        );
 
-    const name = tokens.slice(0, splitIndex + 1).join(' ');
-    const desc = tokens.slice(splitIndex + 1).join(' ');
+        if (childTexts.length >= 2) {
+          const name = childTexts[0];
+          const description = cleanText(childTexts.slice(1).join(' '));
 
-    if (desc.length > 8) {
-      return {
-        name: name,
-        description: desc
-      };
-    }
-  }
+          if (name && description && description.toLowerCase() !== name.toLowerCase()) {
+            return { name, description };
+          }
+        }
 
-  // fallback: detect capitalized word start
-  const match = text.match(/^([A-Z][a-zA-Z0-9\-\+]+)\s(.+)$/);
+        const lines = uniqueTexts(
+          (a.innerText || a.textContent || '')
+            .split(/\n+/)
+            .map(x => cleanText(x))
+            .filter(Boolean)
+        );
 
-  if (match) {
-    return {
-      name: match[1],
-      description: match[2]
-    };
-  }
+        if (lines.length >= 2) {
+          const name = lines[0];
+          const description = cleanText(lines.slice(1).join(' '));
 
-  return {
-    name: text,
-    description: ''
-  };
-}
+          if (name && description) {
+            return { name, description };
+          }
+        }
 
-      function getVisibleLinks() {
+        return {
+          name: fullText,
+          description: ''
+        };
+      }
+
+      function getVisibleLinkElements() {
         return uniqBy(
           queryAllAcrossRoots('a[href]')
             .filter(a => visible(a))
             .map(a => {
               const r = a.getBoundingClientRect();
-              const parsed = parseLinkText(a.innerText || a.textContent || '');
+              const parsed = parseLinkTextFromElement(a);
+
               return {
+                element: a,
                 name: parsed.name,
                 description: parsed.description,
                 href: a.getAttribute('href') || '',
                 top: Math.round(r.top),
                 left: Math.round(r.left),
                 width: Math.round(r.width),
-                height: Math.round(r.height),
-                container_selector: selectorish(a.closest('[role="dialog"], [role="menu"], nav, header, aside, section, div, ul'))
+                height: Math.round(r.height)
               };
             })
             .filter(x => x.href && x.name),
           x => JSON.stringify([x.name, x.href, x.left, x.top])
         );
+      }
+
+      function diffNewLinks(beforeLinks, afterLinks) {
+        const beforeSet = new Set(
+          beforeLinks.map(x => JSON.stringify([x.name, x.href, x.left, x.top]))
+        );
+
+        return afterLinks.filter(
+          x => !beforeSet.has(JSON.stringify([x.name, x.href, x.left, x.top]))
+        );
+      }
+
+      let popupCandidateCounter = 0;
+
+      function getElementKey(el) {
+        if (!el) return '';
+
+        if (!el.dataset.menuCandidateId) {
+          popupCandidateCounter += 1;
+          el.dataset.menuCandidateId = 'menu-candidate-' + popupCandidateCounter;
+        }
+
+        return el.dataset.menuCandidateId;
+      }
+
+      function isReasonableContainer(el) {
+        if (!el) return false;
+        if (el === document.body || el === document.documentElement) return false;
+        if (!visible(el)) return false;
+
+        const r = el.getBoundingClientRect();
+
+        if (r.width < 80 || r.height < 40) return false;
+
+        if (r.width > window.innerWidth * 0.98 && r.height > window.innerHeight * 0.98) {
+          return false;
+        }
+
+        return true;
+      }
+
+      function collectAncestorCandidates(el, maxDepth = 10) {
+        const out = [];
+        let node = el ? el.parentElement : null;
+        let depth = 0;
+
+        while (node && depth < maxDepth) {
+          if (isReasonableContainer(node)) {
+            out.push(node);
+          }
+          node = node.parentElement;
+          depth += 1;
+        }
+
+        return out;
+      }
+
+      function scorePopupCandidate(container, triggerRect, newLinks) {
+        const r = container.getBoundingClientRect();
+
+        let containedLinks = 0;
+        let minTop = Infinity;
+        let maxTop = -Infinity;
+        let minLeft = Infinity;
+        let maxLeft = -Infinity;
+
+        for (const link of newLinks) {
+          const lr = link.element.getBoundingClientRect();
+
+          const inside =
+            lr.left >= r.left - 2 &&
+            lr.right <= r.right + 2 &&
+            lr.top >= r.top - 2 &&
+            lr.bottom <= r.bottom + 2;
+
+          if (inside) {
+            containedLinks += 1;
+            minTop = Math.min(minTop, lr.top);
+            maxTop = Math.max(maxTop, lr.bottom);
+            minLeft = Math.min(minLeft, lr.left);
+            maxLeft = Math.max(maxLeft, lr.right);
+          }
+        }
+
+        if (containedLinks === 0) {
+          return null;
+        }
+
+        const distanceX = Math.abs(r.left - triggerRect.left);
+        const distanceY = Math.abs(r.top - triggerRect.bottom);
+
+        const belowTrigger = r.top >= triggerRect.top - 80;
+        const nearTrigger = distanceX < 900 && distanceY < 700;
+
+        const area = r.width * r.height;
+        const viewportArea = window.innerWidth * window.innerHeight;
+
+        const compactnessWidth =
+          isFinite(minLeft) && isFinite(maxLeft) ? (maxLeft - minLeft) : r.width;
+        const compactnessHeight =
+          isFinite(minTop) && isFinite(maxTop) ? (maxTop - minTop) : r.height;
+        const compactnessArea = compactnessWidth * compactnessHeight;
+
+        let score = 0;
+
+        score += containedLinks * 10;
+
+        if (belowTrigger) score += 8;
+        if (nearTrigger) score += 6;
+
+        if (r.width >= 220) score += 4;
+        if (r.height >= 120) score += 4;
+
+        if (area < viewportArea * 0.85) score += 4;
+        if (area > viewportArea * 0.92) score -= 20;
+
+        if (compactnessArea > 0 && area / compactnessArea < 6) score += 4;
+
+        if (r.top < 0) score -= 4;
+        if (r.left < -20) score -= 4;
+
+        const role = (container.getAttribute('role') || '').toLowerCase();
+        const cls = (container.className || '').toString().toLowerCase();
+
+        if (role === 'menu' || role === 'dialog') score += 6;
+
+        if (
+          cls.includes('menu') ||
+          cls.includes('dropdown') ||
+          cls.includes('popover') ||
+          cls.includes('drawer') ||
+          cls.includes('panel') ||
+          cls.includes('nav')
+        ) {
+          score += 4;
+        }
+
+        return {
+          element: container,
+          rect: {
+            top: r.top,
+            left: r.left,
+            width: r.width,
+            height: r.height
+          },
+          containedLinks,
+          score
+        };
+      }
+
+      function findBestPopupRoot(triggerElement, beforeLinks, afterLinks) {
+        const newLinks = diffNewLinks(beforeLinks, afterLinks);
+
+        if (!newLinks.length) {
+          return {
+            popupRoot: null,
+            newLinks: []
+          };
+        }
+
+        const triggerRect = triggerElement.getBoundingClientRect();
+        const candidateMap = new Map();
+
+        for (const link of newLinks) {
+          const ancestors = collectAncestorCandidates(link.element, 10);
+
+          for (const ancestor of ancestors) {
+            const key = getElementKey(ancestor);
+            if (!candidateMap.has(key)) {
+              candidateMap.set(key, ancestor);
+            }
+          }
+        }
+
+        const scored = [];
+
+        for (const container of candidateMap.values()) {
+          const result = scorePopupCandidate(container, triggerRect, newLinks);
+          if (result) {
+            scored.push(result);
+          }
+        }
+
+        scored.sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          if (b.containedLinks !== a.containedLinks) return b.containedLinks - a.containedLinks;
+          return (a.rect.width * a.rect.height) - (b.rect.width * b.rect.height);
+        });
+
+        return {
+          popupRoot: scored.length ? scored[0].element : null,
+          newLinks
+        };
+      }
+
+      function groupLinksIntoSectionsFromRoot(popupRoot, newLinks) {
+        if (!popupRoot) return [];
+
+        function isLikelyHeading(el) {
+          if (!el || !visible(el)) return false;
+
+          const style = window.getComputedStyle(el);
+          const rect = el.getBoundingClientRect();
+          const text = cleanText(el.innerText || el.textContent || '');
+
+          if (!text) return false;
+          if (text.length < 2 || text.length > 80) return false;
+          if (rect.width < 20 || rect.height < 10) return false;
+
+          const tag = (el.tagName || '').toLowerCase();
+          if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'strong', 'b'].includes(tag)) {
+            return true;
+          }
+
+          const fontWeight = parseInt(style.fontWeight || '400', 10);
+          const fontSize = parseFloat(style.fontSize || '16');
+          const className = (el.className || '').toString().toLowerCase();
+          const fewLinksInside = el.querySelectorAll('a').length === 0;
+
+          if ((fontWeight >= 500 || fontSize >= 15) && fewLinksInside) {
+            return true;
+          }
+
+          if (
+            className.includes('title') ||
+            className.includes('heading') ||
+            className.includes('header') ||
+            className.includes('category') ||
+            className.includes('section')
+          ) {
+            return true;
+          }
+
+          return false;
+        }
+
+        function getHeadingCandidates(root) {
+          return Array.from(root.querySelectorAll('h1,h2,h3,h4,h5,h6,strong,b,p,div,span'))
+            .filter(el => isLikelyHeading(el))
+            .map(el => {
+              const r = el.getBoundingClientRect();
+              return {
+                element: el,
+                text: cleanText(el.innerText || el.textContent || ''),
+                left: Math.round(r.left),
+                right: Math.round(r.right),
+                top: Math.round(r.top),
+                bottom: Math.round(r.bottom),
+                width: Math.round(r.width),
+                height: Math.round(r.height)
+              };
+            })
+            .filter(x => x.text);
+        }
+
+        function chooseHeadingForColumn(col, headings) {
+          if (!col.links.length) {
+            return { title: '', confidence: 0 };
+          }
+
+          const colLeft = Math.min(...col.links.map(x => x.left));
+          const colRight = Math.max(...col.links.map(x => x.left + x.width));
+          const firstLinkTop = Math.min(...col.links.map(x => x.top));
+
+          let best = null;
+
+          for (const h of headings) {
+            const overlapsHorizontally =
+              h.right >= colLeft - 40 &&
+              h.left <= colRight + 40;
+
+            const aboveColumn =
+              h.bottom <= firstLinkTop + 8 &&
+              firstLinkTop - h.bottom <= 140;
+
+            if (!overlapsHorizontally || !aboveColumn) {
+              continue;
+            }
+
+            const verticalGap = Math.max(0, firstLinkTop - h.bottom);
+            const colCenter = (colLeft + colRight) / 2;
+            const headingCenter = (h.left + h.right) / 2;
+            const horizontalOffset = Math.abs(headingCenter - colCenter);
+
+            let score = 100;
+            score -= verticalGap * 1.2;
+            score -= horizontalOffset * 0.2;
+
+            if (h.width <= (colRight - colLeft) + 100) score += 8;
+            if (h.text.length <= 40) score += 5;
+            if (h.text.length >= 2 && h.text.length <= 30) score += 4;
+
+            const confidence = Math.max(0, Math.min(1, score / 100));
+
+            if (!best || confidence > best.confidence) {
+              best = {
+                title: h.text,
+                confidence
+              };
+            }
+          }
+
+          return best || { title: '', confidence: 0 };
+        }
+
+        const rootRect = popupRoot.getBoundingClientRect();
+
+        const popupLinks = newLinks.filter(link => {
+          const r = link.element.getBoundingClientRect();
+          return (
+            r.left >= rootRect.left - 2 &&
+            r.right <= rootRect.right + 2 &&
+            r.top >= rootRect.top - 2 &&
+            r.bottom <= rootRect.bottom + 2
+          );
+        });
+
+        if (popupLinks.length < 2) return [];
+
+        const columns = [];
+        const sorted = [...popupLinks].sort((a, b) => {
+          if (a.left !== b.left) return a.left - b.left;
+          return a.top - b.top;
+        });
+
+        for (const link of sorted) {
+          let col = null;
+
+          for (const existing of columns) {
+            if (Math.abs(existing.x - link.left) < 140) {
+              col = existing;
+              break;
+            }
+          }
+
+          if (!col) {
+            col = { x: link.left, links: [] };
+            columns.push(col);
+          }
+
+          col.links.push(link);
+        }
+
+        const normalizedColumns = columns
+          .map(col => ({
+            ...col,
+            links: col.links.sort((a, b) => {
+              if (a.top !== b.top) return a.top - b.top;
+              return a.left - b.left;
+            })
+          }))
+          .filter(col => col.links.length > 0)
+          .sort((a, b) => a.x - b.x);
+
+        if (!normalizedColumns.length) return [];
+
+        const headings = getHeadingCandidates(popupRoot);
+
+        const builtSections = normalizedColumns.map(col => {
+          const heading = chooseHeadingForColumn(col, headings);
+
+          const urls = uniqBy(
+            col.links.map(x => {
+              const node = {
+                name: x.name,
+                url: x.href
+              };
+
+              if (x.description && x.description.toLowerCase() !== x.name.toLowerCase()) {
+                node.description = x.description;
+              }
+
+              return node;
+            }),
+            x => JSON.stringify([x.name, x.url])
+          );
+
+          return {
+            title: heading.confidence >= 0.55 ? heading.title : 'General',
+            headingConfidence: heading.confidence,
+            urls
+          };
+        }).filter(section => section.urls.length > 0);
+
+        if (!builtSections.length) return [];
+
+        const totalLinks = builtSections.reduce((sum, s) => sum + s.urls.length, 0);
+        const sectionCount = builtSections.length;
+        const nonGeneralCount = builtSections.filter(s => s.title !== 'General').length;
+        const tinySections = builtSections.filter(s => s.urls.length <= 1).length;
+
+        const headingConfidenceAvg =
+          builtSections.reduce((sum, s) => sum + (s.headingConfidence || 0), 0) / builtSections.length;
+
+        const repeatedNonGeneralTitles =
+          builtSections
+            .filter(s => s.title !== 'General')
+            .length !==
+          new Set(
+            builtSections
+              .filter(s => s.title !== 'General')
+              .map(s => cleanText(s.title).toLowerCase())
+          ).size;
+
+        if (totalLinks < 3) return [];
+        if (sectionCount >= 3 && tinySections >= Math.ceil(sectionCount * 0.6)) return [];
+        if (repeatedNonGeneralTitles) return [];
+        if (sectionCount >= 3 && nonGeneralCount === 0) return [];
+        if (sectionCount >= 3 && headingConfidenceAvg < 0.35 && nonGeneralCount <= 1) return [];
+        if (sectionCount > 0 && totalLinks / sectionCount < 1.5) return [];
+
+        return builtSections.map(section => ({
+          title: section.title,
+          urls: section.urls
+        }));
       }
 
       function getTopCandidates() {
@@ -1191,169 +1615,6 @@ async def extract_submenus_from_top_nav(page: Page, debug: bool) -> List[Dict[st
         return uniqBy(items, x => JSON.stringify([x.name, x.href, x.left, x.top]));
       }
 
-      function getPopupContainer(beforeLinks, afterLinks, triggerRect) {
-        const beforeSet = new Set(beforeLinks.map(x => JSON.stringify([x.name, x.href, x.left, x.top])));
-        const newLinks = afterLinks.filter(x => !beforeSet.has(JSON.stringify([x.name, x.href, x.left, x.top])));
-
-        const grouped = new Map();
-        for (const link of newLinks) {
-          const key = link.container_selector || 'root';
-          if (!grouped.has(key)) {
-            grouped.set(key, {
-              selector: key,
-              count: 0,
-              minTop: link.top,
-              maxTop: link.top,
-              minLeft: link.left,
-              maxLeft: link.left
-            });
-          }
-          const g = grouped.get(key);
-          g.count += 1;
-          g.minTop = Math.min(g.minTop, link.top);
-          g.maxTop = Math.max(g.maxTop, link.top);
-          g.minLeft = Math.min(g.minLeft, link.left);
-          g.maxLeft = Math.max(g.maxLeft, link.left);
-        }
-
-        let best = null;
-        for (const g of grouped.values()) {
-          const nearX = Math.abs(g.minLeft - triggerRect.left) < 800;
-          const below = g.minTop >= triggerRect.top - 60;
-          const score = g.count + (nearX ? 2 : 0) + (below ? 1 : 0);
-          if (!best || score > best.score) {
-            best = { ...g, score };
-          }
-        }
-
-        return {
-          selector: best ? best.selector : '',
-          newLinks
-        };
-      }
-
-      function isLikelyHeading(el) {
-
-  if (!el) return false;
-
-  const style = window.getComputedStyle(el);
-  const rect = el.getBoundingClientRect();
-
-  const text = cleanText(el.innerText || el.textContent || '');
-  if (!text) return false;
-
-  if (text.length > 60) return false;
-  if (text.length < 2) return false;
-
-  const tag = (el.tagName || '').toLowerCase();
-
-  // standard headings
-  if (['h1','h2','h3','h4','h5','h6','strong','b'].includes(tag))
-    return true;
-
-  const fontWeight = parseInt(style.fontWeight || '400', 10);
-  const fontSize = parseFloat(style.fontSize || '16');
-
-  const isLargeText = fontSize >= 17;
-  const isBold = fontWeight >= 500;
-
-  const fewLinksInside = el.querySelectorAll('a').length === 0;
-
-  if ((isLargeText || isBold) && fewLinksInside)
-    return true;
-
-  const className = (el.className || '').toLowerCase();
-
-  if (
-    className.includes('title') ||
-    className.includes('heading') ||
-    className.includes('category') ||
-    className.includes('section')
-  )
-    return true;
-
-  return false;
-}
-      function groupLinksIntoSections(popupSelector, links) {
-        const popupLinks = links.filter(l => !popupSelector || l.container_selector === popupSelector);
-
-        const sorted = [...popupLinks].sort((a, b) => {
-          if (a.left !== b.left) return a.left - b.left;
-          return a.top - b.top;
-        });
-
-        const columns = [];
-        links.sort((a,b)=>a.left-b.left || a.top-b.top);
-        for (const link of sorted) {
-          let col = null;
-          for (const c of columns) {
-            if (Math.abs(c.x - link.left) < 120) {
-              col = c;
-              break;
-            }
-          }
-          if (!col) {
-            col = { x: link.left, links: [] };
-            columns.push(col);
-          }
-          col.links.push(link);
-        }
-
-        let popupEl = null;
-        if (popupSelector) {
-          popupEl = queryAllAcrossRoots('*').find(el => selectorish(el) === popupSelector) || null;
-        }
-
-        const sections = [];
-        for (const col of columns.sort((a, b) => a.x - b.x)) {
-          let title = '';
-
-          if (popupEl) {
-            const headings = Array.from(popupEl.querySelectorAll('h1,h2,h3,h4,h5,h6,strong,b,p,div,span'))
-              .filter(el => isLikelyHeading(el))
-              .map(el => {
-                const r = el.getBoundingClientRect();
-                return {
-                  text: cleanText(el.innerText || el.textContent || ''),
-                  left: Math.round(r.left),
-                  top: Math.round(r.top)
-                };
-              })
-              .filter(x => x.text);
-
-            const firstLink = col.links[0];
-            const heading = headings.find(h =>
-              Math.abs(h.left - firstLink.left) < 140 &&
-              h.top <= firstLink.top &&
-              firstLink.top - h.top < 120
-            );
-
-            if (heading) title = heading.text;
-          }
-
-          const urls = uniqBy(
-            col.links.map(l => ({
-              name: l.name,
-              description: l.description || '',
-              href: l.href,
-              top: l.top,
-              left: l.left
-            })),
-            x => JSON.stringify([x.name, x.href])
-          ).sort((a, b) => {
-            if (a.top !== b.top) return a.top - b.top;
-            return a.left - b.left;
-          });
-
-          sections.push({
-            title,
-            urls
-          });
-        }
-
-        return sections.filter(s => s.urls.length > 0);
-      }
-
       function closeOpenUI() {
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       }
@@ -1365,47 +1626,53 @@ async def extract_submenus_from_top_nav(page: Page, debug: bool) -> List[Dict[st
         closeOpenUI();
         await new Promise(r => setTimeout(r, 250));
 
-        const beforeLinks = getVisibleLinks();
+        const beforeLinks = getVisibleLinkElements();
         let interaction = null;
         let sections = [];
         let submenus = [];
+        let popupRoot = null;
+        let newLinks = [];
 
         try {
           item.element.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
           item.element.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
           await new Promise(r => setTimeout(r, 450));
 
-          let afterHover = getVisibleLinks();
-          let popup = getPopupContainer(beforeLinks, afterHover, { top: item.top, left: item.left });
-          let newLinks = popup.newLinks;
+          let afterHover = getVisibleLinkElements();
+          let popupResult = findBestPopupRoot(item.element, beforeLinks, afterHover);
+          popupRoot = popupResult.popupRoot;
+          newLinks = popupResult.newLinks;
 
-          if (newLinks.length > 0) {
+          if (popupRoot && newLinks.length > 0) {
             interaction = 'hover';
           } else if (item.has_popup || item.is_button_like || !item.href) {
             try {
               item.element.click();
               await new Promise(r => setTimeout(r, 650));
-              const afterClick = getVisibleLinks();
-              popup = getPopupContainer(beforeLinks, afterClick, { top: item.top, left: item.left });
-              newLinks = popup.newLinks;
-              if (newLinks.length > 0) interaction = 'click';
+
+              const afterClick = getVisibleLinkElements();
+              popupResult = findBestPopupRoot(item.element, beforeLinks, afterClick);
+              popupRoot = popupResult.popupRoot;
+              newLinks = popupResult.newLinks;
+
+              if (popupRoot && newLinks.length > 0) {
+                interaction = 'click';
+              }
             } catch (e) {}
           }
 
-          if (newLinks.length > 0) {
-            sections = groupLinksIntoSections(popup.selector, newLinks);
+          if (popupRoot && newLinks.length > 0) {
+            sections = groupLinksIntoSectionsFromRoot(popupRoot, newLinks);
 
             if (!sections.length) {
               submenus = uniqBy(
-                newLinks
-                  .filter(x => !popup.selector || x.container_selector === popup.selector)
-                  .map(x => ({
-                    name: x.name,
-                    description: x.description || '',
-                    href: x.href,
-                    top: x.top,
-                    left: x.left
-                  })),
+                newLinks.map(x => ({
+                  name: x.name,
+                  description: x.description || '',
+                  href: x.href,
+                  top: x.top,
+                  left: x.left
+                })),
                 x => JSON.stringify([x.name, x.href])
               );
             }
@@ -1454,7 +1721,7 @@ async def extract_submenus_from_top_nav(page: Page, debug: bool) -> List[Dict[st
 
             for u in section.get("urls", []) or []:
                 name = normalize_menu_label(u.get("name", ""))
-                url = absolute_url(page.url, u.get("href", ""))
+                url = absolute_url(page.url, u.get("url", "") or u.get("href", ""))
                 description = clean_text(u.get("description", ""))
 
                 if not name or not url:
@@ -1485,7 +1752,7 @@ async def extract_submenus_from_top_nav(page: Page, debug: bool) -> List[Dict[st
         submenus: List[Dict[str, Any]] = []
         for u in item.get("submenus", []) or []:
             name = normalize_menu_label(u.get("name", ""))
-            url = absolute_url(page.url, u.get("href", ""))
+            url = absolute_url(page.url, u.get("url", "") or u.get("href", ""))
             description = clean_text(u.get("description", ""))
 
             if not name or not url:
@@ -1517,6 +1784,8 @@ async def extract_submenus_from_top_nav(page: Page, debug: bool) -> List[Dict[st
         })
 
     return output
+
+
 def dedupe_candidates(candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     ordered = sorted(
         candidates,
@@ -1558,6 +1827,7 @@ def dedupe_candidates(candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
     return kept
 
+
 def choose_best_navbars(base_url: str, raw_candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     prepared = []
 
@@ -1574,7 +1844,7 @@ def choose_best_navbars(base_url: str, raw_candidates: List[Dict[str, Any]]) -> 
             score += 2
         if "nav" in selector_lower:
             score += 2
-        if "dialog" in selector_lower or "popup" in selector_lower or "popover" in selector_lower or "drawer" in selector_lower:
+        if any(x in selector_lower for x in ["dialog", "popup", "popover", "drawer"]):
             score -= 3
 
         prepared.append({
@@ -1671,16 +1941,14 @@ async def crawl_single_view(
         if page:
             await page.close()
 
+
 def merge_top_nav_with_submenus(
     top_items: List[Dict[str, Any]],
-    submenu_items: List[Dict[str, Any]]
+    submenu_items: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
-
     merged: List[Dict[str, Any]] = []
 
-    # index submenu items by normalized name
     submenu_map: Dict[str, Dict[str, Any]] = {}
-
     for s in submenu_items:
         name = normalize_menu_label(s.get("name", "")).lower()
         if not name:
@@ -1694,16 +1962,13 @@ def merge_top_nav_with_submenus(
         sections = item.get("sections", []) or []
         submenus = item.get("submenus", []) or []
 
-        # if submenu data exists from interaction extraction
         if key in submenu_map:
             extracted = submenu_map[key]
-
             extracted_sections = extracted.get("sections", []) or []
             extracted_submenus = extracted.get("submenus", []) or []
 
             if extracted_sections:
                 sections = extracted_sections
-
             if extracted_submenus:
                 submenus = extracted_submenus
 
@@ -1715,23 +1980,162 @@ def merge_top_nav_with_submenus(
             "submenus": submenus,
         })
 
-    # remove duplicates
     seen = set()
     cleaned = []
 
     for item in merged:
         key = (
             normalize_menu_label(item.get("name", "")).lower(),
-            (item.get("url") or "").rstrip("/")
+            (item.get("url") or "").rstrip("/"),
         )
-
         if key in seen:
             continue
-
         seen.add(key)
         cleaned.append(item)
 
     return cleaned
+
+
+def merge_sections(
+    primary: List[Dict[str, Any]],
+    secondary: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    combined = primary + secondary
+    normalized_sections: List[Dict[str, Any]] = []
+    seen_sections = set()
+
+    for section in combined:
+        title = normalize_menu_label(section.get("title", "") or "General")
+        urls = section.get("urls", []) or []
+
+        normalized_urls = []
+        seen_urls = set()
+
+        for u in urls:
+            name = normalize_menu_label(u.get("name", ""))
+            url = (u.get("url") or "").rstrip("/")
+            description = clean_text(u.get("description", ""))
+
+            if not name or not url:
+                continue
+
+            key = (name.lower(), url)
+            if key in seen_urls:
+                continue
+            seen_urls.add(key)
+
+            node = {
+                "name": name,
+                "url": url,
+            }
+            if description and description.lower() != name.lower():
+                node["description"] = description
+
+            normalized_urls.append(node)
+
+        normalized_urls = dedupe_links_prefer_shorter(normalized_urls)
+
+        if not normalized_urls:
+            continue
+
+        section_key = (
+            title.lower(),
+            tuple((x["name"].lower(), x["url"]) for x in normalized_urls),
+        )
+        if section_key in seen_sections:
+            continue
+
+        seen_sections.add(section_key)
+        normalized_sections.append({
+            "title": title or "General",
+            "urls": normalized_urls,
+        })
+
+    return normalized_sections
+
+
+def merge_submenus(
+    primary: List[Dict[str, Any]],
+    secondary: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    merged = []
+
+    for item in (primary or []) + (secondary or []):
+        name = normalize_menu_label(item.get("name", ""))
+        url = (item.get("url") or "").rstrip("/")
+        description = clean_text(item.get("description", ""))
+
+        if not name or not url:
+            continue
+
+        node = {"name": name, "url": url}
+        if description and description.lower() != name.lower():
+            node["description"] = description
+
+        merged.append(node)
+
+    return dedupe_links_prefer_shorter(merged)
+
+
+def choose_type(type_a: str, type_b: str) -> str:
+    priority = {
+        "menu": 4,
+        "auth": 3,
+        "cta": 2,
+        "link": 1,
+    }
+    return type_a if priority.get(type_a, 0) >= priority.get(type_b, 0) else type_b
+
+
+def merge_menu_lists(
+    primary: List[Dict[str, Any]],
+    secondary: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    by_key: Dict[Tuple[str, str], Dict[str, Any]] = {}
+
+    for item in (primary or []) + (secondary or []):
+        name = normalize_menu_label(item.get("name", ""))
+        url = (item.get("url") or "").rstrip("/")
+        item_type = item.get("type", "link")
+        sections = item.get("sections", []) or []
+        submenus = item.get("submenus", []) or []
+
+        if not name:
+            continue
+
+        key = (name.lower(), url)
+
+        if key not in by_key:
+            by_key[key] = {
+                "name": name,
+                "url": item.get("url"),
+                "type": item_type,
+                "sections": sections,
+                "submenus": submenus,
+            }
+            continue
+
+        existing = by_key[key]
+        existing["type"] = choose_type(existing.get("type", "link"), item_type)
+
+        if not existing.get("url") and item.get("url"):
+            existing["url"] = item.get("url")
+
+        existing["sections"] = merge_sections(
+            existing.get("sections", []) or [],
+            sections,
+        )
+
+        existing["submenus"] = merge_submenus(
+            existing.get("submenus", []) or [],
+            submenus,
+        )
+
+    merged = list(by_key.values())
+    merged.sort(key=lambda x: normalize_menu_label(x.get("name", "")).lower())
+    return merged
+
+
 def merge_nav_results(
     homepage: str,
     desktop_result: Dict[str, Any],
@@ -1743,8 +2147,7 @@ def merge_nav_results(
     desktop_main = desktop_navbars[0]["urls"] if desktop_navbars else []
     mobile_main = mobile_navbars[0]["urls"] if mobile_navbars else []
 
-    merged_main = merge_top_nav_with_submenus(desktop_main, [])
-    merged_main = merge_top_nav_with_submenus(merged_main, mobile_main)
+    merged_main = merge_menu_lists(desktop_main, mobile_main)
 
     cleaned_main: List[Dict[str, Any]] = []
     for item in merged_main:
@@ -1768,6 +2171,19 @@ def merge_nav_results(
 
         cleaned_main.append(item)
 
+    final_main = []
+    seen = set()
+
+    for item in cleaned_main:
+        key = (
+            normalize_menu_label(item.get("name", "")).lower(),
+            (item.get("url") or "").rstrip("/"),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        final_main.append(item)
+
     main_nav_score = 0.0
     if desktop_navbars:
         main_nav_score = max(main_nav_score, float(desktop_navbars[0].get("navbar_score", 0)))
@@ -1790,10 +2206,10 @@ def merge_nav_results(
             {
                 "id": 1,
                 "name": "Main Navigation",
-                "menu_count": len(cleaned_main),
+                "menu_count": len(final_main),
                 "navbar_score": round(main_nav_score, 2),
                 "container_selector": "merged(desktop+mobile)",
-                "urls": cleaned_main,
+                "urls": final_main,
             }
         ],
         "mobile_navbars": cleaned_mobile,
@@ -1801,7 +2217,7 @@ def merge_nav_results(
         "extra": {
             "desktop": desktop_result.get("extra", {}),
             "mobile": mobile_result.get("extra", {}),
-        }
+        },
     }
 
 
@@ -1883,51 +2299,34 @@ async def async_main() -> None:
         debug=args.debug,
     )
 
+    output_file = args.json_out or DEFAULT_OUTPUT_FILE
+
     try:
         result = await crawl_site(args.url, options)
-        print_json(result)
-
-        if args.json_out:
-            with open(args.json_out, "w", encoding="utf-8") as f:
-                json.dump(result, f, indent=2, ensure_ascii=False)
-
-    except PlaywrightTimeoutError:
-        print_json({"error": "Failed to crawl: timeout"})
-    except PlaywrightError as exc:
-        print_json({"error": f"Failed to crawl: browser error: {str(exc)}"})
-    except Exception as exc:
-        print_json({"error": f"Failed to crawl: {str(exc)}"})
-
-async def async_main():
-    if len(sys.argv) < 2:
-        print("Usage: python p.py <url>")
-        sys.exit(1)
-
-    url = sys.argv[1]
-
-    options = CrawlOptions(
-        timeout=25,
-        debug=False,
-    )
-
-    try:
-        result = await crawl_site(url, options)
-
-        output_file = "website_menu.json"
 
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
 
-        print(json.dumps(result, indent=2, ensure_ascii=False))
+        print_json(result)
         print(f"\nSaved to {output_file}")
 
-    except Exception as e:
-        error = {"error": f"Failed to crawl: {str(e)}"}
-
-        with open("website_menu.json", "w", encoding="utf-8") as f:
+    except PlaywrightTimeoutError:
+        error = {"error": "Failed to crawl: timeout"}
+        with open(output_file, "w", encoding="utf-8") as f:
             json.dump(error, f, indent=2, ensure_ascii=False)
+        print_json(error)
 
-        print(json.dumps(error, indent=2, ensure_ascii=False))
+    except PlaywrightError as exc:
+        error = {"error": f"Failed to crawl: browser error: {str(exc)}"}
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(error, f, indent=2, ensure_ascii=False)
+        print_json(error)
+
+    except Exception as exc:
+        error = {"error": f"Failed to crawl: {str(exc)}"}
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(error, f, indent=2, ensure_ascii=False)
+        print_json(error)
 
 
 def main() -> None:
