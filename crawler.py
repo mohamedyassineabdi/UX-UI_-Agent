@@ -82,10 +82,16 @@ WEAK_AUTH_HINTS = {
     "sign up",
     "signup",
     "register",
+    "create account",
+}
+
+WEAK_CTA_HINTS = {
     "get started",
+    "start now",
     "contact sales",
     "book demo",
     "request demo",
+    "talk to sales",
 }
 
 WEAK_UI_HINTS = {
@@ -182,7 +188,48 @@ class RobotsInfo:
 # Helpers
 # ============================================================
 
+def weak_is_auth(name: str, url: Optional[str]) -> bool:
+    n = normalize_menu_label(name).lower()
+    u = (url or "").lower()
 
+    if n in WEAK_AUTH_HINTS:
+        return True
+
+    if any(x in n for x in WEAK_AUTH_HINTS):
+        return True
+
+    return any(
+        path in u
+        for path in [
+            "/login",
+            "/signin",
+            "/sign-in",
+            "/register",
+            "/signup",
+            "/sign-up",
+            "/create-account",
+        ]
+    )
+
+
+def weak_is_cta(name: str, url: Optional[str]) -> bool:
+    n = normalize_menu_label(name).lower()
+    u = (url or "").lower()
+
+    if n in WEAK_CTA_HINTS:
+        return True
+
+    if any(x in n for x in WEAK_CTA_HINTS):
+        return True
+
+    return any(
+        path in u
+        for path in [
+            "/contact/sales",
+            "/book-demo",
+            "/request-demo",
+        ]
+    )
 def debug_log(enabled: bool, message: str) -> None:
     if enabled:
         print(f"[DEBUG] {message}", file=sys.stderr)
@@ -201,7 +248,37 @@ def normalize_url(url: str) -> str:
     normalized = urlunparse((scheme, netloc, path, "", "", ""))
     return normalized.rstrip("/") if path == "/" else normalized
 
+def force_english_url(url: Optional[str]) -> Optional[str]:
+    if not url:
+        return url
 
+    parsed = urlparse(url)
+    path = parsed.path or "/"
+
+    # Remove leading locale segment like /de/, /fr/, /es/, /it/, etc.
+    parts = path.split("/")
+
+    if len(parts) > 1:
+        first = parts[1].lower()
+
+        # /de or /de/
+        if re.fullmatch(r"[a-z]{2}", first):
+            parts = [""] + parts[2:]
+            path = "/".join(parts) or "/"
+
+        # /de-de or /en-us
+        elif re.fullmatch(r"[a-z]{2}-[a-z]{2}", first):
+            parts = [""] + parts[2:]
+            path = "/".join(parts) or "/"
+
+    return urlunparse((
+        parsed.scheme,
+        parsed.netloc,
+        path,
+        parsed.params,
+        parsed.query,
+        parsed.fragment,
+    ))
 def absolute_url(base_url: str, href: str) -> Optional[str]:
     if not href:
         return None
@@ -318,46 +395,17 @@ def weak_is_ui_control(name: str) -> bool:
     n = normalize_menu_label(name).lower()
     return n in WEAK_UI_HINTS or n.startswith("toggle ") or n.endswith(" menu")
 
-
-def weak_is_auth_or_cta(name: str, url: Optional[str]) -> bool:
-    n = normalize_menu_label(name).lower()
-    u = (url or "").lower()
-
-    if n in WEAK_AUTH_HINTS:
-        return True
-
-    if any(x in n for x in WEAK_AUTH_HINTS):
-        return True
-
-    return any(
-        path in u
-        for path in [
-            "/login",
-            "/signin",
-            "/sign-in",
-            "/register",
-            "/signup",
-            "/sign-up",
-            "/contact/sales",
-            "/book-demo",
-            "/request-demo",
-        ]
-    )
-
-
 def classify_item_type(name: str, url: Optional[str], has_popup: bool, is_button_like: bool) -> str:
-    n = normalize_menu_label(name).lower()
+    if weak_is_cta(name, url):
+        return "cta"
 
-    if weak_is_auth_or_cta(n, url):
-        if "contact sales" in n or "demo" in n or n == "sales":
-            return "cta"
+    if weak_is_auth(name, url):
         return "auth"
 
     if has_popup or is_button_like or not url:
         return "menu"
 
     return "link"
-
 
 def score_top_candidate(item: Dict[str, Any]) -> int:
     score = 0
@@ -450,7 +498,14 @@ async def guess_sitemap(
 # Playwright helpers
 # ============================================================
 
-
+async def get_page_language(page: Page) -> str:
+    try:
+        lang = await page.evaluate(
+            "() => document.documentElement.lang || navigator.language || 'unknown'"
+        )
+        return clean_text(lang) or "unknown"
+    except Exception:
+        return "unknown"
 async def wait_for_settle(page: Page, timeout_ms: int, debug: bool) -> None:
     debug_log(debug, "Waiting for DOM content loaded")
     await page.wait_for_load_state("domcontentloaded", timeout=timeout_ms)
@@ -660,6 +715,10 @@ async def verify_auth_candidate(
     try:
         debug_log(debug, f"Verifying auth candidate: {url}")
         page = await context.new_page()
+        await page.add_init_script("""
+        Object.defineProperty(navigator, 'language', { get: () => 'en-US' });
+        Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+        """)
         page.set_default_timeout(timeout * 1000)
         await page.goto(url, wait_until="domcontentloaded", timeout=timeout * 1000)
         await wait_for_settle(page, timeout * 1000, debug)
@@ -959,7 +1018,7 @@ def build_top_level_items(base_url: str, candidate: Dict[str, Any]) -> List[Dict
     for item in raw:
         name = normalize_menu_label(item.get("name", "") or item.get("aria_label", "") or item.get("title", ""))
         url = absolute_url(base_url, item.get("href", "")) if item.get("href") else None
-
+        url = force_english_url(url)
         if not name:
             continue
         if weak_is_ui_control(name):
@@ -974,9 +1033,13 @@ def build_top_level_items(base_url: str, candidate: Dict[str, Any]) -> List[Dict
         node = {
             "name": name,
             "url": url,
-            "type": classify_item_type(name, url, bool(item.get("has_popup")), bool(item.get("is_button_like"))),
-            "sections": [],
-            "submenus": [],
+            "type": classify_item_type(
+                name,
+                url,
+                bool(item.get("has_popup")),
+                bool(item.get("is_button_like")),
+            ),
+            "children": [],
             "top_row": bool(item.get("first_level_like")),
             "in_header": safe_int(rect.get("y", 9999)) < 260 or "header" in selector.lower() or "nav" in selector.lower(),
             "has_popup": bool(item.get("has_popup")),
@@ -1008,7 +1071,69 @@ def build_top_level_items(base_url: str, candidate: Dict[str, Any]) -> List[Dict
         cleaned.append(item)
 
     return cleaned
+def build_children_from_sections_and_links(
+    sections: List[Dict[str, Any]],
+    submenus: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    children: List[Dict[str, Any]] = []
 
+    for section in sections:
+        section_title = normalize_menu_label(section.get("title", "") or "General")
+        section_links = []
+
+        for u in section.get("urls", []) or []:
+            name = normalize_menu_label(u.get("name", ""))
+            url = u.get("url")
+            description = clean_text(u.get("description", ""))
+
+            if not name or not url:
+                continue
+
+            node = {
+                "name": name,
+                "type": "link",
+                "url": url,
+            }
+            if description and description.lower() != name.lower():
+                node["description"] = description
+
+            section_links.append(node)
+
+        if section_links:
+            children.append({
+                "name": section_title,
+                "type": "section",
+                "children": dedupe_links_prefer_shorter(section_links),
+            })
+
+    if submenus:
+        loose_links = []
+        for u in submenus:
+            name = normalize_menu_label(u.get("name", ""))
+            url = u.get("url")
+            description = clean_text(u.get("description", ""))
+
+            if not name or not url:
+                continue
+
+            node = {
+                "name": name,
+                "type": "link",
+                "url": url,
+            }
+            if description and description.lower() != name.lower():
+                node["description"] = description
+
+            loose_links.append(node)
+
+        if loose_links:
+            children.append({
+                "name": "General",
+                "type": "section",
+                "children": dedupe_links_prefer_shorter(loose_links),
+            })
+
+    return children
 async def extract_submenus_from_top_nav(page: Page, debug: bool) -> List[Dict[str, Any]]:
     debug_log(debug, "Extracting structured submenus from top navigation")
 
@@ -1708,7 +1833,7 @@ async def extract_submenus_from_top_nav(page: Page, debug: bool) -> List[Dict[st
     for item in raw or []:
         parent_name = normalize_menu_label(item.get("name", ""))
         parent_url = absolute_url(page.url, item.get("href", "")) if item.get("href") else None
-
+        parent_url = force_english_url(parent_url)
         if not parent_name:
             continue
         if weak_is_ui_control(parent_name):
@@ -1722,13 +1847,14 @@ async def extract_submenus_from_top_nav(page: Page, debug: bool) -> List[Dict[st
             for u in section.get("urls", []) or []:
                 name = normalize_menu_label(u.get("name", ""))
                 url = absolute_url(page.url, u.get("url", "") or u.get("href", ""))
+                url = force_english_url(url)
                 description = clean_text(u.get("description", ""))
 
                 if not name or not url:
                     continue
                 if weak_is_ui_control(name):
                     continue
-                if weak_is_auth_or_cta(name, url):
+                if weak_is_auth(name, url) or weak_is_cta(name, url):
                     continue
                 if looks_like_bad_menu_url(url):
                     continue
@@ -1753,13 +1879,14 @@ async def extract_submenus_from_top_nav(page: Page, debug: bool) -> List[Dict[st
         for u in item.get("submenus", []) or []:
             name = normalize_menu_label(u.get("name", ""))
             url = absolute_url(page.url, u.get("url", "") or u.get("href", ""))
+            url = force_english_url(url)
             description = clean_text(u.get("description", ""))
 
             if not name or not url:
                 continue
             if weak_is_ui_control(name):
                 continue
-            if weak_is_auth_or_cta(name, url):
+            if weak_is_auth(name, url) or weak_is_cta(name, url):
                 continue
             if looks_like_bad_menu_url(url):
                 continue
@@ -1775,12 +1902,13 @@ async def extract_submenus_from_top_nav(page: Page, debug: bool) -> List[Dict[st
 
         submenus = dedupe_links_prefer_shorter(submenus)
 
+        children = build_children_from_sections_and_links(sections, submenus)
+
         output.append({
             "name": parent_name,
             "url": parent_url,
             "interaction": item.get("interaction"),
-            "sections": sections,
-            "submenus": submenus,
+            "children": children,
         })
 
     return output
@@ -1904,7 +2032,7 @@ async def crawl_single_view(
 
         await try_accept_cookies(page, options.debug)
         await click_expandable_menu_buttons(page, options.debug)
-
+        page_language = await get_page_language(page)
         html = await get_page_html(page)
         page_metrics = await get_page_metrics(page)
         internal_links, external_links = await count_internal_external_links(page, homepage)
@@ -1935,6 +2063,7 @@ async def crawl_single_view(
                 "page_size_kb": round(len(html.encode("utf-8")) / 1024, 2),
                 "images_found": safe_int(page_metrics.get("images", 0)),
                 "mode": "mobile" if mobile else "desktop",
+                "page_language": page_language,
             },
         }
     finally:
@@ -1959,25 +2088,19 @@ def merge_top_nav_with_submenus(
         name = normalize_menu_label(item.get("name", ""))
         key = name.lower()
 
-        sections = item.get("sections", []) or []
-        submenus = item.get("submenus", []) or []
+        children = item.get("children", []) or []
 
         if key in submenu_map:
             extracted = submenu_map[key]
-            extracted_sections = extracted.get("sections", []) or []
-            extracted_submenus = extracted.get("submenus", []) or []
-
-            if extracted_sections:
-                sections = extracted_sections
-            if extracted_submenus:
-                submenus = extracted_submenus
+            extracted_children = extracted.get("children", []) or []
+            if extracted_children:
+                children = extracted_children
 
         merged.append({
             "name": name,
             "url": item.get("url"),
             "type": item.get("type", "link"),
-            "sections": sections,
-            "submenus": submenus,
+            "children": children,
         })
 
     seen = set()
@@ -1995,88 +2118,51 @@ def merge_top_nav_with_submenus(
 
     return cleaned
 
-
-def merge_sections(
+def merge_children(
     primary: List[Dict[str, Any]],
     secondary: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
-    combined = primary + secondary
-    normalized_sections: List[Dict[str, Any]] = []
-    seen_sections = set()
-
-    for section in combined:
-        title = normalize_menu_label(section.get("title", "") or "General")
-        urls = section.get("urls", []) or []
-
-        normalized_urls = []
-        seen_urls = set()
-
-        for u in urls:
-            name = normalize_menu_label(u.get("name", ""))
-            url = (u.get("url") or "").rstrip("/")
-            description = clean_text(u.get("description", ""))
-
-            if not name or not url:
-                continue
-
-            key = (name.lower(), url)
-            if key in seen_urls:
-                continue
-            seen_urls.add(key)
-
-            node = {
-                "name": name,
-                "url": url,
-            }
-            if description and description.lower() != name.lower():
-                node["description"] = description
-
-            normalized_urls.append(node)
-
-        normalized_urls = dedupe_links_prefer_shorter(normalized_urls)
-
-        if not normalized_urls:
-            continue
-
-        section_key = (
-            title.lower(),
-            tuple((x["name"].lower(), x["url"]) for x in normalized_urls),
-        )
-        if section_key in seen_sections:
-            continue
-
-        seen_sections.add(section_key)
-        normalized_sections.append({
-            "title": title or "General",
-            "urls": normalized_urls,
-        })
-
-    return normalized_sections
-
-
-def merge_submenus(
-    primary: List[Dict[str, Any]],
-    secondary: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
-    merged = []
+    by_key: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
 
     for item in (primary or []) + (secondary or []):
         name = normalize_menu_label(item.get("name", ""))
+        item_type = item.get("type", "link")
         url = (item.get("url") or "").rstrip("/")
-        description = clean_text(item.get("description", ""))
-
-        if not name or not url:
+        url = url.rstrip("/")
+        if not name:
             continue
 
-        node = {"name": name, "url": url}
-        if description and description.lower() != name.lower():
-            node["description"] = description
+        key = (name.lower(), item_type, url)
 
-        merged.append(node)
+        if key not in by_key:
+            by_key[key] = {
+                "name": name,
+                "type": item_type,
+            }
+            if item.get("url"):
+                by_key[key]["url"] = item.get("url")
+            if item.get("description"):
+                by_key[key]["description"] = clean_text(item.get("description", ""))
+            if item.get("children"):
+                by_key[key]["children"] = item.get("children", [])
+            continue
 
-    return dedupe_links_prefer_shorter(merged)
+        existing = by_key[key]
 
+        if not existing.get("url") and item.get("url"):
+            existing["url"] = item.get("url")
 
+        if not existing.get("description") and item.get("description"):
+            existing["description"] = clean_text(item.get("description", ""))
+
+        existing["children"] = merge_children(
+            existing.get("children", []) or [],
+            item.get("children", []) or [],
+        )
+
+    merged = list(by_key.values())
+    merged.sort(key=lambda x: (x.get("type", ""), x.get("name", "").lower()))
+    return merged
 def choose_type(type_a: str, type_b: str) -> str:
     priority = {
         "menu": 4,
@@ -2085,7 +2171,6 @@ def choose_type(type_a: str, type_b: str) -> str:
         "link": 1,
     }
     return type_a if priority.get(type_a, 0) >= priority.get(type_b, 0) else type_b
-
 
 def merge_menu_lists(
     primary: List[Dict[str, Any]],
@@ -2097,8 +2182,7 @@ def merge_menu_lists(
         name = normalize_menu_label(item.get("name", ""))
         url = (item.get("url") or "").rstrip("/")
         item_type = item.get("type", "link")
-        sections = item.get("sections", []) or []
-        submenus = item.get("submenus", []) or []
+        children = item.get("children", []) or []
 
         if not name:
             continue
@@ -2110,8 +2194,7 @@ def merge_menu_lists(
                 "name": name,
                 "url": item.get("url"),
                 "type": item_type,
-                "sections": sections,
-                "submenus": submenus,
+                "children": children,
             }
             continue
 
@@ -2121,20 +2204,14 @@ def merge_menu_lists(
         if not existing.get("url") and item.get("url"):
             existing["url"] = item.get("url")
 
-        existing["sections"] = merge_sections(
-            existing.get("sections", []) or [],
-            sections,
-        )
-
-        existing["submenus"] = merge_submenus(
-            existing.get("submenus", []) or [],
-            submenus,
+        existing["children"] = merge_children(
+            existing.get("children", []) or [],
+            children,
         )
 
     merged = list(by_key.values())
     merged.sort(key=lambda x: normalize_menu_label(x.get("name", "")).lower())
     return merged
-
 
 def merge_nav_results(
     homepage: str,
@@ -2161,13 +2238,11 @@ def merge_nav_results(
             continue
         if is_homepage_url(homepage, url or "") and name.lower() != "home":
             continue
-
-        if item_type == "menu" and not item.get("sections") and not item.get("submenus"):
+        if item_type == "menu" and not item.get("children"):
             continue
 
-        if item_type in {"auth", "cta"}:
-            item["sections"] = []
-            item["submenus"] = []
+        if item_type in {"auth", "cta", "link"}:
+            item["children"] = []
 
         cleaned_main.append(item)
 
@@ -2193,37 +2268,36 @@ def merge_nav_results(
     signin = desktop_result.get("auth", {}).get("signin") or mobile_result.get("auth", {}).get("signin")
     signup = desktop_result.get("auth", {}).get("signup") or mobile_result.get("auth", {}).get("signup")
 
-    cleaned_mobile = mobile_navbars[:1]
-    cleaned_desktop = desktop_navbars[:1]
 
     return {
         "homepage": homepage,
+        "language": (
+            desktop_result.get("extra", {}).get("page_language")
+            or mobile_result.get("extra", {}).get("page_language")
+            or "unknown"
+        ),
         "auth": {
             "signin": signin,
             "signup": signup,
         },
-        "navbars": [
-            {
-                "id": 1,
-                "name": "Main Navigation",
-                "menu_count": len(final_main),
-                "navbar_score": round(main_nav_score, 2),
-                "container_selector": "merged(desktop+mobile)",
-                "urls": final_main,
-            }
-        ],
-        "mobile_navbars": cleaned_mobile,
-        "desktop_navbars": cleaned_desktop,
+        "navigation": final_main,
         "extra": {
             "desktop": desktop_result.get("extra", {}),
             "mobile": mobile_result.get("extra", {}),
+            "menu_count": len(final_main),
+            "navbar_score": round(main_nav_score, 2),
+            "source_container": "merged(desktop+mobile)",
         },
     }
-
+    
 
 async def crawl_site(homepage: str, options: CrawlOptions) -> Dict[str, Any]:
+   
     start_time = time.perf_counter()
     homepage = normalize_url(homepage)
+    homepage = force_english_url(homepage) or homepage
+    parsed = urlparse(homepage)
+    homepage = f"{parsed.scheme}://{parsed.netloc}/"
     user_agent = random.choice(USER_AGENTS)
 
     debug_log(options.debug, f"Normalized homepage: {homepage}")
@@ -2241,22 +2315,28 @@ async def crawl_site(homepage: str, options: CrawlOptions) -> Dict[str, Any]:
             browser: Browser = await pw.chromium.launch(headless=True)
 
             desktop_context = await browser.new_context(
-                user_agent=user_agent,
-                locale="en-US",
-                extra_http_headers={**DEFAULT_HEADERS, "Accept-Language": "en-US,en;q=0.9"},
-                viewport={"width": 1440, "height": 1200},
-                java_script_enabled=True,
-                is_mobile=False,
-            )
+            user_agent=user_agent,
+            locale="en-US",
+            extra_http_headers={
+                **DEFAULT_HEADERS,
+                "Accept-Language": "en-US,en;q=1",
+            },
+            viewport={"width": 1440, "height": 1200},
+            java_script_enabled=True,
+            is_mobile=False,
+             )
 
             mobile_context = await browser.new_context(
-                user_agent=user_agent,
-                locale="en-US",
-                extra_http_headers={**DEFAULT_HEADERS, "Accept-Language": "en-US,en;q=0.9"},
-                viewport={"width": 390, "height": 844},
-                java_script_enabled=True,
-                is_mobile=True,
-                has_touch=True,
+            user_agent=user_agent,
+            locale="en-US",
+            extra_http_headers={
+                **DEFAULT_HEADERS,
+                "Accept-Language": "en-US,en;q=1",
+            },
+            viewport={"width": 390, "height": 844},
+            java_script_enabled=True,
+            is_mobile=True,
+            has_touch=True,
             )
 
             try:
@@ -2264,10 +2344,18 @@ async def crawl_site(homepage: str, options: CrawlOptions) -> Dict[str, Any]:
                 mobile_result = await crawl_single_view(mobile_context, homepage, options, mobile=True)
 
                 merged = merge_nav_results(homepage, desktop_result, mobile_result)
+                requested_language = "en-US"
+                merged["requested_language"] = requested_language
+                detected_language = merged.get("language", "unknown")
+
+                if detected_language.lower() not in {"en", "en-us", "en-gb"}:
+                    merged["language_warning"] = (
+                        f"Requested English, but detected page language was {detected_language}."
+                )
                 merged["extra"].update({
-                    "sitemap_found": sitemap_url,
-                    "robots_txt": robots_info.robots_url,
-                    "crawl_time_ms": int((time.perf_counter() - start_time) * 1000),
+                "sitemap_found": sitemap_url,
+                "robots_txt": robots_info.robots_url,
+                "crawl_time_ms": int((time.perf_counter() - start_time) * 1000),
                 })
                 return merged
             finally:
