@@ -1,7 +1,14 @@
 from src.audit.element_detector import detect_clickables
 from src.audit.interaction_classifier import classify_clickables, summarize_classification
+from src.audit.page_visit_helpers import (
+    collect_network_log,
+    dismiss_cookie_banners,
+    extract_basic_page_info,
+    save_dom_snapshot,
+    smart_scroll,
+)
 from src.audit.safe_interaction_tester import test_safe_clickables
-from src.utils.file_utils import ensure_dir, join_path
+from src.utils.file_utils import ensure_dir, join_path, write_json_file
 from src.utils.url_utils import build_page_folder_name, build_website_folder_name
 
 
@@ -54,11 +61,22 @@ async def run_page_audit(*, context, page_info, page_index, config):
         },
         "clickables": [],
         "safeInteractionResults": [],
+        "cookieActions": [],
+        "scrollScreenshotPaths": [],
+        "pageMetadata": None,
+        "networkLogPath": None,
+        "pageMetadataPath": None,
+        "domSnapshotPath": None,
         "error": None,
     }
 
     try:
         ensure_dir(page_folder_path)
+        scroll_screenshots_dir = join_path(page_folder_path, "scrolls")
+        ensure_dir(scroll_screenshots_dir)
+
+        network_log = []
+        collect_network_log(page, network_log)
 
         await page.goto(
             page_info["url"],
@@ -71,6 +89,26 @@ async def run_page_audit(*, context, page_info, page_index, config):
 
         result["finalUrl"] = page.url
 
+        if config.get("pageCapture", {}).get("dismissCookieBanners"):
+            result["cookieActions"] = await dismiss_cookie_banners(page)
+
+        if config.get("pageCapture", {}).get("captureScrollScreenshots"):
+            result["scrollScreenshotPaths"] = await smart_scroll(
+                page=page,
+                screenshots_dir=scroll_screenshots_dir,
+                page_label=page_info["name"],
+                screenshot_type=config["screenshot"]["type"],
+                max_rounds=config.get("pageCapture", {}).get("scrollMaxRounds", 4),
+            )
+
+        result["pageMetadata"] = await extract_basic_page_info(page, page_info["url"])
+        result["finalUrl"] = result["pageMetadata"]["finalUrl"] or result["finalUrl"]
+
+        if config.get("pageCapture", {}).get("saveDomSnapshot"):
+            dom_snapshot_path = join_path(page_folder_path, "dom_snapshot.html")
+            await save_dom_snapshot(page, dom_snapshot_path)
+            result["domSnapshotPath"] = dom_snapshot_path
+
         screenshot_path = join_path(page_folder_path, f"page.{config['screenshot']['type']}")
         await page.screenshot(
             path=screenshot_path,
@@ -78,6 +116,23 @@ async def run_page_audit(*, context, page_info, page_index, config):
             type=config["screenshot"]["type"],
         )
         result["screenshotPath"] = screenshot_path
+
+        page_metadata_path = join_path(page_folder_path, "page_metadata.json")
+        result["pageMetadataPath"] = page_metadata_path
+        write_json_file(
+            page_metadata_path,
+            {
+                **(result["pageMetadata"] or {}),
+                "cookieActions": result["cookieActions"],
+                "scrollScreenshotPaths": result["scrollScreenshotPaths"],
+                "pageScreenshotPath": result["screenshotPath"],
+            },
+        )
+
+        if config.get("pageCapture", {}).get("saveNetworkLog"):
+            network_log_path = join_path(page_folder_path, "network_log.json")
+            write_json_file(network_log_path, network_log)
+            result["networkLogPath"] = network_log_path
 
         detected_clickables = await detect_clickables(page, config)
         classified_clickables = classify_clickables(detected_clickables, config)
@@ -120,6 +175,14 @@ async def run_page_audit(*, context, page_info, page_index, config):
     except Exception as error:
         result["status"] = "failed"
         result["error"] = str(error)
+        write_json_file(
+            join_path(page_folder_path, "page_error.json"),
+            {
+                "name": page_info["name"],
+                "url": page_info["url"],
+                "error": str(error),
+            },
+        )
     finally:
         await page.close()
 

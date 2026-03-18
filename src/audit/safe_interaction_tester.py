@@ -4,6 +4,7 @@ from urllib.parse import urljoin
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 from src.audit.element_detector import detect_clickables
+from src.audit.page_visit_helpers import dismiss_cookie_banners
 from src.utils.file_utils import ensure_dir, join_path
 from src.utils.url_utils import (
     build_page_folder_name,
@@ -313,6 +314,9 @@ async def test_safe_clickables(*, context, page_info, classified_clickables, con
 
                 if config["navigation"]["postLoadDelayMs"] > 0:
                     await test_page.wait_for_timeout(config["navigation"]["postLoadDelayMs"])
+
+                if config.get("pageCapture", {}).get("dismissCookieBanners"):
+                    await dismiss_cookie_banners(test_page)
 
                 before_url = test_page.url
                 before_state = await capture_page_state(test_page)

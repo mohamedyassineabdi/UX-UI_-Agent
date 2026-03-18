@@ -1,7 +1,9 @@
 AUDIT_CONFIG = {
     "browser": {
-        "headless": True,
+        "headless": False,
         "browserType": "chromium",
+        "channel": "chrome",
+        "slowMoMs": 120,
         "ignoreHttpsErrors": True,
         "viewport": {
             "width": 1440,
@@ -21,6 +23,13 @@ AUDIT_CONFIG = {
     "screenshot": {
         "fullPage": True,
         "type": "png",
+    },
+    "pageCapture": {
+        "dismissCookieBanners": True,
+        "captureScrollScreenshots": True,
+        "scrollMaxRounds": 4,
+        "saveDomSnapshot": True,
+        "saveNetworkLog": True,
     },
     "urlNormalization": {
         "removeHash": True,
@@ -129,6 +138,6 @@ AUDIT_CONFIG = {
         "captureSuccessfulInteractionScreenshots": True,
     },
     "execution": {
-        "pageConcurrency": 2,
+        "pageConcurrency": 5,
     },
 }

@@ -22,8 +22,19 @@ def read_json_file(file_path):
 
 
 def write_json_file(file_path, data):
+    parent_dir = os.path.dirname(file_path)
+    if parent_dir:
+        ensure_dir(parent_dir)
     with open(file_path, "w", encoding="utf-8") as file:
         json.dump(data, file, indent=2, ensure_ascii=False)
+
+
+def write_text_file(file_path, content):
+    parent_dir = os.path.dirname(file_path)
+    if parent_dir:
+        ensure_dir(parent_dir)
+    with open(file_path, "w", encoding="utf-8") as file:
+        file.write(content)
 
 
 def build_timestamp_for_file_name(date=None):

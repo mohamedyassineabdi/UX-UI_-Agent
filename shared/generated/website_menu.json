@@ -555,7 +555,7 @@
       "total_internal_links": 195,
       "external_links": 7,
       "title": "Stripe | Financial Infrastructure to Grow Your Revenue",
-      "page_size_kb": 881.83,
+      "page_size_kb": 881.89,
       "images_found": 50,
       "mode": "desktop",
       "page_language": "en-US"
@@ -565,7 +565,7 @@
       "total_internal_links": 200,
       "external_links": 13,
       "title": "Stripe | Financial Infrastructure to Grow Your Revenue",
-      "page_size_kb": 1046.42,
+      "page_size_kb": 1046.35,
       "images_found": 60,
       "mode": "mobile",
       "page_language": "en-US"
@@ -575,7 +575,7 @@
     "source_container": "merged(desktop+mobile)",
     "sitemap_found": "https://stripe.com/sitemap/sitemap.xml",
     "robots_txt": "https://stripe.com/robots.txt",
-    "crawl_time_ms": 52730
+    "crawl_time_ms": 52121
   },
   "requested_language": "en-US"
 }

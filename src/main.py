@@ -317,6 +317,30 @@ def get_browser_launcher(playwright, browser_type: str):
     return playwright.chromium
 
 
+async def launch_browser(playwright, config: Dict[str, Any]):
+    browser_launcher = get_browser_launcher(playwright, config["browser"]["browserType"])
+    launch_options: Dict[str, Any] = {
+        "headless": config["browser"]["headless"],
+        "slow_mo": config["browser"].get("slowMoMs", 0),
+    }
+
+    channel = config["browser"].get("channel")
+    if channel and config["browser"]["browserType"] == "chromium":
+        launch_options["channel"] = channel
+
+    try:
+        return await browser_launcher.launch(**launch_options)
+    except Exception as error:
+        if "channel" not in launch_options:
+            raise
+
+        fallback_options = {key: value for key, value in launch_options.items() if key != "channel"}
+        print(
+            f"Chrome channel launch failed ({error}). Falling back to Playwright Chromium."
+        )
+        return await browser_launcher.launch(**fallback_options)
+
+
 async def async_main():
     started_at = datetime.now()
 
@@ -334,47 +358,57 @@ async def async_main():
     print(f"Total pages extracted from input: {len(pages_parsed)}")
     print(f"Unique pages to visit: {len(unique_pages)}")
     print(f"Duplicates skipped: {len(duplicates)}")
+    print(
+        "Browser mode: "
+        f"{'visible' if not AUDIT_CONFIG['browser']['headless'] else 'headless'} "
+        f"{AUDIT_CONFIG['browser'].get('channel') or AUDIT_CONFIG['browser']['browserType']}"
+    )
     print(f"Page concurrency: {AUDIT_CONFIG['execution']['pageConcurrency']}")
 
     async with async_playwright() as playwright:
-        browser_launcher = get_browser_launcher(playwright, AUDIT_CONFIG["browser"]["browserType"])
         browser = None
         context = None
 
-        browser = await browser_launcher.launch(headless=AUDIT_CONFIG["browser"]["headless"])
+        browser = await launch_browser(playwright, AUDIT_CONFIG)
         context = await browser.new_context(
             viewport=AUDIT_CONFIG["browser"]["viewport"],
             ignore_https_errors=AUDIT_CONFIG["browser"].get("ignoreHttpsErrors", False),
         )
 
         try:
+            progress = {"completed": 0}
+
             async def worker(page_info, index):
-                print(f"[{index + 1}/{len(unique_pages)}] Visiting: {page_info['name']} -> {page_info['url']}")
-                result = await run_page_audit(
-                    context=context,
-                    page_info=page_info,
-                    page_index=index,
-                    config=AUDIT_CONFIG,
-                )
-
-                if result["status"] == "success":
-                    print(f"  Success -> screenshot saved: {result['screenshotPath']}")
-                    clickable_summary = result["clickableSummary"]
-                    interaction_summary = result["interactionSummary"]
-                    print(
-                        "  Clickables -> total: "
-                        f"{clickable_summary['totalDetected']}, safe: {clickable_summary['safe']}, "
-                        f"forbidden: {clickable_summary['forbidden']}, unknown: {clickable_summary['unknown']}"
+                print(f"[START {index + 1}/{len(unique_pages)}] {page_info['name']} -> {page_info['url']}")
+                try:
+                    result = await run_page_audit(
+                        context=context,
+                        page_info=page_info,
+                        page_index=index,
+                        config=AUDIT_CONFIG,
                     )
-                    print(
-                        "  Interactions -> tested: "
-                        f"{interaction_summary['tested']}, success: {interaction_summary['successful']}, "
-                        f"screenshots: {interaction_summary['interactionScreenshotsCreated']}"
-                    )
-                else:
-                    print(f"  Failed -> {result['error']}")
 
-                return result
+                    if result["status"] == "success":
+                        print(f"  Success -> screenshot saved: {result['screenshotPath']}")
+                        clickable_summary = result["clickableSummary"]
+                        interaction_summary = result["interactionSummary"]
+                        print(
+                            "  Clickables -> total: "
+                            f"{clickable_summary['totalDetected']}, safe: {clickable_summary['safe']}, "
+                            f"forbidden: {clickable_summary['forbidden']}, unknown: {clickable_summary['unknown']}"
+                        )
+                        print(
+                            "  Interactions -> tested: "
+                            f"{interaction_summary['tested']}, success: {interaction_summary['successful']}, "
+                            f"screenshots: {interaction_summary['interactionScreenshotsCreated']}"
+                        )
+                    else:
+                        print(f"  Failed -> {result['error']}")
+
+                    return result
+                finally:
+                    progress["completed"] += 1
+                    print(f"[DONE  {progress['completed']}/{len(unique_pages)}] {page_info['url']}")
 
             page_results = await run_with_concurrency(
                 unique_pages,
@@ -396,7 +430,9 @@ async def async_main():
         "runFinishedAt": finished_at.isoformat(),
         "inputFile": AUDIT_CONFIG["paths"]["inputFile"],
         "browserType": AUDIT_CONFIG["browser"]["browserType"],
+        "browserChannel": AUDIT_CONFIG["browser"].get("channel"),
         "headless": AUDIT_CONFIG["browser"]["headless"],
+        "slowMoMs": AUDIT_CONFIG["browser"].get("slowMoMs", 0),
         "pageConcurrency": AUDIT_CONFIG["execution"]["pageConcurrency"],
         "totalPagesExtractedFromInput": len(pages_parsed),
         "uniquePagesVisited": len(unique_pages),
