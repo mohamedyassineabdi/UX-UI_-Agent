@@ -16,3 +16,4 @@ typing-extensions==4.12.2
 
 #run the line
 #playwright install
+#run: python scripts/run_pipeline.py https://3afsatunisie.com
