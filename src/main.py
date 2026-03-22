@@ -12,6 +12,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.audit.page_runner import run_page_audit
+from src.audit.person_a_postprocess import clean_person_a_output
 from src.config.audit_config import AUDIT_CONFIG
 from src.utils.file_utils import (
     build_timestamp_for_file_name,
@@ -246,6 +247,9 @@ def parse_input_to_pages(raw_input: Any, config: Dict[str, Any]) -> List[Dict[st
         return [normalize_flat_page(page, index) for index, page in enumerate(raw_input)]
 
     if isinstance(raw_input, dict):
+        crawler_error = clean_label(raw_input.get("error"))
+        if crawler_error:
+            raise ValueError(f"Crawler output reported an error: {crawler_error}")
         return extract_pages_from_partner_json(raw_input, config)
 
     raise ValueError("Input JSON must be either an array of pages or the partner navigation object.")
@@ -297,6 +301,40 @@ def summarize_run(page_results: List[Dict[str, Any]]) -> Dict[str, int]:
     return aggregate
 
 
+def build_person_a_output(page_results: List[Dict[str, Any]]) -> Dict[str, Any]:
+    pages: List[Dict[str, Any]] = []
+
+    for page_result in page_results:
+        person_a = page_result.get("personA")
+        if not person_a:
+            continue
+
+        page_meta_data = ((person_a.get("pageMeta") or {}).get("data") or {})
+
+        pages.append(
+            {
+                "pageId": page_meta_data.get("pageId"),
+                "name": page_result.get("name"),
+                "url": page_result.get("originalUrl"),
+                "finalUrl": page_result.get("finalUrl"),
+                "status": page_result.get("status"),
+                "pageMeta": person_a.get("pageMeta"),
+                "titlesAndHeadings": person_a.get("titlesAndHeadings"),
+                "navigation": person_a.get("navigation"),
+                "textContent": person_a.get("textContent"),
+                "forms": person_a.get("forms"),
+                "media": person_a.get("media"),
+            }
+        )
+
+    return {
+        "source": "person_a",
+        "generatedFrom": "src.main",
+        "totalPages": len(pages),
+        "pages": pages,
+    }
+
+
 async def run_with_concurrency(items, worker, concurrency: int):
     results: List[Any] = [None] * len(items)
     semaphore = asyncio.Semaphore(max(1, min(concurrency, len(items)) if items else 1))
@@ -335,9 +373,7 @@ async def launch_browser(playwright, config: Dict[str, Any]):
             raise
 
         fallback_options = {key: value for key, value in launch_options.items() if key != "channel"}
-        print(
-            f"Chrome channel launch failed ({error}). Falling back to Playwright Chromium."
-        )
+        print(f"Chrome channel launch failed ({error}). Falling back to Playwright Chromium.")
         return await browser_launcher.launch(**fallback_options)
 
 
@@ -358,6 +394,13 @@ async def async_main():
     print(f"Total pages extracted from input: {len(pages_parsed)}")
     print(f"Unique pages to visit: {len(unique_pages)}")
     print(f"Duplicates skipped: {len(duplicates)}")
+
+    if not unique_pages:
+        raise ValueError(
+            "No visitable pages were extracted from the input JSON. "
+            "The crawler likely failed or did not return usable navigation links."
+        )
+
     print(
         "Browser mode: "
         f"{'visible' if not AUDIT_CONFIG['browser']['headless'] else 'headless'} "
@@ -470,7 +513,17 @@ async def async_main():
     )
     write_json_file(results_file_path, output)
 
+    person_a_output = build_person_a_output(page_results)
+    person_a_file_path = join_path("shared", "generated", "person_a_extraction.json")
+    write_json_file(person_a_file_path, person_a_output)
+
+    person_a_cleaned_output = clean_person_a_output(person_a_output)
+    person_a_cleaned_file_path = join_path("shared", "generated", "person_a_cleaned.json")
+    write_json_file(person_a_cleaned_file_path, person_a_cleaned_output)
+
     print(f"Results written to: {results_file_path}")
+    print(f"Person A extraction written to: {person_a_file_path}")
+    print(f"Person A cleaned output written to: {person_a_cleaned_file_path}")
     print("Audit completed.")
 
 

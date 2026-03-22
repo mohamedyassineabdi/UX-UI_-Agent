@@ -2403,18 +2403,21 @@ async def async_main() -> None:
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(error, f, indent=2, ensure_ascii=False)
         print_json(error)
+        raise SystemExit(1)
 
     except PlaywrightError as exc:
         error = {"error": f"Failed to crawl: browser error: {str(exc)}"}
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(error, f, indent=2, ensure_ascii=False)
         print_json(error)
+        raise SystemExit(1)
 
     except Exception as exc:
         error = {"error": f"Failed to crawl: {str(exc)}"}
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(error, f, indent=2, ensure_ascii=False)
         print_json(error)
+        raise SystemExit(1)
 
 
 def main() -> None:

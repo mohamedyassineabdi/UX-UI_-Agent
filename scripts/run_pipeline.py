@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -24,6 +25,22 @@ def ensure_file_exists(file_path):
         raise RuntimeError(f"Expected file was not created: {file_path}")
 
 
+def read_json_file(file_path):
+    with open(file_path, "r", encoding="utf-8") as file:
+        return json.load(file)
+
+
+def validate_crawler_output(file_path):
+    data = read_json_file(file_path)
+
+    if isinstance(data, dict):
+        crawler_error = str(data.get("error") or "").strip()
+        if crawler_error:
+            raise RuntimeError(f"Crawler failed for this website: {crawler_error}")
+
+    return data
+
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: npm run scan -- <website-url>", file=sys.stderr)
@@ -40,6 +57,7 @@ def main():
     )
 
     ensure_file_exists(OUTPUT_JSON)
+    validate_crawler_output(OUTPUT_JSON)
 
     print("\n[2/2] Running auditor...\n")
     run_command([sys.executable, "-m", "src.main"], cwd=ROOT_DIR)

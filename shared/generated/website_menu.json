@@ -1,581 +1,64 @@
 {
-  "homepage": "https://stripe.com/",
-  "language": "en-US",
+  "homepage": "https://3afsatunisie.com/",
+  "language": "fr",
   "auth": {
-    "signin": {
-      "name": "Sign in",
-      "url": "https://dashboard.stripe.com/login"
-    },
-    "signup": {
-      "name": "Start now",
-      "url": "https://dashboard.stripe.com/register"
-    }
+    "signin": null,
+    "signup": null
   },
   "navigation": [
     {
-      "name": "Contact sales",
-      "url": "https://stripe.com/contact/sales",
-      "type": "cta",
-      "children": []
-    },
-    {
-      "name": "Developers",
-      "url": null,
-      "type": "menu",
-      "children": [
-        {
-          "name": "Documentation",
-          "type": "section",
-          "children": [
-            {
-              "name": "API reference",
-              "type": "link",
-              "url": "https://docs.stripe.com/api"
-            },
-            {
-              "name": "Libraries and SDKs",
-              "type": "link",
-              "url": "https://docs.stripe.com/development"
-            },
-            {
-              "name": "Stripe Apps",
-              "type": "link",
-              "url": "https://stripe.com/apps"
-            },
-            {
-              "name": "Stripe docs",
-              "type": "link",
-              "url": "https://docs.stripe.com/"
-            }
-          ]
-        },
-        {
-          "name": "Guides",
-          "type": "section",
-          "children": [
-            {
-              "name": "Accept online payments",
-              "type": "link",
-              "url": "https://docs.stripe.com/payments"
-            },
-            {
-              "name": "Build a platform or marketplace",
-              "type": "link",
-              "url": "https://docs.stripe.com/connect"
-            },
-            {
-              "name": "Implement a prebuilt checkout",
-              "type": "link",
-              "url": "https://docs.stripe.com/payments/checkout"
-            },
-            {
-              "name": "Issue stablecoin-backed cards",
-              "type": "link",
-              "url": "https://docs.stripe.com/financial-accounts/stablecoins"
-            },
-            {
-              "name": "Manage subscriptions",
-              "type": "link",
-              "url": "https://docs.stripe.com/billing"
-            },
-            {
-              "name": "Offer usage-based billing",
-              "type": "link",
-              "url": "https://docs.stripe.com/billing/subscriptions/usage-based"
-            }
-          ]
-        },
-        {
-          "name": "Resources",
-          "type": "section",
-          "children": [
-            {
-              "name": "API status",
-              "type": "link",
-              "url": "https://status.stripe.com/"
-            },
-            {
-              "name": "App integrations",
-              "type": "link",
-              "url": "https://marketplace.stripe.com/"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Pricing",
-      "url": "https://stripe.com/pricing",
+      "name": "Catalog",
+      "url": "https://3afsatunisie.com/collections/all",
       "type": "link",
       "children": []
     },
     {
-      "name": "Products",
-      "url": null,
-      "type": "menu",
-      "children": [
-        {
-          "name": "Payments",
-          "type": "section",
-          "children": [
-            {
-              "name": "Authorization Boost",
-              "type": "link",
-              "url": "https://stripe.com/authorization-boost",
-              "description": "Acceptance optimizations"
-            },
-            {
-              "name": "Checkout",
-              "type": "link",
-              "url": "https://stripe.com/payments/checkout",
-              "description": "Prebuilt payment form"
-            },
-            {
-              "name": "Elements",
-              "type": "link",
-              "url": "https://stripe.com/payments/elements",
-              "description": "Flexible UI components"
-            },
-            {
-              "name": "Link",
-              "type": "link",
-              "url": "https://stripe.com/payments/link",
-              "description": "Accelerated checkout"
-            },
-            {
-              "name": "Managed Payments",
-              "type": "link",
-              "url": "https://stripe.com/managed-payments",
-              "description": "Merchant of record solution"
-            },
-            {
-              "name": "Payment Links",
-              "type": "link",
-              "url": "https://stripe.com/payments/payment-links",
-              "description": "No-code payments"
-            },
-            {
-              "name": "Payment methods",
-              "type": "link",
-              "url": "https://stripe.com/payments/payment-methods",
-              "description": "Access to 100+"
-            },
-            {
-              "name": "Payments",
-              "type": "link",
-              "url": "https://stripe.com/payments",
-              "description": "Online payments"
-            },
-            {
-              "name": "Radar",
-              "type": "link",
-              "url": "https://stripe.com/radar",
-              "description": "Fraud prevention"
-            },
-            {
-              "name": "Terminal",
-              "type": "link",
-              "url": "https://stripe.com/terminal",
-              "description": "In-person payments"
-            }
-          ]
-        },
-        {
-          "name": "Revenue",
-          "type": "section",
-          "children": [
-            {
-              "name": "Billing",
-              "type": "link",
-              "url": "https://stripe.com/billing",
-              "description": "Subscription management"
-            },
-            {
-              "name": "Data Pipeline",
-              "type": "link",
-              "url": "https://stripe.com/data-pipeline",
-              "description": "Data sync"
-            },
-            {
-              "name": "Invoicing",
-              "type": "link",
-              "url": "https://stripe.com/invoicing",
-              "description": "One-time or recurring"
-            },
-            {
-              "name": "Revenue Recognition",
-              "type": "link",
-              "url": "https://stripe.com/revenue-recognition",
-              "description": "Accounting automation"
-            },
-            {
-              "name": "Stripe Sigma",
-              "type": "link",
-              "url": "https://stripe.com/sigma",
-              "description": "Custom reports"
-            },
-            {
-              "name": "Tax",
-              "type": "link",
-              "url": "https://stripe.com/tax",
-              "description": "Sales tax & VAT automation"
-            },
-            {
-              "name": "Usage-based billing",
-              "type": "link",
-              "url": "https://stripe.com/billing/usage-based-billing",
-              "description": "Metered billing"
-            }
-          ]
-        },
-        {
-          "name": "Money Management",
-          "type": "section",
-          "children": [
-            {
-              "name": "Capital",
-              "type": "link",
-              "url": "https://stripe.com/capital",
-              "description": "Business financing"
-            },
-            {
-              "name": "Crypto",
-              "type": "link",
-              "url": "https://stripe.com/use-cases/crypto",
-              "description": "Wallet, stablecoin issuing and card infrastructure"
-            },
-            {
-              "name": "Financial Accounts",
-              "type": "link",
-              "url": "https://stripe.com/financial-accounts",
-              "description": "Business finances"
-            },
-            {
-              "name": "Global Payouts",
-              "type": "link",
-              "url": "https://stripe.com/payouts",
-              "description": "Payouts to third parties"
-            }
-          ]
-        },
-        {
-          "name": "Platforms and marketplaces",
-          "type": "section",
-          "children": [
-            {
-              "name": "Capital for platforms",
-              "type": "link",
-              "url": "https://stripe.com/capital/platforms",
-              "description": "Customer financing"
-            },
-            {
-              "name": "Connect",
-              "type": "link",
-              "url": "https://stripe.com/connect",
-              "description": "Payments for platforms"
-            },
-            {
-              "name": "Financial Accounts for platforms",
-              "type": "link",
-              "url": "https://stripe.com/financial-accounts/platforms",
-              "description": "Embedded financial services"
-            },
-            {
-              "name": "Issuing",
-              "type": "link",
-              "url": "https://stripe.com/issuing",
-              "description": "Physical and virtual cards"
-            }
-          ]
-        },
-        {
-          "name": "More",
-          "type": "section",
-          "children": [
-            {
-              "name": "Atlas",
-              "type": "link",
-              "url": "https://stripe.com/atlas",
-              "description": "Startup incorporation"
-            },
-            {
-              "name": "Climate",
-              "type": "link",
-              "url": "https://stripe.com/climate",
-              "description": "Carbon removal"
-            },
-            {
-              "name": "Financial Connections",
-              "type": "link",
-              "url": "https://stripe.com/financial-connections",
-              "description": "Linked financial account data"
-            },
-            {
-              "name": "Identity",
-              "type": "link",
-              "url": "https://stripe.com/identity",
-              "description": "Online identity verification"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Resources",
-      "url": null,
-      "type": "menu",
-      "children": [
-        {
-          "name": "Learn",
-          "type": "section",
-          "children": [
-            {
-              "name": "Blog",
-              "type": "link",
-              "url": "https://stripe.com/blog"
-            },
-            {
-              "name": "Customer stories",
-              "type": "link",
-              "url": "https://stripe.com/customers"
-            },
-            {
-              "name": "Guides",
-              "type": "link",
-              "url": "https://stripe.com/guides"
-            }
-          ]
-        },
-        {
-          "name": "Support",
-          "type": "section",
-          "children": [
-            {
-              "name": "Get support",
-              "type": "link",
-              "url": "https://support.stripe.com/"
-            },
-            {
-              "name": "Managed support plans",
-              "type": "link",
-              "url": "https://stripe.com/support-plans"
-            },
-            {
-              "name": "Professional services",
-              "type": "link",
-              "url": "https://stripe.com/professional-services"
-            }
-          ]
-        },
-        {
-          "name": "Company",
-          "type": "section",
-          "children": [
-            {
-              "name": "Jobs",
-              "type": "link",
-              "url": "https://stripe.com/jobs"
-            },
-            {
-              "name": "Newsroom",
-              "type": "link",
-              "url": "https://stripe.com/newsroom"
-            },
-            {
-              "name": "Sessions annual conference",
-              "type": "link",
-              "url": "https://stripe.com/sessions"
-            },
-            {
-              "name": "Stripe Press",
-              "type": "link",
-              "url": "https://press.stripe.com/"
-            }
-          ]
-        },
-        {
-          "name": "Contact",
-          "type": "section",
-          "children": [
-            {
-              "name": "Become a partner",
-              "type": "link",
-              "url": "https://stripe.com/partners/become-a-partner"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Sign in",
-      "url": "https://dashboard.stripe.com/login",
-      "type": "auth",
+      "name": "Contact",
+      "url": "https://3afsatunisie.com/pages/contact",
+      "type": "link",
       "children": []
     },
     {
-      "name": "Solutions",
-      "url": null,
-      "type": "menu",
-      "children": [
-        {
-          "name": "By stage",
-          "type": "section",
-          "children": [
-            {
-              "name": "Enterprises",
-              "type": "link",
-              "url": "https://stripe.com/enterprise"
-            },
-            {
-              "name": "Startups",
-              "type": "link",
-              "url": "https://stripe.com/startups"
-            }
-          ]
-        },
-        {
-          "name": "By use case",
-          "type": "section",
-          "children": [
-            {
-              "name": "Agentic commerce",
-              "type": "link",
-              "url": "https://stripe.com/use-cases/agentic-commerce"
-            },
-            {
-              "name": "Crypto",
-              "type": "link",
-              "url": "https://stripe.com/use-cases/crypto"
-            },
-            {
-              "name": "Ecommerce",
-              "type": "link",
-              "url": "https://stripe.com/use-cases/ecommerce"
-            },
-            {
-              "name": "Embedded finance",
-              "type": "link",
-              "url": "https://stripe.com/use-cases/embedded-finance"
-            },
-            {
-              "name": "Finance automation",
-              "type": "link",
-              "url": "https://stripe.com/use-cases/finance-automation"
-            },
-            {
-              "name": "Global businesses",
-              "type": "link",
-              "url": "https://stripe.com/use-cases/global-businesses"
-            },
-            {
-              "name": "In-app payments",
-              "type": "link",
-              "url": "https://stripe.com/use-cases/in-app-payments"
-            },
-            {
-              "name": "Marketplaces",
-              "type": "link",
-              "url": "https://stripe.com/use-cases/marketplaces"
-            },
-            {
-              "name": "Platforms",
-              "type": "link",
-              "url": "https://stripe.com/use-cases/platforms"
-            },
-            {
-              "name": "SaaS",
-              "type": "link",
-              "url": "https://stripe.com/use-cases/saas"
-            }
-          ]
-        },
-        {
-          "name": "By industry",
-          "type": "section",
-          "children": [
-            {
-              "name": "AI companies",
-              "type": "link",
-              "url": "https://stripe.com/use-cases/ai"
-            },
-            {
-              "name": "Creator economy",
-              "type": "link",
-              "url": "https://stripe.com/use-cases/creator-economy"
-            },
-            {
-              "name": "Hospitality, travel, and leisure",
-              "type": "link",
-              "url": "https://stripe.com/industries/travel"
-            },
-            {
-              "name": "Insurance",
-              "type": "link",
-              "url": "https://stripe.com/industries/insurance"
-            },
-            {
-              "name": "Media and entertainment",
-              "type": "link",
-              "url": "https://stripe.com/industries/media-entertainment"
-            },
-            {
-              "name": "Nonprofits",
-              "type": "link",
-              "url": "https://stripe.com/industries/nonprofits"
-            },
-            {
-              "name": "Retail",
-              "type": "link",
-              "url": "https://stripe.com/industries/retail"
-            }
-          ]
-        },
-        {
-          "name": "Ecosystem",
-          "type": "section",
-          "children": [
-            {
-              "name": "Partners",
-              "type": "link",
-              "url": "https://stripe.com/partners"
-            },
-            {
-              "name": "Stripe App Marketplace",
-              "type": "link",
-              "url": "https://marketplace.stripe.com/"
-            }
-          ]
-        }
-      ]
+      "name": "Home",
+      "url": "https://3afsatunisie.com/",
+      "type": "link",
+      "children": []
+    },
+    {
+      "name": "Panier",
+      "url": "https://3afsatunisie.com/cart",
+      "type": "link",
+      "children": []
     }
   ],
   "extra": {
     "desktop": {
-      "forms_detected": 0,
-      "total_internal_links": 195,
-      "external_links": 7,
-      "title": "Stripe | Financial Infrastructure to Grow Your Revenue",
-      "page_size_kb": 881.89,
-      "images_found": 50,
+      "forms_detected": 6,
+      "total_internal_links": 801,
+      "external_links": 10,
+      "title": "3afsatunisia.tn",
+      "page_size_kb": 826.83,
+      "images_found": 46,
       "mode": "desktop",
-      "page_language": "en-US"
+      "page_language": "fr"
     },
     "mobile": {
-      "forms_detected": 0,
-      "total_internal_links": 200,
-      "external_links": 13,
-      "title": "Stripe | Financial Infrastructure to Grow Your Revenue",
-      "page_size_kb": 1046.35,
-      "images_found": 60,
+      "forms_detected": 6,
+      "total_internal_links": 801,
+      "external_links": 10,
+      "title": "3afsatunisia.tn",
+      "page_size_kb": 826.94,
+      "images_found": 46,
       "mode": "mobile",
-      "page_language": "en-US"
+      "page_language": "fr"
     },
-    "menu_count": 7,
+    "menu_count": 4,
     "navbar_score": 17.0,
     "source_container": "merged(desktop+mobile)",
-    "sitemap_found": "https://stripe.com/sitemap/sitemap.xml",
-    "robots_txt": "https://stripe.com/robots.txt",
-    "crawl_time_ms": 52121
+    "sitemap_found": "https://3afsatunisie.com/sitemap.xml",
+    "robots_txt": "https://3afsatunisie.com/robots.txt",
+    "crawl_time_ms": 142388
   },
-  "requested_language": "en-US"
+  "requested_language": "en-US",
+  "language_warning": "Requested English, but detected page language was fr."
 }

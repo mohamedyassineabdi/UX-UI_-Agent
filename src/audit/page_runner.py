@@ -7,6 +7,7 @@ from src.audit.page_visit_helpers import (
     save_dom_snapshot,
     smart_scroll,
 )
+from src.audit.person_a_extractor import extract_person_a_blocks
 from src.audit.safe_interaction_tester import test_safe_clickables
 from src.utils.file_utils import ensure_dir, join_path, write_json_file
 from src.utils.url_utils import build_page_folder_name, build_website_folder_name
@@ -64,6 +65,7 @@ async def run_page_audit(*, context, page_info, page_index, config):
         "cookieActions": [],
         "scrollScreenshotPaths": [],
         "pageMetadata": None,
+        "personA": None,
         "networkLogPath": None,
         "pageMetadataPath": None,
         "domSnapshotPath": None,
@@ -127,6 +129,14 @@ async def run_page_audit(*, context, page_info, page_index, config):
                 "scrollScreenshotPaths": result["scrollScreenshotPaths"],
                 "pageScreenshotPath": result["screenshotPath"],
             },
+        )
+
+        result["personA"] = await extract_person_a_blocks(
+            page=page,
+            page_info=page_info,
+            basic_page_info=result["pageMetadata"],
+            screenshot_path=result["screenshotPath"],
+            scroll_screenshot_paths=result["scrollScreenshotPaths"],
         )
 
         if config.get("pageCapture", {}).get("saveNetworkLog"):
