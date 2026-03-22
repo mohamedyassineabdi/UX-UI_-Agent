@@ -1,10 +1,27 @@
 import json
 import os
+import shutil
 from datetime import datetime
 
 
 def ensure_dir(dir_path):
     os.makedirs(dir_path, exist_ok=True)
+
+
+def remove_path(path):
+    if not path or not os.path.exists(path):
+        return
+
+    if os.path.isdir(path):
+        shutil.rmtree(path)
+        return
+
+    os.remove(path)
+
+
+def clear_dir(dir_path):
+    remove_path(dir_path)
+    ensure_dir(dir_path)
 
 
 def join_path(*segments):

@@ -16,12 +16,13 @@ from src.audit.person_a_postprocess import clean_person_a_output
 from src.config.audit_config import AUDIT_CONFIG
 from src.utils.file_utils import (
     build_timestamp_for_file_name,
+    clear_dir,
     ensure_output_dirs,
     join_path,
     read_json_file,
     write_json_file,
 )
-from src.utils.url_utils import build_page_folder_name, deduplicate_pages
+from src.utils.url_utils import build_page_folder_name, build_website_folder_name, deduplicate_pages
 
 
 def clean_label(value: Any) -> str:
@@ -355,6 +356,26 @@ def get_browser_launcher(playwright, browser_type: str):
     return playwright.chromium
 
 
+def clear_website_output_dirs(pages: List[Dict[str, Any]], config: Dict[str, Any]) -> None:
+    cleanup_config = config.get("outputCleanup", {})
+    if not cleanup_config.get("clearWebsiteScreenshotsBeforeRun", False):
+        return
+
+    screenshot_root = config["paths"]["screenshotDir"]
+    website_folder_names = sorted(
+        {
+            build_website_folder_name(clean_label(page.get("siteUrl")) or page["url"])
+            for page in pages
+            if clean_label(page.get("siteUrl")) or clean_label(page.get("url"))
+        }
+    )
+
+    for folder_name in website_folder_names:
+        folder_path = join_path(screenshot_root, folder_name)
+        clear_dir(folder_path)
+        print(f"Cleared screenshot output: {folder_path}")
+
+
 async def launch_browser(playwright, config: Dict[str, Any]):
     browser_launcher = get_browser_launcher(playwright, config["browser"]["browserType"])
     launch_options: Dict[str, Any] = {
@@ -400,6 +421,8 @@ async def async_main():
             "No visitable pages were extracted from the input JSON. "
             "The crawler likely failed or did not return usable navigation links."
         )
+
+    clear_website_output_dirs(unique_pages, AUDIT_CONFIG)
 
     print(
         "Browser mode: "

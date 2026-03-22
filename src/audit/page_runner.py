@@ -6,6 +6,7 @@ from src.audit.page_visit_helpers import (
     extract_basic_page_info,
     save_dom_snapshot,
     smart_scroll,
+    wait_for_page_ready,
 )
 from src.audit.person_a_extractor import extract_person_a_blocks
 from src.audit.safe_interaction_tester import test_safe_clickables
@@ -15,6 +16,8 @@ from src.utils.url_utils import build_page_folder_name, build_website_folder_nam
 
 async def run_page_audit(*, context, page_info, page_index, config):
     page = await context.new_page()
+    cleanup_config = config.get("outputCleanup", {})
+    keep_debug_artifacts = cleanup_config.get("keepDebugArtifacts", False)
 
     site_url = page_info.get("siteUrl") or page_info["url"]
     website_folder_name = build_website_folder_name(site_url)
@@ -74,7 +77,12 @@ async def run_page_audit(*, context, page_info, page_index, config):
 
     try:
         ensure_dir(page_folder_path)
-        scroll_screenshots_dir = join_path(page_folder_path, "scrolls")
+        page_screenshots_dir = join_path(page_folder_path, "page")
+        artifacts_dir = join_path(page_folder_path, "artifacts")
+        ensure_dir(page_screenshots_dir)
+        if keep_debug_artifacts:
+            ensure_dir(artifacts_dir)
+        scroll_screenshots_dir = join_path(page_screenshots_dir, "scrolls")
         ensure_dir(scroll_screenshots_dir)
 
         network_log = []
@@ -94,6 +102,8 @@ async def run_page_audit(*, context, page_info, page_index, config):
         if config.get("pageCapture", {}).get("dismissCookieBanners"):
             result["cookieActions"] = await dismiss_cookie_banners(page)
 
+        await wait_for_page_ready(page, config)
+
         if config.get("pageCapture", {}).get("captureScrollScreenshots"):
             result["scrollScreenshotPaths"] = await smart_scroll(
                 page=page,
@@ -103,15 +113,17 @@ async def run_page_audit(*, context, page_info, page_index, config):
                 max_rounds=config.get("pageCapture", {}).get("scrollMaxRounds", 4),
             )
 
+        await wait_for_page_ready(page, config)
+
         result["pageMetadata"] = await extract_basic_page_info(page, page_info["url"])
         result["finalUrl"] = result["pageMetadata"]["finalUrl"] or result["finalUrl"]
 
-        if config.get("pageCapture", {}).get("saveDomSnapshot"):
-            dom_snapshot_path = join_path(page_folder_path, "dom_snapshot.html")
+        if keep_debug_artifacts and config.get("pageCapture", {}).get("saveDomSnapshot"):
+            dom_snapshot_path = join_path(artifacts_dir, "dom_snapshot.html")
             await save_dom_snapshot(page, dom_snapshot_path)
             result["domSnapshotPath"] = dom_snapshot_path
 
-        screenshot_path = join_path(page_folder_path, f"page.{config['screenshot']['type']}")
+        screenshot_path = join_path(page_screenshots_dir, f"main.{config['screenshot']['type']}")
         await page.screenshot(
             path=screenshot_path,
             full_page=config["screenshot"]["fullPage"],
@@ -119,17 +131,18 @@ async def run_page_audit(*, context, page_info, page_index, config):
         )
         result["screenshotPath"] = screenshot_path
 
-        page_metadata_path = join_path(page_folder_path, "page_metadata.json")
-        result["pageMetadataPath"] = page_metadata_path
-        write_json_file(
-            page_metadata_path,
-            {
-                **(result["pageMetadata"] or {}),
-                "cookieActions": result["cookieActions"],
-                "scrollScreenshotPaths": result["scrollScreenshotPaths"],
-                "pageScreenshotPath": result["screenshotPath"],
-            },
-        )
+        if keep_debug_artifacts:
+            page_metadata_path = join_path(artifacts_dir, "page_metadata.json")
+            result["pageMetadataPath"] = page_metadata_path
+            write_json_file(
+                page_metadata_path,
+                {
+                    **(result["pageMetadata"] or {}),
+                    "cookieActions": result["cookieActions"],
+                    "scrollScreenshotPaths": result["scrollScreenshotPaths"],
+                    "pageScreenshotPath": result["screenshotPath"],
+                },
+            )
 
         result["personA"] = await extract_person_a_blocks(
             page=page,
@@ -139,8 +152,8 @@ async def run_page_audit(*, context, page_info, page_index, config):
             scroll_screenshot_paths=result["scrollScreenshotPaths"],
         )
 
-        if config.get("pageCapture", {}).get("saveNetworkLog"):
-            network_log_path = join_path(page_folder_path, "network_log.json")
+        if keep_debug_artifacts and config.get("pageCapture", {}).get("saveNetworkLog"):
+            network_log_path = join_path(artifacts_dir, "network_log.json")
             write_json_file(network_log_path, network_log)
             result["networkLogPath"] = network_log_path
 
@@ -185,14 +198,16 @@ async def run_page_audit(*, context, page_info, page_index, config):
     except Exception as error:
         result["status"] = "failed"
         result["error"] = str(error)
-        write_json_file(
-            join_path(page_folder_path, "page_error.json"),
-            {
-                "name": page_info["name"],
-                "url": page_info["url"],
-                "error": str(error),
-            },
-        )
+        if keep_debug_artifacts:
+            ensure_dir(artifacts_dir)
+            write_json_file(
+                join_path(artifacts_dir, "page_error.json"),
+                {
+                    "name": page_info["name"],
+                    "url": page_info["url"],
+                    "error": str(error),
+                },
+            )
     finally:
         await page.close()
 

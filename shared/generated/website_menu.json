@@ -1,63 +1,84 @@
 {
-  "homepage": "https://3afsatunisie.com/",
+  "homepage": "https://boumendil.tn/",
   "language": "fr",
   "auth": {
-    "signin": null,
+    "signin": {
+      "name": "Sign in",
+      "url": "https://boumendil.tn/account/login"
+    },
     "signup": null
   },
   "navigation": [
     {
-      "name": "Catalog",
-      "url": "https://3afsatunisie.com/collections/all",
+      "name": "Cuisine",
+      "url": "https://boumendil.tn/product-list/89962/cuisine/",
       "type": "link",
       "children": []
     },
     {
-      "name": "Contact",
-      "url": "https://3afsatunisie.com/pages/contact",
+      "name": "Divers",
+      "url": "https://boumendil.tn/product-list/90229/divers/",
       "type": "link",
       "children": []
     },
     {
-      "name": "Home",
-      "url": "https://3afsatunisie.com/",
+      "name": "Jardin & Outils",
+      "url": "https://boumendil.tn/product-list/89963/jardin-outils/",
       "type": "link",
       "children": []
     },
     {
-      "name": "Panier",
-      "url": "https://3afsatunisie.com/cart",
+      "name": "Maison & Décoration",
+      "url": "https://boumendil.tn/product-list/89964/maison-decoration/",
+      "type": "link",
+      "children": []
+    },
+    {
+      "name": "Modes",
+      "url": "https://boumendil.tn/product-list/90227/modes/",
+      "type": "link",
+      "children": []
+    },
+    {
+      "name": "Produits Electroniques et Accessoires",
+      "url": "https://boumendil.tn/product-list/90228/produits-electroniques-et-accessoires/",
+      "type": "link",
+      "children": []
+    },
+    {
+      "name": "Santé et Beauté",
+      "url": "https://boumendil.tn/product-list/90226/nouvelle-category/",
       "type": "link",
       "children": []
     }
   ],
   "extra": {
     "desktop": {
-      "forms_detected": 6,
-      "total_internal_links": 801,
-      "external_links": 10,
-      "title": "3afsatunisia.tn",
-      "page_size_kb": 826.83,
-      "images_found": 46,
+      "forms_detected": 5,
+      "total_internal_links": 199,
+      "external_links": 14,
+      "title": "Boumendil |",
+      "page_size_kb": 389.33,
+      "images_found": 88,
       "mode": "desktop",
       "page_language": "fr"
     },
     "mobile": {
-      "forms_detected": 6,
-      "total_internal_links": 801,
-      "external_links": 10,
-      "title": "3afsatunisia.tn",
-      "page_size_kb": 826.94,
-      "images_found": 46,
+      "forms_detected": 5,
+      "total_internal_links": 195,
+      "external_links": 14,
+      "title": "Boumendil |",
+      "page_size_kb": 381.02,
+      "images_found": 84,
       "mode": "mobile",
       "page_language": "fr"
     },
-    "menu_count": 4,
-    "navbar_score": 17.0,
+    "menu_count": 7,
+    "navbar_score": 15.0,
     "source_container": "merged(desktop+mobile)",
-    "sitemap_found": "https://3afsatunisie.com/sitemap.xml",
-    "robots_txt": "https://3afsatunisie.com/robots.txt",
-    "crawl_time_ms": 142388
+    "sitemap_found": "https://boumendil.tn/sitemap.xml",
+    "robots_txt": "https://boumendil.tn/robots.txt",
+    "crawl_time_ms": 70045
   },
   "requested_language": "en-US",
   "language_warning": "Requested English, but detected page language was fr."

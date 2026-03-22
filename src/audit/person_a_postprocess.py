@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections import Counter
 from typing import Any, Dict, List
 from urllib.parse import urlparse
@@ -10,6 +11,14 @@ GENERIC_UTILITY_WORDS = {
     "account", "profile", "cart", "checkout", "search", "menu",
     "contact", "help", "support", "faq", "wishlist", "compare",
     "filter", "filters", "sort", "close", "back", "next", "previous",
+    "home", "catalog", "catalogue", "shop", "panier", "compte",
+    "connexion", "se connecter", "inscription", "wishlist",
+}
+
+GENERIC_FORM_LABELS = {
+    "recherche", "rechercher", "search", "email", "e-mail", "e_mail",
+    "adresse e-mail", "adresse email", "mot de passe", "password",
+    "nom", "name", "prénom", "prenom", "phone", "téléphone", "telephone",
 }
 
 SOCIAL_DOMAINS = {
@@ -30,7 +39,101 @@ SOCIAL_DOMAINS = {
 
 FILTER_HEADING_TOKENS = {
     "filter", "filters", "sort", "results", "result", "items", "products",
-    "apply", "reset", "clear", "refine", "search"
+    "apply", "reset", "clear", "refine", "search",
+    "filtre", "filtres", "trier", "tri", "réinitialiser", "reinitialiser",
+    "effacer", "tout supprimer", "supprimer", "appliquer",
+    "produits", "articles", "résultats", "resultats",
+}
+
+FILTER_CONTROL_WORDS = {
+    "réinitialiser", "reinitialiser", "tout supprimer", "supprimer",
+    "effacer", "appliquer", "apply", "clear", "reset", "close",
+}
+
+SYSTEM_HEADING_EXACT = {
+    "article ajouté au panier",
+    "article ajoute au panier",
+    "subscribe to our emails",
+    "pays/région",
+    "pays / région",
+    "pays / region",
+    "filtrer et trier",
+    "filtrer",
+    "trier par",
+    "tri",
+    "filter",
+    "sort",
+    "filters",
+}
+
+LOCALE_UI_TOKENS = {
+    "country", "country/region", "country / region", "locale",
+    "currency", "devise", "langue", "language",
+    "tnd", "د.ت", "search country", "rechercher un pays",
+    "country_filter", "localization", "sélecteur", "select country",
+}
+
+LOCALE_STRONG_WORDS = {
+    "pays", "région", "region",
+}
+
+NEWSLETTER_TOKENS = {
+    "subscribe", "newsletter", "emails", "email address",
+    "abonnez", "abonnez-vous", "inscrivez-vous", "newsletter",
+}
+
+AUTH_UTILITY_TOKENS = {
+    "login", "sign in", "signin", "sign up", "signup", "register",
+    "create account", "my account", "account", "compte", "connexion",
+    "se connecter", "s’inscrire", "mot de passe", "password",
+}
+
+PRODUCT_HINT_TOKENS = {
+    "ajouter au panier", "add to cart", "acheter", "buy now",
+    "en stock", "out of stock", "promo", "promotion", "sale",
+    "vendor", "fournisseur", "marque", "brand", "prix", "price",
+}
+
+CATEGORY_HINT_TOKENS = {
+    "collection", "collections", "catégorie", "categorie", "univers",
+    "range", "gamme", "été", "ete", "enfants", "beauty", "beauté", "beaute",
+    "décoration", "decoration", "cadeaux", "thermos", "bambou", "microfibre",
+    "plage", "jardin", "organisation", "accessoires", "salle de bain",
+    "maison", "cuisine", "bureau", "bébé", "bebe", "été plage", "jardinage",
+}
+
+SYSTEM_TEXT_SNIPPETS = {
+    "s'ouvre dans une nouvelle fenêtre",
+    "s’ouvre dans une nouvelle fenêtre",
+    "opens in a new window",
+    "le choix d'une sélection entraîne l'actualisation de la page entière",
+    "le choix d’une sélection entraîne l’actualisation de la page entière",
+    "selection results in a full page refresh",
+}
+
+COUNTRY_NAMES = {
+    "afghanistan", "afrique du sud", "albanie", "algérie", "algerie", "allemagne",
+    "andorre", "angola", "arabie saoudite", "argentine", "arménie", "armenie",
+    "australie", "autriche", "belgique", "bénin", "benin", "brésil", "bresil",
+    "bulgarie", "burkina faso", "cameroun", "canada", "chili", "chine",
+    "chypre", "colombie", "corée du sud", "coree du sud", "côte d’ivoire",
+    "cote d'ivoire", "croatie", "danemark", "égypte", "egypte", "espagne",
+    "estonie", "états-unis", "etats-unis", "finlande", "france", "gabon",
+    "grèce", "grece", "hongrie", "inde", "indonésie", "indonesie", "irak",
+    "iran", "irlande", "islande", "israël", "israel", "italie", "japon",
+    "jordanie", "kenya", "koweït", "koweit", "lettonie", "liban", "libye",
+    "lituanie", "luxembourg", "maroc", "mexique", "monaco", "nigéria", "nigeria",
+    "norvège", "norvege", "nouvelle-zélande", "nouvelle zelande", "oman",
+    "pakistan", "pays-bas", "pays bas", "pérou", "perou", "pologne",
+    "portugal", "qatar", "roumanie", "royaume-uni", "royaume uni", "russie",
+    "sénégal", "senegal", "serbie", "singapour", "slovaquie", "slovénie",
+    "slovenie", "suède", "suede", "suisse", "tunisie", "turquie",
+    "uk", "uae", "united arab emirates", "united kingdom", "united states",
+}
+
+CURRENCY_MARKERS = {
+    "$", "€", "£", "dt", "tnd", "usd", "eur", "gbp", "aed", "mad",
+    "cad", "dzd", "sar", "dh", "د.ت",
 }
 
 
@@ -82,6 +185,15 @@ def _extract_domain(url: str | None) -> str | None:
         return None
 
 
+def _extract_path(url: str | None) -> str:
+    if not url:
+        return ""
+    try:
+        return (urlparse(url).path or "").casefold()
+    except Exception:
+        return ""
+
+
 def _is_social_domain(domain: str | None) -> bool:
     if not domain:
         return False
@@ -93,35 +205,118 @@ def _looks_like_count_text(text: str) -> bool:
     if not cleaned:
         return False
 
+    lowered = cleaned.casefold()
+
+    if re.fullmatch(
+        r"\d+\s*(product|products|item|items|article|articles|résultat|résultats|resultat|resultats|page|pages|produit|produits)\b.*",
+        lowered,
+    ):
+        return True
+
     words = cleaned.split()
-    if len(words) > 6:
+    if len(words) > 7:
         return False
 
     digit_count = sum(ch.isdigit() for ch in cleaned)
     if digit_count == 0:
         return False
 
-    lowered = cleaned.casefold()
     count_tokens = {
         "product", "products", "result", "results", "item", "items",
-        "article", "articles", "page", "pages"
+        "article", "articles", "page", "pages", "produit", "produits",
+        "résultat", "résultats", "resultat", "resultats",
     }
     return any(token in lowered for token in count_tokens)
 
 
-def _is_probably_short_utility_text(text: str) -> bool:
+def _contains_any_token(text: str, tokens: set[str]) -> bool:
     lowered = _normalize_text(text)
-    if not lowered:
+    return any(token in lowered for token in tokens)
+
+
+def _looks_like_price_text(text: str) -> bool:
+    cleaned = _clean_text(text)
+    if not cleaned:
         return False
-    if lowered in GENERIC_UTILITY_WORDS:
+
+    lowered = cleaned.casefold()
+    if any(token in lowered for token in CURRENCY_MARKERS):
         return True
-    return len(lowered.split()) <= 2 and len(lowered) <= 14
+
+    if re.search(r"\b\d+[.,]\d{2}\b", cleaned):
+        return True
+
+    if re.search(r"\b\d+\b", cleaned) and any(
+        token in lowered for token in {"prix", "price", "dt", "tnd", "usd", "eur"}
+    ):
+        return True
+
+    return False
+
+
+def _looks_like_country_currency_line(text: str) -> bool:
+    cleaned = _clean_text(text)
+    lowered = cleaned.casefold()
+    if not cleaned:
+        return False
+
+    has_country = lowered in COUNTRY_NAMES
+    has_currency = any(marker in lowered for marker in CURRENCY_MARKERS)
+
+    if has_country and has_currency:
+        return True
+
+    for country in COUNTRY_NAMES:
+        if lowered.startswith(country + " ") and has_currency:
+            return True
+
+    if re.fullmatch(r"[^\d]{3,40}\s+(tnd|usd|eur|gbp|aed|mad|cad|dzd|sar|dh|د\.ت)\b.*", lowered):
+        return True
+
+    return False
+
+
+def _looks_like_locale_picker_text(text: str) -> bool:
+    cleaned = _clean_text(text)
+    lowered = cleaned.casefold()
+    if not cleaned:
+        return False
+
+    if lowered in GENERIC_FORM_LABELS:
+        return False
+
+    if _looks_like_country_currency_line(cleaned):
+        return True
+
+    if lowered in COUNTRY_NAMES:
+        return True
+
+    if len(cleaned.split()) <= 4 and any(marker in lowered for marker in CURRENCY_MARKERS):
+        return True
+
+    if _contains_any_token(cleaned, LOCALE_UI_TOKENS):
+        return True
+
+    if any(word in lowered for word in LOCALE_STRONG_WORDS) and any(
+        marker in lowered for marker in CURRENCY_MARKERS
+    ):
+        return True
+
+    return False
 
 
 def _looks_like_picker_text(text: str) -> bool:
     cleaned = _clean_text(text)
     if not cleaned:
         return False
+
+    lowered = cleaned.casefold()
+
+    if lowered in GENERIC_FORM_LABELS:
+        return False
+
+    if _looks_like_locale_picker_text(cleaned):
+        return True
 
     word_count = len(cleaned.split())
     if word_count > 3 or len(cleaned) > 24:
@@ -132,13 +327,12 @@ def _looks_like_picker_text(text: str) -> bool:
     if letters < 3 or digits > 0:
         return False
 
-    lowered = cleaned.casefold()
     if lowered in GENERIC_UTILITY_WORDS:
         return False
     if _looks_like_count_text(cleaned):
         return False
 
-    return True
+    return False
 
 
 def _looks_like_locale_mass(items: List[Dict[str, Any]]) -> bool:
@@ -146,39 +340,170 @@ def _looks_like_locale_mass(items: List[Dict[str, Any]]) -> bool:
     if len(texts) < 8:
         return False
 
-    picker_candidates = [t for t in texts if _looks_like_picker_text(t)]
+    picker_candidates = [t for t in texts if _looks_like_locale_picker_text(t)]
     unique_candidates = _unique_strings(picker_candidates)
     return len(unique_candidates) >= 8
 
 
-def _looks_like_price_text(text: str) -> bool:
+def _is_filter_sort_text(text: str) -> bool:
+    lowered = _normalize_text(text)
+    if not lowered:
+        return False
+    if _looks_like_count_text(text):
+        return True
+    return any(token in lowered for token in FILTER_HEADING_TOKENS)
+
+
+def _is_filter_control_text(text: str) -> bool:
+    lowered = _normalize_text(text)
+    if not lowered:
+        return False
+    return lowered in FILTER_CONTROL_WORDS or any(token in lowered for token in FILTER_CONTROL_WORDS)
+
+
+def _is_system_text(text: str) -> bool:
+    lowered = _normalize_text(text)
+    if not lowered:
+        return False
+
+    if lowered in SYSTEM_HEADING_EXACT:
+        return True
+    if lowered in SYSTEM_TEXT_SNIPPETS:
+        return True
+
+    if any(token in lowered for token in CATEGORY_HINT_TOKENS):
+        return False
+
+    if lowered in {
+        "subscribe to our emails",
+        "newsletter",
+        "email address",
+        "mot de passe",
+        "password",
+        "login",
+        "sign in",
+        "signin",
+        "sign up",
+        "signup",
+        "register",
+        "create account",
+        "my account",
+        "account",
+        "compte",
+        "connexion",
+        "se connecter",
+        "s’inscrire",
+    }:
+        return True
+
+    if "panier" in lowered and "ajout" in lowered:
+        return True
+
+    return False
+
+
+def _is_short_meaningful_commerce_text(text: str) -> bool:
     cleaned = _clean_text(text)
+    lowered = cleaned.casefold()
     if not cleaned:
         return False
 
-    currency_tokens = {
-        "$", "€", "£", "dt", "tnd", "usd", "eur", "gbp", "aed",
-        "mad", "cad", "dzd", "sar", "dh"
-    }
-    lowered = cleaned.casefold()
+    if len(cleaned.split()) > 4 or len(cleaned) > 32:
+        return False
 
-    if any(token in lowered for token in currency_tokens):
+    if _looks_like_count_text(cleaned):
+        return False
+    if _looks_like_locale_picker_text(cleaned):
+        return False
+    if _is_filter_sort_text(cleaned):
+        return False
+    if lowered in GENERIC_UTILITY_WORDS:
+        return False
+    if lowered in GENERIC_FORM_LABELS:
+        return False
+
+    if re.fullmatch(r"[A-Za-zÀ-ÿ0-9'’&\-\s]+", cleaned) is None:
+        return False
+
+    if any(token in lowered for token in CATEGORY_HINT_TOKENS):
         return True
 
-    digit_count = sum(ch.isdigit() for ch in cleaned)
-    return digit_count >= 2 and any(sep in cleaned for sep in [".", ","])
+    if len(cleaned.split()) <= 2 and 3 <= len(cleaned) <= 24 and not _is_system_text(cleaned):
+        return True
+
+    return False
 
 
-def _is_probably_product_title(text: str) -> bool:
+def _is_probably_short_utility_text(text: str) -> bool:
+    lowered = _normalize_text(text)
+    if not lowered:
+        return False
+    if _is_short_meaningful_commerce_text(text):
+        return False
+    if lowered in GENERIC_UTILITY_WORDS:
+        return True
+    return len(lowered.split()) <= 2 and len(lowered) <= 14
+
+
+def _is_system_heading(text: str) -> bool:
+    lowered = _normalize_text(text)
+    if not lowered:
+        return False
+    if lowered in SYSTEM_HEADING_EXACT:
+        return True
+    if _is_filter_sort_text(text):
+        return True
+    if _looks_like_locale_picker_text(text):
+        return True
+    if _is_system_text(text):
+        return True
+    return False
+
+
+def _is_probable_product_title(text: str) -> bool:
     cleaned = _clean_text(text)
+    lowered = cleaned.casefold()
     if not cleaned:
         return False
     if _looks_like_count_text(cleaned):
         return False
-    if _looks_like_picker_text(cleaned):
+    if _looks_like_locale_picker_text(cleaned):
         return False
-    word_count = len(cleaned.split())
-    return len(cleaned) >= 18 or word_count >= 3
+    if _is_filter_sort_text(cleaned):
+        return False
+    if _is_system_text(cleaned):
+        return False
+    if any(snippet in lowered for snippet in SYSTEM_TEXT_SNIPPETS):
+        return False
+    if any(token in lowered for token in CATEGORY_HINT_TOKENS):
+        return False
+    if len(cleaned.split()) <= 1 and len(cleaned) < 18:
+        return False
+    return len(cleaned) >= 18 or len(cleaned.split()) >= 3
+
+
+def _has_product_hint(text: str) -> bool:
+    lowered = _normalize_text(text)
+    if not lowered:
+        return False
+    if _looks_like_price_text(text):
+        return True
+    return any(token in lowered for token in PRODUCT_HINT_TOKENS)
+
+
+def _looks_like_category_or_section_text(text: str) -> bool:
+    cleaned = _clean_text(text)
+    lowered = cleaned.casefold()
+    if not cleaned:
+        return False
+
+    if any(token in lowered for token in CATEGORY_HINT_TOKENS):
+        return True
+
+    if _is_short_meaningful_commerce_text(cleaned) and not _has_product_hint(cleaned) and not _looks_like_price_text(cleaned):
+        return True
+
+    return False
 
 
 def _summarize_counts(strings: List[str]) -> List[Dict[str, Any]]:
@@ -195,6 +520,64 @@ def _clean_link_item(item: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _is_probable_locale_link(item: Dict[str, Any]) -> bool:
+    text = _clean_text(item.get("text"))
+    href = _clean_text(item.get("href"))
+    aria = _clean_text(item.get("ariaLabel"))
+    title = _clean_text(item.get("title"))
+
+    combined = " ".join(part for part in [text, aria, title] if part).strip()
+    path = _extract_path(href)
+
+    if _looks_like_locale_picker_text(combined):
+        return True
+
+    if "localization" in path or "country" in path or "locale" in path or "language" in path:
+        return True
+
+    return False
+
+
+def _is_filter_control_link(item: Dict[str, Any]) -> bool:
+    text = _clean_text(item.get("text"))
+    href = _clean_text(item.get("href"))
+    lowered = text.casefold()
+
+    if not text:
+        return False
+
+    if _is_filter_control_text(text):
+        return True
+
+    if href.endswith("#") and lowered in FILTER_CONTROL_WORDS:
+        return True
+
+    return False
+
+
+def _is_utility_link(item: Dict[str, Any]) -> bool:
+    text = _clean_text(item.get("text"))
+    href = _clean_text(item.get("href"))
+
+    if not text:
+        return False
+
+    lowered = text.casefold()
+
+    if _is_filter_control_link(item):
+        return False
+
+    if lowered in {
+        "close", "back", "next", "previous", "retour",
+    }:
+        return True
+
+    if href.endswith("#"):
+        return True
+
+    return _is_probably_short_utility_text(text)
+
+
 def _classify_nav_group(items: List[Dict[str, Any]], current_domain: str | None) -> Dict[str, Any]:
     unique_items = _unique_dicts_by_key(
         items,
@@ -209,6 +592,7 @@ def _classify_nav_group(items: List[Dict[str, Any]], current_domain: str | None)
 
     locale_or_picker_links = []
     utility_links = []
+    filter_control_links = []
     external_links = []
     social_links = []
     useful_links = []
@@ -225,7 +609,9 @@ def _classify_nav_group(items: List[Dict[str, Any]], current_domain: str | None)
             external_links.append(item)
             continue
 
-        if group_looks_like_locale_picker and text and _looks_like_picker_text(text):
+        if _is_probable_locale_link(item) or (
+            group_looks_like_locale_picker and text and _looks_like_locale_picker_text(text)
+        ):
             locale_or_picker_links.append(item)
             continue
 
@@ -234,7 +620,11 @@ def _classify_nav_group(items: List[Dict[str, Any]], current_domain: str | None)
             useful_links.append(item)
             continue
 
-        if text and _is_probably_short_utility_text(text):
+        if _is_filter_control_link(item):
+            filter_control_links.append(item)
+            continue
+
+        if _is_utility_link(item):
             utility_links.append(item)
             continue
 
@@ -244,6 +634,7 @@ def _classify_nav_group(items: List[Dict[str, Any]], current_domain: str | None)
         "useful": useful_links,
         "locale": locale_or_picker_links,
         "utility": utility_links,
+        "filterControls": filter_control_links,
         "external": external_links,
         "social": social_links,
     }
@@ -274,6 +665,10 @@ def _clean_navigation_block(block: Dict[str, Any], final_url: str | None) -> Dic
             "breadcrumbs": breadcrumbs["useful"],
             "utilityNav": _unique_dicts_by_key(
                 primary["utility"] + footer["utility"] + side["utility"],
+                lambda item: (_normalize_text(item.get("text")), _clean_text(item.get("href"))),
+            ),
+            "filterControlLinks": _unique_dicts_by_key(
+                primary["filterControls"] + footer["filterControls"] + side["filterControls"],
                 lambda item: (_normalize_text(item.get("text")), _clean_text(item.get("href"))),
             ),
             "localeOrPickerLinks": _unique_dicts_by_key(
@@ -307,6 +702,7 @@ def _clean_navigation_block(block: Dict[str, Any], final_url: str | None) -> Dic
                 "sideNav": len(side["useful"]),
                 "breadcrumbs": len(breadcrumbs["useful"]),
                 "utilityNav": len(primary["utility"] + footer["utility"] + side["utility"]),
+                "filterControlLinks": len(primary["filterControls"] + footer["filterControls"] + side["filterControls"]),
                 "localeOrPickerLinks": len(primary["locale"] + footer["locale"] + side["locale"]),
                 "socialLinks": len(primary["social"] + footer["social"] + side["social"]),
                 "externalLinks": len(primary["external"] + footer["external"] + side["external"]),
@@ -321,13 +717,6 @@ def _dedupe_heading_items(headings: List[Dict[str, Any]]) -> List[Dict[str, Any]
         headings,
         lambda item: (_normalize_text(item.get("level")), _normalize_text(item.get("text"))),
     )
-
-
-def _is_filter_heading(text: str) -> bool:
-    lowered = _normalize_text(text)
-    if _looks_like_count_text(text):
-        return True
-    return any(token in lowered for token in FILTER_HEADING_TOKENS)
 
 
 def _clean_headings_block(block: Dict[str, Any]) -> Dict[str, Any]:
@@ -353,15 +742,17 @@ def _clean_headings_block(block: Dict[str, Any]) -> Dict[str, Any]:
 
         base_entry = {"level": level, "text": text}
 
-        if _is_filter_heading(text):
+        if _is_filter_sort_text(text):
             filter_headings.append(base_entry)
             continue
 
-        if _is_probably_short_utility_text(text) or _looks_like_picker_text(text):
+        if _is_short_meaningful_commerce_text(text):
+            content_headings.append(base_entry)
+        elif _is_system_heading(text) or _is_probably_short_utility_text(text):
             system_headings.append(base_entry)
             continue
-
-        content_headings.append(base_entry)
+        else:
+            content_headings.append(base_entry)
 
         if heading_counts.get(text, 0) > 1:
             repeated_headings.append(
@@ -411,6 +802,20 @@ def _clean_text_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return [{"text": _clean_text(item.get("text"))} for item in unique_items if _clean_text(item.get("text"))]
 
 
+def _is_duplicate_non_content_text(text: str) -> bool:
+    lowered = _normalize_text(text)
+    if not lowered:
+        return False
+
+    if lowered in {"facebook", "instagram", "tiktok", "youtube", "linkedin", "x", "twitter"}:
+        return True
+
+    if lowered in GENERIC_UTILITY_WORDS:
+        return True
+
+    return False
+
+
 def _split_text_noise(items: List[Dict[str, Any]]) -> Dict[str, Any]:
     cleaned = _clean_text_items(items)
 
@@ -418,16 +823,36 @@ def _split_text_noise(items: List[Dict[str, Any]]) -> Dict[str, Any]:
     repeated_short = []
     count_like = []
     picker_like = []
+    system_like = []
+    short_meaningful = []
 
     for item in cleaned:
         text = item["text"]
+        lowered = text.casefold()
 
         if _looks_like_count_text(text):
             count_like.append(item)
             continue
 
-        if _looks_like_picker_text(text):
+        if _looks_like_locale_picker_text(text):
             picker_like.append(item)
+            continue
+
+        if _is_duplicate_non_content_text(text):
+            repeated_short.append(item)
+            continue
+
+        if _is_system_text(text) or _is_filter_sort_text(text):
+            system_like.append(item)
+            continue
+
+        if lowered in GENERIC_FORM_LABELS:
+            meaningful.append(item)
+            continue
+
+        if _is_short_meaningful_commerce_text(text):
+            short_meaningful.append(item)
+            meaningful.append(item)
             continue
 
         if len(text.split()) <= 2 and len(text) <= 16:
@@ -438,9 +863,11 @@ def _split_text_noise(items: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     return {
         "meaningful": meaningful,
+        "shortMeaningful": short_meaningful,
         "repeatedShort": repeated_short,
         "countLike": count_like,
         "pickerLike": picker_like,
+        "systemLike": system_like,
     }
 
 
@@ -453,6 +880,7 @@ def _clean_cta_items(items: List[Dict[str, Any]]) -> Dict[str, Any]:
     useful = []
     short_utility = []
     picker_like = []
+    system_like = []
 
     for item in unique_items:
         text = _clean_text(item.get("text"))
@@ -464,8 +892,10 @@ def _clean_cta_items(items: List[Dict[str, Any]]) -> Dict[str, Any]:
             "kind": _clean_text(item.get("kind")) or None,
         }
 
-        if _looks_like_picker_text(text):
+        if _looks_like_locale_picker_text(text):
             picker_like.append(entry)
+        elif _is_system_text(text) or _is_filter_sort_text(text):
+            system_like.append(entry)
         elif _is_probably_short_utility_text(text):
             short_utility.append(entry)
         else:
@@ -475,17 +905,58 @@ def _clean_cta_items(items: List[Dict[str, Any]]) -> Dict[str, Any]:
         "useful": useful,
         "shortUtility": short_utility,
         "pickerLike": picker_like,
+        "systemLike": system_like,
     }
 
 
-def _extract_product_candidates(list_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    meaningful_texts = [item["text"] for item in list_items]
-    prices = [text for text in meaningful_texts if _looks_like_price_text(text)]
-    titles = [text for text in meaningful_texts if _is_probably_product_title(text)]
+def _extract_product_candidates(
+    list_items: List[Dict[str, Any]],
+    paragraphs: List[Dict[str, Any]],
+    ctas_useful: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    list_texts = [item["text"] for item in list_items]
+    paragraph_texts = [item["text"] for item in paragraphs]
+    cta_texts = [item["text"] for item in ctas_useful]
 
-    # Only treat titles as product-like if the page also contains price-like text.
-    if len(prices) == 0:
+    page_has_prices = any(_looks_like_price_text(text) for text in list_texts + paragraph_texts)
+    page_has_product_hints = any(_has_product_hint(text) for text in list_texts + paragraph_texts + cta_texts)
+
+    if not page_has_prices or not page_has_product_hints:
         return []
+
+    titles = []
+    for text in list_texts:
+        lowered = text.casefold()
+
+        if not _is_probable_product_title(text):
+            continue
+        if _looks_like_locale_picker_text(text):
+            continue
+        if _is_system_text(text) or _is_filter_sort_text(text):
+            continue
+        if _looks_like_category_or_section_text(text):
+            continue
+        if any(snippet in lowered for snippet in SYSTEM_TEXT_SNIPPETS):
+            continue
+        if lowered in {
+            "cadeaux", "decoration", "décoration", "beauté", "beaute",
+            "enfants", "thermos", "bambou", "microfibre",
+        }:
+            continue
+
+        local_product_evidence = (
+            _has_product_hint(text)
+            or _looks_like_price_text(text)
+            or (
+                any(word in lowered for word in {"inox", "ml", "cm", "l", "made in", "pack"})
+                and not _looks_like_category_or_section_text(text)
+            )
+        )
+
+        if not local_product_evidence:
+            continue
+
+        titles.append(text)
 
     output = [{"text": text} for text in titles]
     return _unique_dicts_by_key(output, lambda item: _normalize_text(item.get("text")))
@@ -500,29 +971,42 @@ def _clean_text_content_block(block: Dict[str, Any]) -> Dict[str, Any]:
     long_blocks = _split_text_noise(_safe_list(data.get("longTextBlocks")))
     ctas = _clean_cta_items(_safe_list(data.get("ctaTexts")))
 
-    product_like_texts = _extract_product_candidates(list_items["meaningful"])
+    product_like_texts = _extract_product_candidates(
+        list_items["meaningful"],
+        paragraphs["meaningful"],
+        ctas["useful"],
+    )
 
     return {
         "status": "ok",
         "data": {
             "paragraphs": paragraphs["meaningful"],
+            "paragraphsShortMeaningful": paragraphs["shortMeaningful"],
             "paragraphsRepeatedShort": paragraphs["repeatedShort"],
             "paragraphsCountLike": paragraphs["countLike"],
             "paragraphsPickerLike": paragraphs["pickerLike"],
+            "paragraphsSystemLike": paragraphs["systemLike"],
             "listItems": list_items["meaningful"],
+            "listItemsShortMeaningful": list_items["shortMeaningful"],
             "listItemsRepeatedShort": list_items["repeatedShort"],
             "listItemsCountLike": list_items["countLike"],
             "listItemsPickerLike": list_items["pickerLike"],
+            "listItemsSystemLike": list_items["systemLike"],
             "labels": labels["meaningful"],
+            "labelsShortMeaningful": labels["shortMeaningful"],
             "labelsRepeatedShort": labels["repeatedShort"],
             "labelsCountLike": labels["countLike"],
             "labelsPickerLike": labels["pickerLike"],
+            "labelsSystemLike": labels["systemLike"],
             "ctaTexts": ctas["useful"],
             "ctaTextsShortUtility": ctas["shortUtility"],
             "ctaTextsPickerLike": ctas["pickerLike"],
+            "ctaTextsSystemLike": ctas["systemLike"],
             "longTextBlocks": long_blocks["meaningful"],
+            "longTextBlocksShortMeaningful": long_blocks["shortMeaningful"],
             "longTextBlocksCountLike": long_blocks["countLike"],
             "longTextBlocksPickerLike": long_blocks["pickerLike"],
+            "longTextBlocksSystemLike": long_blocks["systemLike"],
             "productLikeTexts": product_like_texts,
             "counts": {
                 "paragraphs": len(paragraphs["meaningful"]),
@@ -550,6 +1034,35 @@ def _is_user_input_field(field: Dict[str, Any]) -> bool:
     return False
 
 
+def _is_localization_form(cleaned_form: Dict[str, Any]) -> bool:
+    action = _normalize_text(cleaned_form.get("action"))
+    visible_fields = cleaned_form.get("visibleFields") or []
+    all_fields = cleaned_form.get("allFields") or []
+
+    if "localization" in action:
+        return True
+
+    texts = []
+    for field in visible_fields + all_fields:
+        texts.extend([
+            _clean_text(field.get("name")),
+            _clean_text(field.get("id")),
+            _clean_text(field.get("label")),
+            _clean_text(field.get("placeholder")),
+            _clean_text(field.get("type")),
+        ])
+
+    joined = " | ".join(text for text in texts if text)
+    if _contains_any_token(joined, LOCALE_UI_TOKENS):
+        return True
+    if any(word in _normalize_text(joined) for word in LOCALE_STRONG_WORDS) and any(
+        marker in _normalize_text(joined) for marker in CURRENCY_MARKERS
+    ):
+        return True
+
+    return False
+
+
 def _clean_forms_block(block: Dict[str, Any]) -> Dict[str, Any]:
     data = (block or {}).get("data") or {}
     forms = _safe_list(data.get("items"))
@@ -559,6 +1072,7 @@ def _clean_forms_block(block: Dict[str, Any]) -> Dict[str, Any]:
     visible_fields_count = 0
     hidden_fields_count = 0
     user_input_fields_count = 0
+    localization_forms_count = 0
 
     for form in forms:
         fields = _safe_list(form.get("fields"))
@@ -593,28 +1107,37 @@ def _clean_forms_block(block: Dict[str, Any]) -> Dict[str, Any]:
                 user_input_fields.append(cleaned_field)
                 user_input_fields_count += 1
 
-        cleaned_forms.append(
-            {
-                "action": _clean_text(form.get("action")) or None,
-                "method": (_clean_text(form.get("method")) or "get").lower(),
-                "allFields": cleaned_fields,
-                "visibleFields": visible_fields,
-                "hiddenFields": hidden_fields,
-                "userInputFields": user_input_fields,
-                "counts": {
-                    "allFields": len(cleaned_fields),
-                    "visibleFields": len(visible_fields),
-                    "hiddenFields": len(hidden_fields),
-                    "userInputFields": len(user_input_fields),
-                },
-            }
-        )
+        cleaned_form = {
+            "action": _clean_text(form.get("action")) or None,
+            "method": (_clean_text(form.get("method")) or "get").lower(),
+            "allFields": cleaned_fields,
+            "visibleFields": visible_fields,
+            "hiddenFields": hidden_fields,
+            "userInputFields": user_input_fields,
+            "counts": {
+                "allFields": len(cleaned_fields),
+                "visibleFields": len(visible_fields),
+                "hiddenFields": len(hidden_fields),
+                "userInputFields": len(user_input_fields),
+            },
+        }
+
+        cleaned_form["isLocalizationForm"] = _is_localization_form(cleaned_form)
+        if cleaned_form["isLocalizationForm"]:
+            localization_forms_count += 1
+
+        cleaned_forms.append(cleaned_form)
+
+    meaningful_forms = [form for form in cleaned_forms if not form.get("isLocalizationForm")]
 
     return {
         "status": "ok",
         "data": {
             "items": cleaned_forms,
+            "meaningfulForms": meaningful_forms,
             "totalForms": len(cleaned_forms),
+            "meaningfulFormCount": len(meaningful_forms),
+            "localizationFormCount": localization_forms_count,
             "totalFields": total_fields,
             "visibleFields": visible_fields_count,
             "hiddenFields": hidden_fields_count,
@@ -710,6 +1233,9 @@ def _build_quality_signals(cleaned_page: Dict[str, Any]) -> Dict[str, Any]:
     if (forms.get("hiddenFields") or 0) > (forms.get("visibleFields") or 0):
         flags.append("forms_have_many_hidden_fields")
 
+    if (forms.get("localizationFormCount") or 0) > 0:
+        flags.append("has_localization_form")
+
     if (media.get("counts") or {}).get("missingAlt", 0) > 0:
         flags.append("images_missing_alt")
 
@@ -722,9 +1248,11 @@ def _build_quality_signals(cleaned_page: Dict[str, Any]) -> Dict[str, Any]:
             "meaningfulH1Count": len(headings.get("h1") or []),
             "repeatedHeadingCount": len(headings.get("repeatedHeadings") or []),
             "localeOrPickerLinkCount": (navigation.get("counts") or {}).get("localeOrPickerLinks", 0),
+            "filterControlLinkCount": (navigation.get("counts") or {}).get("filterControlLinks", 0),
             "socialLinkCount": (navigation.get("counts") or {}).get("socialLinks", 0),
             "visibleFieldCount": forms.get("visibleFields") or 0,
             "hiddenFieldCount": forms.get("hiddenFields") or 0,
+            "localizationFormCount": forms.get("localizationFormCount") or 0,
             "missingAltCount": (media.get("counts") or {}).get("missingAlt", 0),
             "productLikeTextCount": (text_content.get("counts") or {}).get("productLikeTexts", 0),
         },

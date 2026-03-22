@@ -4,7 +4,7 @@ from urllib.parse import urljoin
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 from src.audit.element_detector import detect_clickables
-from src.audit.page_visit_helpers import dismiss_cookie_banners
+from src.audit.page_visit_helpers import dismiss_cookie_banners, wait_for_page_ready
 from src.utils.file_utils import ensure_dir, join_path
 from src.utils.url_utils import (
     build_page_folder_name,
@@ -88,6 +88,10 @@ def should_skip_safe_clickable(clickable, page_url, config):
 
 
 def should_capture_interaction_screenshot(outcome_type, config):
+    # Skip screenshots for failed interactions to avoid low-value captures.
+    if outcome_type == "error":
+        return False
+
     if config["interactionTesting"].get("captureAllInteractionScreenshots"):
         return True
 
@@ -162,7 +166,16 @@ def attach_dialog_tracker(page):
     }
 
 
-async def save_interaction_screenshot(*, page, page_info, clickable, outcome_type, interaction_order, config):
+async def save_interaction_screenshot(
+    *,
+    page,
+    page_info,
+    clickable,
+    outcome_type,
+    interaction_order,
+    interaction_sequence,
+    config,
+):
     site_url = page_info.get("siteUrl") or page_info["url"]
     website_folder_name = build_website_folder_name(site_url)
     folder_segments = page_info.get("folderSegments") or [
@@ -173,6 +186,7 @@ async def save_interaction_screenshot(*, page, page_info, clickable, outcome_typ
         website_folder_name,
         *folder_segments,
         "interactions",
+        outcome_type,
     )
 
     ensure_dir(interactions_folder_path)
@@ -188,12 +202,13 @@ async def save_interaction_screenshot(*, page, page_info, clickable, outcome_typ
         )
         or "element"
     )
+    safe_element_name = safe_element_name[:80].strip("_") or "element"
 
     file_name = "_".join(
         [
-            str(interaction_order).zfill(3),
+            str(interaction_sequence).zfill(3),
+            f"c{str(interaction_order).zfill(3)}",
             safe_element_name,
-            outcome_type,
         ]
     ) + f".{config['screenshot']['type']}"
 
@@ -214,6 +229,7 @@ async def maybe_capture_interaction_screenshot(
     clickable,
     outcome_type,
     interaction_order,
+    interaction_sequence,
     config,
 ):
     if not page or not should_capture_interaction_screenshot(outcome_type, config):
@@ -226,14 +242,16 @@ async def maybe_capture_interaction_screenshot(
             clickable=clickable,
             outcome_type=outcome_type,
             interaction_order=interaction_order,
+            interaction_sequence=interaction_sequence,
             config=config,
         )
     except Exception:
         return None
 
 
-def build_skipped_result(clickable, page_url, reason):
+def build_skipped_result(clickable, page_url, reason, interaction_sequence):
     return {
+        "interactionSequence": interaction_sequence,
         "clickableIndex": clickable["index"],
         "clickableText": clickable.get("text"),
         "clickableTag": clickable.get("tag"),
@@ -263,6 +281,13 @@ async def test_safe_clickables(*, context, page_info, classified_clickables, con
         }
 
     safe_clickables = [item for item in classified_clickables if item.get("classification") == "safe"]
+    safe_clickables = sorted(
+        safe_clickables,
+        key=lambda item: (
+            not bool(item.get("visible")),
+            item.get("index", 0),
+        ),
+    )
     max_safe_interactions = config["interactionTesting"].get("maxSafeInteractionsPerPage")
     if isinstance(max_safe_interactions, int) and max_safe_interactions > 0:
         safe_clickables = safe_clickables[:max_safe_interactions]
@@ -274,15 +299,23 @@ async def test_safe_clickables(*, context, page_info, classified_clickables, con
     test_page = await context.new_page()
 
     try:
-        for clickable in safe_clickables:
+        for interaction_sequence, clickable in enumerate(safe_clickables, start=1):
             skip_reason = should_skip_safe_clickable(clickable, page_info["url"], config)
 
             if skip_reason:
                 skipped_safe_count += 1
-                results.append(build_skipped_result(clickable, page_info["url"], skip_reason))
+                results.append(
+                    build_skipped_result(
+                        clickable,
+                        page_info["url"],
+                        skip_reason,
+                        interaction_sequence,
+                    )
+                )
                 continue
 
             interaction_result = {
+                "interactionSequence": interaction_sequence,
                 "clickableIndex": clickable["index"],
                 "clickableText": clickable.get("text"),
                 "clickableTag": clickable.get("tag"),
@@ -318,6 +351,8 @@ async def test_safe_clickables(*, context, page_info, classified_clickables, con
                 if config.get("pageCapture", {}).get("dismissCookieBanners"):
                     await dismiss_cookie_banners(test_page)
 
+                await wait_for_page_ready(test_page, config)
+
                 before_url = test_page.url
                 before_state = await capture_page_state(test_page)
                 dialog_tracker = attach_dialog_tracker(test_page)
@@ -334,6 +369,7 @@ async def test_safe_clickables(*, context, page_info, classified_clickables, con
                         clickable=clickable,
                         outcome_type=interaction_result["outcomeType"],
                         interaction_order=clickable["index"],
+                        interaction_sequence=interaction_sequence,
                         config=config,
                     )
                     if interaction_result["screenshotPath"]:
@@ -341,10 +377,26 @@ async def test_safe_clickables(*, context, page_info, classified_clickables, con
                     results.append(interaction_result)
                     continue
 
+                matched_clickable = fresh_clickables[target_index]
+                raw_dom_index = matched_clickable.get("domIndex", clickable.get("domIndex", target_index))
                 selector = ", ".join(config["clickableDetection"]["selectors"])
-                locator = test_page.locator(selector).nth(target_index)
+                locator = test_page.locator(selector).nth(raw_dom_index)
 
-                await locator.scroll_into_view_if_needed()
+                try:
+                    if not await locator.is_visible():
+                        interaction_result["outcomeType"] = "not_found"
+                        interaction_result["reason"] = "matched clickable not visible on fresh page load"
+                        results.append(interaction_result)
+                        continue
+                except Exception:
+                    interaction_result["outcomeType"] = "not_found"
+                    interaction_result["reason"] = "matched clickable not accessible on fresh page load"
+                    results.append(interaction_result)
+                    continue
+
+                await locator.scroll_into_view_if_needed(
+                    timeout=config["interactionTesting"]["actionTimeoutMs"]
+                )
 
                 popup_task = asyncio.create_task(
                     test_page.wait_for_event(
@@ -370,6 +422,7 @@ async def test_safe_clickables(*, context, page_info, classified_clickables, con
                         pass
 
                 await wait_shortly_after_action(test_page, config["interactionTesting"]["postClickDelayMs"])
+                await wait_for_page_ready(popup_page or test_page, config)
 
                 after_url = test_page.url
                 after_state = await capture_page_state(test_page)
@@ -414,6 +467,7 @@ async def test_safe_clickables(*, context, page_info, classified_clickables, con
                     clickable=clickable,
                     outcome_type=interaction_result["outcomeType"],
                     interaction_order=clickable["index"],
+                    interaction_sequence=interaction_sequence,
                     config=config,
                 )
                 if interaction_result["screenshotPath"]:
@@ -430,6 +484,7 @@ async def test_safe_clickables(*, context, page_info, classified_clickables, con
                     clickable=clickable,
                     outcome_type=interaction_result["outcomeType"],
                     interaction_order=clickable["index"],
+                    interaction_sequence=interaction_sequence,
                     config=config,
                 )
                 if interaction_result["screenshotPath"]:

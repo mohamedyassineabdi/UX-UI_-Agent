@@ -48,6 +48,62 @@ async def dismiss_cookie_banners(page) -> List[str]:
     return clicked
 
 
+async def wait_for_page_ready(page, config) -> None:
+    readiness = config.get("pageReadiness", {})
+    network_idle_timeout = readiness.get("networkIdleTimeoutMs", 0)
+    asset_timeout = readiness.get("assetTimeoutMs", 0)
+    settle_delay_ms = readiness.get("settleDelayMs", 0)
+
+    if network_idle_timeout and network_idle_timeout > 0:
+        try:
+            await page.wait_for_load_state("networkidle", timeout=network_idle_timeout)
+        except Exception:
+            pass
+
+    try:
+        await page.evaluate(
+            """
+            async () => {
+              if (document.fonts && document.fonts.ready) {
+                try {
+                  await document.fonts.ready;
+                } catch (error) {
+                  /* ignore */
+                }
+              }
+            }
+            """
+        )
+    except Exception:
+        pass
+
+    if asset_timeout and asset_timeout > 0:
+        try:
+            await page.wait_for_function(
+                """
+                () => {
+                  const images = Array.from(document.images || []);
+                  return images.every((image) => {
+                    if (image.loading === 'lazy' && !image.currentSrc) {
+                      return true;
+                    }
+
+                    return image.complete;
+                  });
+                }
+                """,
+                timeout=asset_timeout,
+            )
+        except Exception:
+            pass
+
+    if settle_delay_ms and settle_delay_ms > 0:
+        try:
+            await page.wait_for_timeout(settle_delay_ms)
+        except Exception:
+            pass
+
+
 async def smart_scroll(*, page, screenshots_dir: str, page_label: str, screenshot_type: str, max_rounds: int = 4) -> List[str]:
     shots: List[str] = []
     last_height = -1
