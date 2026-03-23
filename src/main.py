@@ -13,6 +13,7 @@ if __package__ in {None, ""}:
 
 from src.audit.page_runner import run_page_audit
 from src.audit.person_a_postprocess import clean_person_a_output
+from src.audit.rendered_css_extractor import build_rendered_ui_output
 from src.config.audit_config import AUDIT_CONFIG
 from src.utils.file_utils import (
     build_timestamp_for_file_name,
@@ -544,9 +545,14 @@ async def async_main():
     person_a_cleaned_file_path = join_path("shared", "generated", "person_a_cleaned.json")
     write_json_file(person_a_cleaned_file_path, person_a_cleaned_output)
 
+    rendered_ui_output = build_rendered_ui_output(page_results)
+    rendered_ui_file_path = join_path("shared", "generated", "rendered_ui_extraction.json")
+    write_json_file(rendered_ui_file_path, rendered_ui_output)
+
     print(f"Results written to: {results_file_path}")
     print(f"Person A extraction written to: {person_a_file_path}")
     print(f"Person A cleaned output written to: {person_a_cleaned_file_path}")
+    print(f"Rendered UI extraction written to: {rendered_ui_file_path}")
     print("Audit completed.")
 
 

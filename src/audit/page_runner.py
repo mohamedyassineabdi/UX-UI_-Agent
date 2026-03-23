@@ -9,6 +9,7 @@ from src.audit.page_visit_helpers import (
     wait_for_page_ready,
 )
 from src.audit.person_a_extractor import extract_person_a_blocks
+from src.audit.rendered_css_extractor import extract_rendered_ui
 from src.audit.safe_interaction_tester import test_safe_clickables
 from src.utils.file_utils import ensure_dir, join_path, write_json_file
 from src.utils.url_utils import build_page_folder_name, build_website_folder_name
@@ -69,6 +70,7 @@ async def run_page_audit(*, context, page_info, page_index, config):
         "scrollScreenshotPaths": [],
         "pageMetadata": None,
         "personA": None,
+        "renderedUi": None,
         "networkLogPath": None,
         "pageMetadataPath": None,
         "domSnapshotPath": None,
@@ -151,6 +153,9 @@ async def run_page_audit(*, context, page_info, page_index, config):
             screenshot_path=result["screenshotPath"],
             scroll_screenshot_paths=result["scrollScreenshotPaths"],
         )
+
+        if config.get("renderedUi", {}).get("enabled"):
+            result["renderedUi"] = await extract_rendered_ui(page, config)
 
         if keep_debug_artifacts and config.get("pageCapture", {}).get("saveNetworkLog"):
             network_log_path = join_path(artifacts_dir, "network_log.json")
