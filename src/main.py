@@ -23,7 +23,12 @@ from src.utils.file_utils import (
     read_json_file,
     write_json_file,
 )
-from src.utils.url_utils import build_page_folder_name, build_website_folder_name, deduplicate_pages
+from src.utils.url_utils import (
+    build_page_folder_name,
+    build_website_folder_name,
+    deduplicate_pages,
+    safe_normalize_url,
+)
 
 
 def clean_label(value: Any) -> str:
@@ -410,20 +415,20 @@ async def async_main():
     raw_input = read_json_file(AUDIT_CONFIG["paths"]["inputFile"])
     pages_parsed = parse_input_to_pages(raw_input, AUDIT_CONFIG)
     deduped = deduplicate_pages(pages_parsed, AUDIT_CONFIG["urlNormalization"])
-    unique_pages = deduped["uniquePages"]
-    duplicates = deduped["duplicates"]
+    unique_pages_from_input = deduped["uniquePages"]
+    input_duplicates = deduped["duplicates"]
 
     print(f"Total pages extracted from input: {len(pages_parsed)}")
-    print(f"Unique pages to visit: {len(unique_pages)}")
-    print(f"Duplicates skipped: {len(duplicates)}")
+    print(f"Unique pages to visit: {len(unique_pages_from_input)}")
+    print(f"Duplicates skipped: {len(input_duplicates)}")
 
-    if not unique_pages:
+    if not unique_pages_from_input:
         raise ValueError(
             "No visitable pages were extracted from the input JSON. "
             "The crawler likely failed or did not return usable navigation links."
         )
 
-    clear_website_output_dirs(unique_pages, AUDIT_CONFIG)
+    clear_website_output_dirs(unique_pages_from_input, AUDIT_CONFIG)
 
     print(
         "Browser mode: "
@@ -443,45 +448,149 @@ async def async_main():
         )
 
         try:
+            page_queue: asyncio.Queue = asyncio.Queue()
+            schedule_lock = asyncio.Lock()
+            progress_lock = asyncio.Lock()
+            seen_urls = set()
+            scheduled_pages: List[Dict[str, Any]] = []
+            page_results: List[Dict[str, Any] | None] = []
+            discovery_duplicates: List[Dict[str, Any]] = []
             progress = {"completed": 0}
 
-            async def worker(page_info, index):
-                print(f"[START {index + 1}/{len(unique_pages)}] {page_info['name']} -> {page_info['url']}")
-                try:
-                    result = await run_page_audit(
-                        context=context,
-                        page_info=page_info,
-                        page_index=index,
-                        config=AUDIT_CONFIG,
-                    )
+            async def schedule_page(page_info: Dict[str, Any], *, source: str) -> bool:
+                invalid_reason = None
+                queue_item = None
 
-                    if result["status"] == "success":
-                        print(f"  Success -> screenshot saved: {result['screenshotPath']}")
-                        clickable_summary = result["clickableSummary"]
-                        interaction_summary = result["interactionSummary"]
-                        print(
-                            "  Clickables -> total: "
-                            f"{clickable_summary['totalDetected']}, safe: {clickable_summary['safe']}, "
-                            f"forbidden: {clickable_summary['forbidden']}, unknown: {clickable_summary['unknown']}"
-                        )
-                        print(
-                            "  Interactions -> tested: "
-                            f"{interaction_summary['tested']}, success: {interaction_summary['successful']}, "
-                            f"screenshots: {interaction_summary['interactionScreenshotsCreated']}"
-                        )
+                async with schedule_lock:
+                    page_index = len(scheduled_pages)
+
+                    try:
+                        normalized_page = normalize_flat_page(page_info, page_index)
+                    except ValueError as error:
+                        invalid_reason = str(error)
                     else:
-                        print(f"  Failed -> {result['error']}")
+                        normalized_url = page_info.get("normalizedUrl") or safe_normalize_url(
+                            normalized_page["url"],
+                            AUDIT_CONFIG["urlNormalization"],
+                        )
 
-                    return result
-                finally:
-                    progress["completed"] += 1
-                    print(f"[DONE  {progress['completed']}/{len(unique_pages)}] {page_info['url']}")
+                        if not normalized_url:
+                            invalid_reason = f"invalid URL: {normalized_page['url']}"
+                        elif normalized_url in seen_urls:
+                            if source != "input":
+                                discovery_duplicates.append(
+                                    {
+                                        **normalized_page,
+                                        "normalizedUrl": normalized_url,
+                                        "discoveredFrom": page_info.get("discoveredFrom"),
+                                        "duplicateReason": "already scheduled or visited",
+                                    }
+                                )
+                            return False
+                        else:
+                            enriched_page = {
+                                **normalized_page,
+                                "normalizedUrl": normalized_url,
+                            }
+                            if isinstance(page_info.get("discoveredFrom"), dict):
+                                enriched_page["discoveredFrom"] = page_info["discoveredFrom"]
 
-            page_results = await run_with_concurrency(
-                unique_pages,
-                worker,
-                AUDIT_CONFIG["execution"]["pageConcurrency"],
-            )
+                            seen_urls.add(normalized_url)
+                            scheduled_pages.append(enriched_page)
+                            page_results.append(None)
+                            queue_item = (page_index, enriched_page)
+
+                if invalid_reason:
+                    print(f"Skipping invalid {source} page: {invalid_reason}")
+                    return False
+
+                if queue_item is None:
+                    return False
+
+                await page_queue.put(queue_item)
+
+                if source != "input":
+                    print(f"  Queued discovered page -> {queue_item[1]['url']}")
+
+                return True
+
+            async def worker(worker_id: int):
+                del worker_id
+
+                while True:
+                    queue_item = await page_queue.get()
+
+                    if queue_item is None:
+                        page_queue.task_done()
+                        break
+
+                    index, page_info = queue_item
+                    print(f"[START {index + 1}/{len(scheduled_pages)}] {page_info['name']} -> {page_info['url']}")
+
+                    try:
+                        result = await run_page_audit(
+                            context=context,
+                            page_info=page_info,
+                            page_index=index,
+                            config=AUDIT_CONFIG,
+                        )
+                        page_results[index] = result
+
+                        final_normalized_url = safe_normalize_url(
+                            result.get("finalUrl"),
+                            AUDIT_CONFIG["urlNormalization"],
+                        )
+                        if final_normalized_url:
+                            async with schedule_lock:
+                                seen_urls.add(final_normalized_url)
+
+                        if result["status"] == "success":
+                            print(f"  Success -> screenshot saved: {result['screenshotPath']}")
+                            clickable_summary = result["clickableSummary"]
+                            interaction_summary = result["interactionSummary"]
+                            print(
+                                "  Clickables -> total: "
+                                f"{clickable_summary['totalDetected']}, safe: {clickable_summary['safe']}, "
+                                f"forbidden: {clickable_summary['forbidden']}, unknown: {clickable_summary['unknown']}"
+                            )
+                            print(
+                                "  Interactions -> tested: "
+                                f"{interaction_summary['tested']}, success: {interaction_summary['successful']}, "
+                                f"screenshots: {interaction_summary['interactionScreenshotsCreated']}"
+                            )
+
+                            discovered_count = 0
+                            for discovered_page in result.get("discoveredPages", []):
+                                if await schedule_page(discovered_page, source="discovery"):
+                                    discovered_count += 1
+
+                            if discovered_count:
+                                print(f"  Discovered pages queued: {discovered_count}")
+                        else:
+                            print(f"  Failed -> {result['error']}")
+                    finally:
+                        async with progress_lock:
+                            progress["completed"] += 1
+                            completed = progress["completed"]
+                            scheduled_total = len(scheduled_pages)
+
+                        print(f"[DONE  {completed}/{scheduled_total}] {page_info['url']}")
+                        page_queue.task_done()
+
+            for page_info in unique_pages_from_input:
+                await schedule_page(page_info, source="input")
+
+            worker_count = max(1, AUDIT_CONFIG["execution"]["pageConcurrency"])
+            workers = [asyncio.create_task(worker(index)) for index in range(worker_count)]
+
+            await page_queue.join()
+
+            for _ in workers:
+                await page_queue.put(None)
+
+            await asyncio.gather(*workers)
+
+            page_results = [result for result in page_results if result is not None]
         finally:
             if context:
                 await context.close()
@@ -502,8 +611,12 @@ async def async_main():
         "slowMoMs": AUDIT_CONFIG["browser"].get("slowMoMs", 0),
         "pageConcurrency": AUDIT_CONFIG["execution"]["pageConcurrency"],
         "totalPagesExtractedFromInput": len(pages_parsed),
-        "uniquePagesVisited": len(unique_pages),
-        "duplicatePagesSkipped": len(duplicates),
+        "uniquePagesFromInput": len(unique_pages_from_input),
+        "discoveredPagesQueued": max(len(page_results) - len(unique_pages_from_input), 0),
+        "uniquePagesVisited": len(page_results),
+        "duplicatePagesSkipped": len(input_duplicates) + len(discovery_duplicates),
+        "duplicatePagesSkippedFromInput": len(input_duplicates),
+        "duplicatePagesSkippedDuringDiscovery": len(discovery_duplicates),
         "pagesSucceeded": len([result for result in page_results if result["status"] == "success"]),
         "pagesFailed": len([result for result in page_results if result["status"] == "failed"]),
         "totalClickablesDetected": run_summary["totalClickablesDetected"],
@@ -527,7 +640,8 @@ async def async_main():
 
     output = {
         "summary": summary,
-        "duplicatesSkipped": duplicates,
+        "duplicatesSkipped": input_duplicates,
+        "discoveryDuplicatesSkipped": discovery_duplicates,
         "pages": page_results,
     }
 

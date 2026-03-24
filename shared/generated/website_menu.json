@@ -1,64 +1,103 @@
 {
-  "homepage": "https://3afsatunisie.com/",
-  "language": "fr",
+  "homepage": "https://www.python.org/",
+  "language": "en",
   "auth": {
-    "signin": null,
-    "signup": null
+    "signin": {
+      "name": "Sign In Sign Up or Sign In to Python.org",
+      "url": "https://www.python.org/accounts/login/"
+    },
+    "signup": {
+      "name": "Sign In Sign Up or Sign In to Python.org",
+      "url": "https://www.python.org/accounts/login/"
+    }
   },
   "navigation": [
     {
-      "name": "Catalog",
-      "url": "https://3afsatunisie.com/collections/all",
+      "name": "About",
+      "url": "https://www.python.org/about/",
       "type": "link",
       "children": []
     },
     {
-      "name": "Contact",
-      "url": "https://3afsatunisie.com/pages/contact",
+      "name": "Community",
+      "url": "https://www.python.org/community/",
       "type": "link",
       "children": []
     },
     {
-      "name": "Home",
-      "url": "https://3afsatunisie.com/",
+      "name": "Docs",
+      "url": "https://docs.python.org/",
       "type": "link",
       "children": []
     },
     {
-      "name": "Panier",
-      "url": "https://3afsatunisie.com/cart",
+      "name": "Documentation",
+      "url": "https://www.python.org/doc/",
+      "type": "link",
+      "children": []
+    },
+    {
+      "name": "Downloads",
+      "url": "https://www.python.org/downloads/",
+      "type": "link",
+      "children": []
+    },
+    {
+      "name": "Events",
+      "url": "https://www.python.org/events/",
+      "type": "link",
+      "children": []
+    },
+    {
+      "name": "News",
+      "url": "https://www.python.org/blogs/",
+      "type": "link",
+      "children": []
+    },
+    {
+      "name": "PSF",
+      "url": "https://www.python.org/psf/",
+      "type": "link",
+      "children": []
+    },
+    {
+      "name": "Success Stories",
+      "url": "https://www.python.org/success-stories/",
       "type": "link",
       "children": []
     }
   ],
   "extra": {
     "desktop": {
-      "forms_detected": 6,
-      "total_internal_links": 801,
-      "external_links": 10,
-      "title": "3afsatunisia.tn",
-      "page_size_kb": 826.83,
-      "images_found": 46,
+      "forms_detected": 1,
+      "total_internal_links": 168,
+      "external_links": 21,
+      "title": "Python For Beginners | Python.org",
+      "page_size_kb": 42.2,
+      "images_found": 1,
       "mode": "desktop",
-      "page_language": "fr"
+      "page_language": "en",
+      "entry_page_resolved": false,
+      "hidden_navigation_opened": false
     },
     "mobile": {
-      "forms_detected": 6,
-      "total_internal_links": 801,
-      "external_links": 10,
-      "title": "3afsatunisia.tn",
-      "page_size_kb": 826.94,
-      "images_found": 46,
+      "forms_detected": 1,
+      "total_internal_links": 157,
+      "external_links": 20,
+      "title": "Python For Beginners | Python.org",
+      "page_size_kb": 37.14,
+      "images_found": 1,
       "mode": "mobile",
-      "page_language": "fr"
+      "page_language": "en",
+      "entry_page_resolved": false,
+      "hidden_navigation_opened": false
     },
-    "menu_count": 4,
-    "navbar_score": 17.0,
+    "menu_count": 9,
+    "navbar_score": 34.6,
     "source_container": "merged(desktop+mobile)",
-    "sitemap_found": "https://3afsatunisie.com/sitemap.xml",
-    "robots_txt": "https://3afsatunisie.com/robots.txt",
-    "crawl_time_ms": 132488
+    "sitemap_found": null,
+    "robots_txt": "https://www.python.org/robots.txt",
+    "crawl_time_ms": 103589
   },
-  "requested_language": "en-US",
-  "language_warning": "Requested English, but detected page language was fr."
+  "requested_language": "en-US"
 }

@@ -1,5 +1,5 @@
 import asyncio
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
@@ -99,6 +99,233 @@ def should_capture_interaction_screenshot(outcome_type, config):
         return False
 
     return outcome_type in {"navigation", "dom_change", "popup", "dialog"}
+
+
+def humanize_segment(value):
+    text = clean_text(str(value or "").replace("-", " ").replace("_", " "))
+    return text[:120] if text else ""
+
+
+def clean_page_title(value):
+    title = clean_text(value)
+    if not title:
+        return ""
+
+    for separator in (" – ", " - ", " | "):
+        if separator in title:
+            title = clean_text(title.split(separator)[0])
+            break
+
+    return title[:120]
+
+
+def get_url_path_segments(raw_url):
+    try:
+        parsed = urlsplit(raw_url or "")
+    except Exception:
+        return []
+
+    return [segment for segment in parsed.path.split("/") if clean_text(segment)]
+
+
+def get_page_kind(raw_url):
+    segments = [segment.lower() for segment in get_url_path_segments(raw_url)]
+    if not segments:
+        return "home"
+
+    first_segment = segments[0]
+    if first_segment == "collections":
+        return "collection"
+    if first_segment == "products":
+        return "product"
+    if first_segment == "pages":
+        return "page"
+    if first_segment == "blogs":
+        return "blog"
+    if first_segment == "search":
+        return "search"
+    if first_segment == "cart":
+        return "cart"
+
+    return "generic"
+
+
+def find_segment_index(segments, target):
+    normalized_target = clean_text(target).lower()
+    for index, segment in enumerate(segments):
+        if clean_text(segment).lower() == normalized_target:
+            return index
+    return -1
+
+
+def build_grouped_path(root_navigation_path, root_folder_segments, group_name, leaf_name):
+    folder_group_name = build_page_folder_name(group_name, "group")
+    folder_leaf_name = build_page_folder_name(leaf_name, "page")
+
+    return (
+        root_navigation_path + [group_name, leaf_name],
+        root_folder_segments + [folder_group_name, folder_leaf_name],
+    )
+
+
+def build_discovered_page_structure(page_info, discovered_url, page_name):
+    root_navigation_path = (page_info.get("navigationPath") or [page_info["name"]])[:1]
+    root_folder_segments = (
+        page_info.get("folderSegments")
+        or [build_page_folder_name(page_info["name"], "page")]
+    )[:1]
+
+    page_kind = get_page_kind(discovered_url)
+    parent_kind = get_page_kind(page_info.get("url"))
+    parent_navigation_path = page_info.get("navigationPath") or root_navigation_path
+    parent_folder_segments = page_info.get("folderSegments") or root_folder_segments
+
+    if page_kind == "collection":
+        return build_grouped_path(
+            root_navigation_path,
+            root_folder_segments,
+            "Collections",
+            page_name,
+        )
+
+    if page_kind == "product":
+        products_index = find_segment_index(parent_navigation_path, "Products")
+        if products_index != -1:
+            base_navigation_path = parent_navigation_path[: products_index + 1]
+            base_folder_segments = parent_folder_segments[: products_index + 1]
+        elif parent_kind == "collection":
+            base_navigation_path = parent_navigation_path + ["Products"]
+            base_folder_segments = parent_folder_segments + [build_page_folder_name("Products", "group")]
+        else:
+            base_navigation_path = root_navigation_path + ["Products"]
+            base_folder_segments = root_folder_segments + [build_page_folder_name("Products", "group")]
+
+        return (
+            base_navigation_path + [page_name],
+            base_folder_segments + [build_page_folder_name(page_name, "page")],
+        )
+
+    if page_kind == "page":
+        return build_grouped_path(
+            root_navigation_path,
+            root_folder_segments,
+            "Pages",
+            page_name,
+        )
+
+    if page_kind == "blog":
+        return build_grouped_path(
+            root_navigation_path,
+            root_folder_segments,
+            "Blogs",
+            page_name,
+        )
+
+    if page_kind == "search":
+        return build_grouped_path(
+            root_navigation_path,
+            root_folder_segments,
+            "Search",
+            page_name,
+        )
+
+    if page_kind == "cart":
+        return (
+            root_navigation_path + ["Cart"],
+            root_folder_segments + [build_page_folder_name("Cart", "group")],
+        )
+
+    return (
+        parent_navigation_path + [page_name],
+        parent_folder_segments + [build_page_folder_name(page_name, "page")],
+    )
+
+
+def build_discovered_page_name(discovered_url, clickable, page_title=None):
+    label_candidates = [
+        clickable.get("text"),
+        clickable.get("ariaLabel"),
+        clickable.get("title"),
+        clickable.get("name"),
+        clean_page_title(page_title),
+    ]
+    for candidate in label_candidates:
+        preferred_label = clean_text(candidate)
+        if preferred_label and len(preferred_label) <= 90:
+            return preferred_label[:120]
+
+    for candidate in label_candidates:
+        preferred_label = clean_text(candidate)
+        if preferred_label:
+            return preferred_label[:120]
+
+    parsed = urlsplit(discovered_url or "")
+    path_segments = [segment for segment in parsed.path.split("/") if segment]
+    if path_segments:
+        return humanize_segment(path_segments[-1]) or "Discovered Page"
+
+    return parsed.netloc or "Discovered Page"
+
+
+async def build_discovered_page(
+    *,
+    destination_page,
+    page_info,
+    clickable,
+    interaction_sequence,
+    outcome_type,
+    discovered_url,
+    config,
+):
+    normalized_url = safe_normalize_url(discovered_url, config["urlNormalization"])
+    if not normalized_url:
+        return None
+
+    current_normalized_url = page_info.get("normalizedUrl") or safe_normalize_url(
+        page_info["url"],
+        config["urlNormalization"],
+    )
+    if current_normalized_url and current_normalized_url == normalized_url:
+        return None
+
+    if config["interactionTesting"].get("skipExternalOrigins"):
+        current_origin = get_origin_safe(page_info.get("siteUrl") or page_info["url"])
+        target_origin = get_origin_safe(discovered_url)
+        if current_origin and target_origin and current_origin != target_origin:
+            return None
+
+    page_title = None
+    if destination_page:
+        try:
+            page_title = await destination_page.title()
+        except Exception:
+            page_title = None
+
+    page_name = build_discovered_page_name(discovered_url, clickable, page_title)
+    navigation_path, folder_segments = build_discovered_page_structure(
+        page_info,
+        discovered_url,
+        page_name,
+    )
+
+    return {
+        "name": page_name,
+        "url": discovered_url,
+        "siteUrl": page_info.get("siteUrl") or page_info["url"],
+        "navigationPath": navigation_path,
+        "folderSegments": folder_segments,
+        "sourceType": "discovered",
+        "normalizedUrl": normalized_url,
+        "discoveredFrom": {
+            "pageName": page_info.get("name"),
+            "pageUrl": page_info.get("url"),
+            "clickableIndex": clickable.get("index"),
+            "clickableText": clickable.get("text"),
+            "clickableTag": clickable.get("tag"),
+            "interactionSequence": interaction_sequence,
+            "outcomeType": outcome_type,
+        },
+    }
 
 
 async def wait_shortly_after_action(page, delay_ms):
@@ -266,6 +493,7 @@ def build_skipped_result(clickable, page_url, reason, interaction_sequence):
         "openedNewTab": False,
         "dialog": None,
         "domChanged": False,
+        "discoveredPage": None,
         "screenshotPath": None,
         "error": None,
     }
@@ -278,6 +506,7 @@ async def test_safe_clickables(*, context, page_info, classified_clickables, con
             "skippedSafeCount": 0,
             "interactionScreenshotsCreated": 0,
             "safeInteractionResults": [],
+            "discoveredPages": [],
         }
 
     safe_clickables = [item for item in classified_clickables if item.get("classification") == "safe"]
@@ -330,6 +559,7 @@ async def test_safe_clickables(*, context, page_info, classified_clickables, con
                 "openedNewTab": False,
                 "dialog": None,
                 "domChanged": False,
+                "discoveredPage": None,
                 "screenshotPath": None,
                 "error": None,
             }
@@ -424,7 +654,8 @@ async def test_safe_clickables(*, context, page_info, classified_clickables, con
                 await wait_shortly_after_action(test_page, config["interactionTesting"]["postClickDelayMs"])
                 await wait_for_page_ready(popup_page or test_page, config)
 
-                after_url = test_page.url
+                destination_page = popup_page or test_page
+                after_url = destination_page.url
                 after_state = await capture_page_state(test_page)
                 normalized_after_url = safe_normalize_url(after_url, config["urlNormalization"])
                 normalized_before_url = safe_normalize_url(before_url, config["urlNormalization"])
@@ -460,7 +691,18 @@ async def test_safe_clickables(*, context, page_info, classified_clickables, con
                     interaction_result["success"] = False
                     interaction_result["reason"] = "no visible navigation or DOM change detected"
 
-                screenshot_source_page = popup_page or test_page
+                if interaction_result["outcomeType"] in {"navigation", "popup"}:
+                    interaction_result["discoveredPage"] = await build_discovered_page(
+                        destination_page=destination_page,
+                        page_info=page_info,
+                        clickable=clickable,
+                        interaction_sequence=interaction_sequence,
+                        outcome_type=interaction_result["outcomeType"],
+                        discovered_url=after_url,
+                        config=config,
+                    )
+
+                screenshot_source_page = destination_page
                 interaction_result["screenshotPath"] = await maybe_capture_interaction_screenshot(
                     page=screenshot_source_page,
                     page_info=page_info,
@@ -520,4 +762,5 @@ async def test_safe_clickables(*, context, page_info, classified_clickables, con
         "skippedSafeCount": skipped_safe_count,
         "interactionScreenshotsCreated": interaction_screenshots_created,
         "safeInteractionResults": results,
+        "discoveredPages": [result["discoveredPage"] for result in results if result.get("discoveredPage")],
     }

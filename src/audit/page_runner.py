@@ -37,6 +37,8 @@ async def run_page_audit(*, context, page_info, page_index, config):
         "originalUrl": page_info["url"],
         "siteUrl": site_url,
         "normalizedUrl": page_info.get("normalizedUrl"),
+        "sourceType": page_info.get("sourceType") or "page",
+        "discoveredFrom": page_info.get("discoveredFrom"),
         "navigationPath": page_info.get("navigationPath") or [page_info["name"]],
         "folderSegments": folder_segments,
         "finalUrl": None,
@@ -66,6 +68,7 @@ async def run_page_audit(*, context, page_info, page_index, config):
         },
         "clickables": [],
         "safeInteractionResults": [],
+        "discoveredPages": [],
         "cookieActions": [],
         "scrollScreenshotPaths": [],
         "pageMetadata": None,
@@ -183,6 +186,7 @@ async def run_page_audit(*, context, page_info, page_index, config):
 
         safe_interaction_results = interaction_test_output["safeInteractionResults"]
         result["safeInteractionResults"] = safe_interaction_results
+        result["discoveredPages"] = interaction_test_output.get("discoveredPages", [])
         result["interactionSummary"] = {
             "safeCandidates": classification_summary["safe"],
             "tested": interaction_test_output["testedCount"],

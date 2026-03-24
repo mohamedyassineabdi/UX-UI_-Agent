@@ -166,6 +166,22 @@ BLOCKLIST_URL_PARTS_FOR_MENU = [
     "/terms",
 ]
 
+
+KNOWN_LOCALE_SEGMENTS = {
+    "en", "en-us", "en-gb", "fr", "fr-fr", "de", "de-de", "es", "es-es",
+    "it", "it-it", "pt", "pt-br", "pt-pt", "nl", "nl-nl", "ar", "ja",
+    "ko", "zh", "zh-cn", "zh-tw", "pl", "tr", "sv", "fi", "da", "no",
+    "cs", "ro", "hu", "el", "he", "id", "vi", "th", "uk", "ru"
+}
+
+ENTRY_ACTION_KEYWORDS = [
+    "continue", "continue to site", "continue to website", "enter", "enter site",
+    "enter website", "proceed", "visit site", "go to site", "start", "explore",
+    "discover", "shop now", "view site", "continue shopping", "open site",
+    "yes i am", "yes, i am", "i am over 18", "i am 18", "i'm 18",
+    "confirm", "accept and continue", "agree and continue", "take me there",
+]
+
 # ============================================================
 # Data classes
 # ============================================================
@@ -254,22 +270,13 @@ def force_english_url(url: Optional[str]) -> Optional[str]:
 
     parsed = urlparse(url)
     path = parsed.path or "/"
-
-    # Remove leading locale segment like /de/, /fr/, /es/, /it/, etc.
     parts = path.split("/")
 
-    if len(parts) > 1:
-        first = parts[1].lower()
-
-        # /de or /de/
-        if re.fullmatch(r"[a-z]{2}", first):
-            parts = [""] + parts[2:]
-            path = "/".join(parts) or "/"
-
-        # /de-de or /en-us
-        elif re.fullmatch(r"[a-z]{2}-[a-z]{2}", first):
-            parts = [""] + parts[2:]
-            path = "/".join(parts) or "/"
+    if len(parts) > 2:
+        first = (parts[1] or "").lower().strip()
+        if first in KNOWN_LOCALE_SEGMENTS or re.fullmatch(r"[a-z]{2}(?:-[a-z]{2})?", first):
+            path = "/" + "/".join(parts[2:])
+            path = re.sub(r"//+", "/", path) or "/"
 
     return urlunparse((
         parsed.scheme,
@@ -279,6 +286,7 @@ def force_english_url(url: Optional[str]) -> Optional[str]:
         parsed.query,
         parsed.fragment,
     ))
+
 def absolute_url(base_url: str, href: str) -> Optional[str]:
     if not href:
         return None
@@ -296,15 +304,14 @@ def normalize_host(host: str) -> str:
 
 
 def same_domain(base_url: str, other_url: str) -> bool:
-    a = normalize_host(urlparse(base_url).netloc)
-    b = normalize_host(urlparse(other_url).netloc)
+    base_host = normalize_host(urlparse(base_url).netloc)
+    other_host = normalize_host(urlparse(other_url).netloc)
 
-    if not a or not b:
+    if not base_host or not other_host:
         return False
-    if a == b:
+    if base_host == other_host:
         return True
-    return a.endswith("." + b) or b.endswith("." + a)
-
+    return other_host.endswith("." + base_host)
 
 def allowed_external_for_nav(base_url: str, other_url: str) -> bool:
     if same_domain(base_url, other_url):
@@ -564,71 +571,196 @@ async def count_internal_external_links(page: Page, homepage: str) -> Tuple[int,
     return internal, external
 
 
-async def click_expandable_menu_buttons(page: Page, debug: bool) -> None:
-    debug_log(debug, "Searching for expandable menu buttons")
+async def resolve_entry_page(page: Page, debug: bool) -> bool:
+    debug_log(debug, "Resolving temporary entry page / gateway page")
 
-    script = """
+    script = r"""
     (async () => {
       function visible(el) {
         if (!el) return false;
         const s = window.getComputedStyle(el);
         const r = el.getBoundingClientRect();
         return s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0' &&
-               r.width > 0 && r.height > 0;
+               r.width >= 24 && r.height >= 18;
+      }
+
+      function clean(s) {
+        return (s || '').replace(/\s+/g, ' ').trim();
       }
 
       function textOf(el) {
-        return ((el.innerText || el.textContent || '') + ' ' +
-                (el.getAttribute('aria-label') || '') + ' ' +
-                (el.getAttribute('title') || '') + ' ' +
-                (el.className || '')).replace(/\\s+/g, ' ').trim();
+        return clean([
+          el.innerText || el.textContent || '',
+          el.getAttribute('aria-label') || '',
+          el.getAttribute('title') || '',
+          el.getAttribute('value') || ''
+        ].join(' '));
       }
 
-      function visibleLinks() {
+      function linkCount() {
         return Array.from(document.querySelectorAll('a[href]')).filter(visible).length;
       }
 
+      const keywords = new Set(KEYWORDS_PLACEHOLDER);
+      const nodes = Array.from(document.querySelectorAll('a[href], button, input[type="button"], input[type="submit"], [role="button"], summary'))
+        .filter(visible)
+        .map(el => {
+          const r = el.getBoundingClientRect();
+          const txt = textOf(el).toLowerCase();
+          let score = 0;
+          for (const kw of keywords) {
+            if (txt.includes(kw)) score += kw.length > 8 ? 5 : 4;
+          }
+          if (el.closest('[role="dialog"], .modal, .popup, .overlay, .age-gate, .entry, .splash')) score += 4;
+          if (r.top < window.innerHeight * 0.9) score += 1;
+          if (r.top > 20 && r.top < window.innerHeight - 20) score += 1;
+          if (r.width >= 60 && r.height >= 28) score += 1;
+          return {el, score, txt};
+        })
+        .filter(x => x.score >= 4)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 8);
+
+      for (const candidate of nodes) {
+        const beforeHref = location.href;
+        const beforeLinks = linkCount();
+        const beforeText = clean(document.body ? document.body.innerText.slice(0, 3000) : '');
+        try { candidate.el.click(); } catch (e) { continue; }
+        await new Promise(r => setTimeout(r, 900));
+        const afterHref = location.href;
+        const afterLinks = linkCount();
+        const afterText = clean(document.body ? document.body.innerText.slice(0, 3000) : '');
+        if (afterHref !== beforeHref || Math.abs(afterLinks - beforeLinks) >= 8 || afterText !== beforeText) {
+          return true;
+        }
+      }
+      return false;
+    })()
+    """
+    script = script.replace("KEYWORDS_PLACEHOLDER", json.dumps(ENTRY_ACTION_KEYWORDS))
+
+    try:
+        changed = await page.evaluate(script)
+        if changed:
+            await wait_for_settle(page, 8000, debug)
+            await try_accept_cookies(page, debug)
+        return bool(changed)
+    except Exception as exc:
+        debug_log(debug, f"Entry page resolution failed: {exc}")
+        return False
+
+
+async def click_expandable_menu_buttons(page: Page, debug: bool, mobile: bool = False) -> bool:
+    debug_log(debug, "Searching for hidden/off-canvas navigation triggers")
+
+    script = r"""
+    (async (mobileMode) => {
+      function visible(el) {
+        if (!el) return false;
+        const s = window.getComputedStyle(el);
+        const r = el.getBoundingClientRect();
+        return s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0' &&
+               r.width >= 18 && r.height >= 18;
+      }
+
+      function clean(s) {
+        return (s || '').replace(/\s+/g, ' ').trim();
+      }
+
+      function textOf(el) {
+        return clean([
+          el.innerText || el.textContent || '',
+          el.getAttribute('aria-label') || '',
+          el.getAttribute('title') || '',
+          el.getAttribute('aria-controls') || '',
+          el.id || '',
+          el.className || ''
+        ].join(' '));
+      }
+
+      function visibleLinkCount() {
+        return Array.from(document.querySelectorAll('a[href]')).filter(visible).length;
+      }
+
+      function visibleNavState() {
+        const roots = Array.from(document.querySelectorAll('nav, aside, header, [role="navigation"], [role="dialog"], .menu, .drawer, .offcanvas, .navigation, .site-nav, .main-nav'));
+        return roots.filter(visible).map(el => {
+          const r = el.getBoundingClientRect();
+          return [el.tagName, el.id || '', clean(el.className || ''), Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)].join('|');
+        }).sort().join('||');
+      }
+
       function score(el) {
-        let s = 0;
         const txt = textOf(el).toLowerCase();
         const r = el.getBoundingClientRect();
+        let s = 0;
 
-        if (txt.includes('menu') || txt.includes('navigation') || txt.includes('hamburger')) s += 3;
-        if (el.getAttribute('aria-expanded') !== null) s += 2;
-        if (el.getAttribute('aria-haspopup') !== null) s += 1;
-        if (r.top < 250) s += 1;
+        if (txt.includes('menu') || txt.includes('navigation') || txt.includes('nav') || txt.includes('hamburger')) s += 5;
+        if (txt.includes('drawer') || txt.includes('sidebar') || txt.includes('open')) s += 2;
+        if (el.getAttribute('aria-expanded') !== null) s += 3;
+        if (el.getAttribute('aria-haspopup') !== null) s += 2;
+        if (el.getAttribute('aria-controls')) s += 3;
+        if (el.querySelector('svg')) s += 1;
+        if (r.top < 180) s += 3;
+        if (r.left < 180 || r.right > window.innerWidth - 180) s += 2;
+        if (mobileMode && r.top < 220) s += 2;
+        if (r.width <= 90 && r.height <= 90) s += 1;
+        if (txt === '') s += 1;
         return s;
       }
 
-      const candidates = Array.from(document.querySelectorAll(
-        'button, [role="button"], summary, .menu-toggle, .navbar-toggle, .hamburger, .drawer-toggle, [aria-label*="menu" i]'
-      ))
+      const selectors = [
+        'button', '[role="button"]', 'summary',
+        '.menu-toggle', '.navbar-toggle', '.hamburger', '.drawer-toggle', '.nav-toggle',
+        '[aria-label*="menu" i]', '[title*="menu" i]', '[class*="menu" i]', '[class*="nav" i]',
+        '[id*="menu" i]', '[id*="nav" i]', '[aria-controls]', '[aria-haspopup="menu"]'
+      ].join(',');
+
+      const candidates = Array.from(document.querySelectorAll(selectors))
         .filter(visible)
-        .map(el => ({el, score: score(el), txt: textOf(el)}))
-        .filter(x => x.score >= 3)
+        .map(el => ({ el, score: score(el), txt: textOf(el) }))
+        .filter(x => x.score >= 4)
         .sort((a, b) => b.score - a.score)
-        .slice(0, 6);
+        .slice(0, 12);
 
       for (const c of candidates) {
-        const before = visibleLinks();
-        try {
-          c.el.click();
-          await new Promise(r => setTimeout(r, 600));
-          const after = visibleLinks();
-          if (after <= before && c.el.getAttribute('aria-expanded') !== 'true') {
-            try { c.el.click(); } catch (e) {}
-          }
-        } catch (e) {}
-      }
+        const beforeLinks = visibleLinkCount();
+        const beforeNav = visibleNavState();
+        const expandedBefore = c.el.getAttribute('aria-expanded');
 
-      return true;
-    })()
+        try { c.el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true })); } catch (e) {}
+        await new Promise(r => setTimeout(r, 180));
+
+        try { c.el.click(); } catch (e) { continue; }
+        await new Promise(r => setTimeout(r, 700));
+
+        const afterLinks = visibleLinkCount();
+        const afterNav = visibleNavState();
+        const expandedAfter = c.el.getAttribute('aria-expanded');
+
+        if (afterNav !== beforeNav || afterLinks >= beforeLinks + 3 || (expandedBefore !== expandedAfter && expandedAfter === 'true')) {
+          return true;
+        }
+      }
+      return false;
+    })
     """
+
     try:
-        await page.evaluate(script)
-        await page.wait_for_timeout(600)
+        changed = await page.evaluate(script, mobile)
+        if changed:
+            await page.wait_for_timeout(500)
+        return bool(changed)
     except Exception as exc:
         debug_log(debug, f"Expandable menu detection failed: {exc}")
+        return False
+
+
+def navbars_strength(navbars: List[Dict[str, Any]]) -> float:
+    if not navbars:
+        return 0.0
+    best = navbars[0]
+    return float(best.get("navbar_score", 0)) + len(best.get("urls", []) or [])
 
 
 # ============================================================
@@ -1770,7 +1902,7 @@ async def extract_submenus_from_top_nav(page: Page, debug: bool) -> List[Dict[st
 
           if (popupRoot && newLinks.length > 0) {
             interaction = 'hover';
-          } else if (item.has_popup || item.is_button_like || !item.href) {
+          } else if ((item.has_popup || item.is_button_like || !item.href) && !item.href) {
             try {
               item.element.click();
               await new Promise(r => setTimeout(r, 650));
@@ -1956,6 +2088,73 @@ def dedupe_candidates(candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return kept
 
 
+def _url_path_depth(url: Optional[str]) -> int:
+    if not url:
+        return 99
+    try:
+        path = urlparse(url).path or "/"
+        parts = [p for p in path.split("/") if p]
+        return len(parts)
+    except Exception:
+        return 99
+
+
+def _first_path_segment(url: Optional[str]) -> str:
+    if not url:
+        return ""
+    try:
+        path = urlparse(url).path or "/"
+        parts = [p for p in path.split("/") if p]
+        return parts[0].lower() if parts else ""
+    except Exception:
+        return ""
+
+
+def score_global_nav_shape(base_url: str, top_items: List[Dict[str, Any]]) -> float:
+    if not top_items:
+        return -50.0
+
+    urls = [x.get("url") for x in top_items if x.get("url")]
+    if not urls:
+        return -20.0
+
+    score = 0.0
+    depths = [_url_path_depth(u) for u in urls]
+    first_segments = [_first_path_segment(u) for u in urls if _first_path_segment(u)]
+
+    shallow = sum(1 for d in depths if d <= 1)
+    deep = sum(1 for d in depths if d >= 2)
+    score += shallow * 1.8
+    score -= deep * 1.25
+
+    unique_segments = set(first_segments)
+    if len(unique_segments) >= 4:
+        score += 6
+    elif len(unique_segments) == 3:
+        score += 4
+    elif len(unique_segments) == 2:
+        score += 2
+    elif len(unique_segments) <= 1 and len(urls) >= 4:
+        score -= 8
+
+    homepage_links = sum(1 for u in urls if is_homepage_url(base_url, u))
+    if homepage_links:
+        score += 3
+
+    # Penalize navs that look like deep section rails: same first segment + many deep URLs.
+    if len(unique_segments) == 1 and len(urls) >= 5:
+        score -= 5
+        if all(d >= 2 for d in depths):
+            score -= 8
+
+    # Small reward for well-known global labels when present.
+    names = {normalize_menu_label(x.get("name", "")).lower() for x in top_items}
+    global_hints = {"home", "news", "sport", "weather", "iplayer", "sounds", "bitesize", "business", "travel", "future", "culture"}
+    score += min(5, len(names & global_hints))
+
+    return round(score, 2)
+
+
 def choose_best_navbars(base_url: str, raw_candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     prepared = []
 
@@ -1972,8 +2171,12 @@ def choose_best_navbars(base_url: str, raw_candidates: List[Dict[str, Any]]) -> 
             score += 2
         if "nav" in selector_lower:
             score += 2
-        if any(x in selector_lower for x in ["dialog", "popup", "popover", "drawer"]):
-            score -= 3
+        if any(x in selector_lower for x in ["dialog", "popup", "popover"]):
+            score -= 1
+        if "drawer" in selector_lower or "aside" in selector_lower:
+            score += 1
+
+        score += score_global_nav_shape(base_url, top_items)
 
         prepared.append({
             "container_selector": selector,
@@ -1993,7 +2196,7 @@ def choose_best_navbars(base_url: str, raw_candidates: List[Dict[str, Any]]) -> 
     )
 
     output: List[Dict[str, Any]] = []
-    for idx, cand in enumerate(prepared[:2], start=1):
+    for idx, cand in enumerate(prepared[:3], start=1):
         output.append({
             "id": idx,
             "name": "Main Navigation" if idx == 1 else "Secondary Navigation",
@@ -2009,6 +2212,34 @@ def choose_best_navbars(base_url: str, raw_candidates: List[Dict[str, Any]]) -> 
 # ============================================================
 # Main crawl
 # ============================================================
+
+
+async def extract_submenus_in_isolated_page(
+    context: BrowserContext,
+    source_page: Page,
+    current_url: str,
+    options: CrawlOptions,
+    mobile: bool,
+) -> List[Dict[str, Any]]:
+    helper_page = None
+    try:
+        helper_page = await context.new_page()
+        if mobile:
+            await helper_page.set_viewport_size({"width": 390, "height": 844})
+        else:
+            await helper_page.set_viewport_size({"width": 1440, "height": 1200})
+
+        helper_page.set_default_timeout(options.timeout * 1000)
+        await helper_page.goto(current_url, wait_until="domcontentloaded", timeout=options.timeout * 1000)
+        await wait_for_settle(helper_page, options.timeout * 1000, options.debug)
+        await try_accept_cookies(helper_page, options.debug)
+        return await extract_submenus_from_top_nav(helper_page, options.debug)
+    except Exception as exc:
+        debug_log(options.debug, f"Isolated submenu extraction failed: {exc}")
+        return []
+    finally:
+        if helper_page:
+            await helper_page.close()
 
 
 async def crawl_single_view(
@@ -2031,25 +2262,53 @@ async def crawl_single_view(
         await wait_for_settle(page, options.timeout * 1000, options.debug)
 
         await try_accept_cookies(page, options.debug)
-        await click_expandable_menu_buttons(page, options.debug)
+        entry_clicked = await resolve_entry_page(page, options.debug)
+        if entry_clicked:
+            debug_log(options.debug, f"Entry page resolved to: {page.url}")
+
+        raw_candidates = await extract_navigation_candidates(page, options.debug)
+        navbars = choose_best_navbars(page.url, raw_candidates)
+
+        nav_opened = False
+        if navbars_strength(navbars) < 8:
+            nav_opened = await click_expandable_menu_buttons(page, options.debug, mobile=mobile)
+            if nav_opened:
+                raw_candidates = await extract_navigation_candidates(page, options.debug)
+                navbars = choose_best_navbars(page.url, raw_candidates)
+
+        stable_url = page.url
+        submenu_data = await extract_submenus_in_isolated_page(context, page, stable_url, options, mobile)
+
+        if navbars_strength(navbars) < 8 and not submenu_data:
+            second_try = await click_expandable_menu_buttons(page, options.debug, mobile=mobile)
+            if second_try:
+                nav_opened = True
+                raw_candidates = await extract_navigation_candidates(page, options.debug)
+                navbars = choose_best_navbars(page.url, raw_candidates)
+                stable_url = page.url
+        submenu_data = await extract_submenus_in_isolated_page(context, page, stable_url, options, mobile)
+
+        for nav in navbars:
+            nav["urls"] = merge_top_nav_with_submenus(nav["urls"], submenu_data)
+
+        if page.url.rstrip("/") != stable_url.rstrip("/"):
+            debug_log(options.debug, f"Page drift detected after submenu extraction: {page.url} -> restoring {stable_url}")
+            await page.goto(stable_url, wait_until="domcontentloaded", timeout=options.timeout * 1000)
+            await wait_for_settle(page, options.timeout * 1000, options.debug)
+            await try_accept_cookies(page, options.debug)
+
         page_language = await get_page_language(page)
         html = await get_page_html(page)
         page_metrics = await get_page_metrics(page)
         internal_links, external_links = await count_internal_external_links(page, homepage)
 
-        raw_candidates = await extract_navigation_candidates(page, options.debug)
-        navbars = choose_best_navbars(homepage, raw_candidates)
-        submenu_data = await extract_submenus_from_top_nav(page, options.debug)
-
-        for nav in navbars:
-            nav["urls"] = merge_top_nav_with_submenus(nav["urls"], submenu_data)
-
-        auth = await detect_auth(context, page, homepage, options.timeout, options.debug)
+        auth = await detect_auth(context, page, page.url, options.timeout, options.debug)
 
         soup = BeautifulSoup(html, "lxml")
         title = clean_text(page_metrics.get("title")) or clean_text(soup.title.string if soup.title else "")
 
         return {
+            "resolved_url": page.url,
             "auth": {
                 "signin": auth.get("signin"),
                 "signup": auth.get("signup"),
@@ -2064,6 +2323,8 @@ async def crawl_single_view(
                 "images_found": safe_int(page_metrics.get("images", 0)),
                 "mode": "mobile" if mobile else "desktop",
                 "page_language": page_language,
+                "entry_page_resolved": bool(entry_clicked),
+                "hidden_navigation_opened": bool(nav_opened),
             },
         }
     finally:
@@ -2241,7 +2502,7 @@ def merge_nav_results(
         if item_type == "menu" and not item.get("children"):
             continue
 
-        if item_type in {"auth", "cta", "link"}:
+        if item_type in {"auth", "cta"}:
             item["children"] = []
 
         cleaned_main.append(item)
@@ -2292,12 +2553,13 @@ def merge_nav_results(
     
 
 async def crawl_site(homepage: str, options: CrawlOptions) -> Dict[str, Any]:
-   
+
     start_time = time.perf_counter()
     homepage = normalize_url(homepage)
     homepage = force_english_url(homepage) or homepage
     parsed = urlparse(homepage)
-    homepage = f"{parsed.scheme}://{parsed.netloc}/"
+    if not parsed.path:
+        homepage = f"{parsed.scheme}://{parsed.netloc}/"
     user_agent = random.choice(USER_AGENTS)
 
     debug_log(options.debug, f"Normalized homepage: {homepage}")
@@ -2309,6 +2571,8 @@ async def crawl_site(homepage: str, options: CrawlOptions) -> Dict[str, Any]:
     ) as client:
         robots_info = await get_robots_info(client, homepage, user_agent, options.debug)
         sitemap_url = await guess_sitemap(client, homepage, robots_info, options.debug)
+        if not robots_info.allowed:
+            raise PlaywrightError(f"Crawling disallowed by robots.txt for {homepage}")
 
         async with async_playwright() as pw:
             debug_log(options.debug, "Launching Chromium")
