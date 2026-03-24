@@ -1,103 +1,48 @@
 {
-  "homepage": "https://www.python.org/",
+  "homepage": "https://www.gov.uk/",
   "language": "en",
   "auth": {
     "signin": {
-      "name": "Sign In Sign Up or Sign In to Python.org",
-      "url": "https://www.python.org/accounts/login/"
+      "name": "HMRC account: sign in or set up",
+      "url": "https://www.gov.uk/log-in-register-hmrc-online-services"
     },
     "signup": {
-      "name": "Sign In Sign Up or Sign In to Python.org",
-      "url": "https://www.python.org/accounts/login/"
+      "name": "HMRC account: sign in or set up",
+      "url": "https://www.gov.uk/log-in-register-hmrc-online-services"
     }
   },
-  "navigation": [
-    {
-      "name": "About",
-      "url": "https://www.python.org/about/",
-      "type": "link",
-      "children": []
-    },
-    {
-      "name": "Community",
-      "url": "https://www.python.org/community/",
-      "type": "link",
-      "children": []
-    },
-    {
-      "name": "Docs",
-      "url": "https://docs.python.org/",
-      "type": "link",
-      "children": []
-    },
-    {
-      "name": "Documentation",
-      "url": "https://www.python.org/doc/",
-      "type": "link",
-      "children": []
-    },
-    {
-      "name": "Downloads",
-      "url": "https://www.python.org/downloads/",
-      "type": "link",
-      "children": []
-    },
-    {
-      "name": "Events",
-      "url": "https://www.python.org/events/",
-      "type": "link",
-      "children": []
-    },
-    {
-      "name": "News",
-      "url": "https://www.python.org/blogs/",
-      "type": "link",
-      "children": []
-    },
-    {
-      "name": "PSF",
-      "url": "https://www.python.org/psf/",
-      "type": "link",
-      "children": []
-    },
-    {
-      "name": "Success Stories",
-      "url": "https://www.python.org/success-stories/",
-      "type": "link",
-      "children": []
-    }
-  ],
+  "navigation": [],
   "extra": {
     "desktop": {
-      "forms_detected": 1,
-      "total_internal_links": 168,
-      "external_links": 21,
-      "title": "Python For Beginners | Python.org",
-      "page_size_kb": 42.2,
-      "images_found": 1,
+      "forms_detected": 3,
+      "total_internal_links": 106,
+      "external_links": 1,
+      "title": "Welcome to GOV.UK",
+      "page_size_kb": 98.31,
+      "images_found": 4,
       "mode": "desktop",
       "page_language": "en",
       "entry_page_resolved": false,
-      "hidden_navigation_opened": false
+      "hidden_navigation_opened": true
     },
     "mobile": {
-      "forms_detected": 1,
-      "total_internal_links": 157,
-      "external_links": 20,
-      "title": "Python For Beginners | Python.org",
-      "page_size_kb": 37.14,
-      "images_found": 1,
+      "forms_detected": 3,
+      "total_internal_links": 106,
+      "external_links": 1,
+      "title": "Welcome to GOV.UK",
+      "page_size_kb": 98.31,
+      "images_found": 4,
       "mode": "mobile",
       "page_language": "en",
       "entry_page_resolved": false,
-      "hidden_navigation_opened": false
+      "hidden_navigation_opened": true
     },
-    "menu_count": 9,
-    "navbar_score": 34.6,
+    "menu_count": 0,
+    "navbar_score": 0.0,
     "source_container": "merged(desktop+mobile)",
-    "sitemap_found": null,
-    "robots_txt": "https://www.python.org/robots.txt",
-    "crawl_time_ms": 103589
+    "sitemap_found": "https://www.gov.uk/sitemap.xml",
+    "robots_txt": "https://www.gov.uk/robots.txt",
+    "crawl_time_ms": 40322
   },
   "requested_language": "en-US"
 }
