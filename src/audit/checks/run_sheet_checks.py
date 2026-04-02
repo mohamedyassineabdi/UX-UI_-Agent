@@ -3,8 +3,22 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from .common import AuditContext
+from .content_checks import run as run_content_checks
+from .feedback_checks import run as run_feedback_checks
+from .forms_checks import run as run_forms_checks
+from .labeling_checks import run as run_labeling_checks
+from .navigation_checks import run as run_navigation_checks
 
-TARGET_SHEETS = ["Content", "Labeling", "Navigation", "Feedback"]
+
+TARGET_SHEETS = ["Content", "Labeling", "Navigation", "Feedback", "Forms"]
+SHEET_RUNNERS = [
+    ("Content", run_content_checks),
+    ("Labeling", run_labeling_checks),
+    ("Navigation", run_navigation_checks),
+    ("Feedback", run_feedback_checks),
+    ("Forms", run_forms_checks),
+]
 
 
 def load_json(path: Path) -> Dict[str, Any]:
@@ -74,13 +88,6 @@ def needs_review(item: Dict[str, Any]) -> bool:
 
 
 def build_page_index(cleaned: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
-    """
-    Index cleaned extraction pages by several useful keys:
-    - name
-    - pageId
-    - url
-    - finalUrl
-    """
     index: Dict[str, Dict[str, Any]] = {}
 
     for page in cleaned.get("pages", []):
@@ -131,14 +138,6 @@ def infer_source_pages_from_result(
     pages_audited: List[str],
     page_index: Dict[str, Dict[str, Any]],
 ) -> Tuple[List[Dict[str, Any]], Optional[Dict[str, Any]]]:
-    """
-    Try to attach the most relevant page(s) to a check result.
-
-    Priority:
-    1. explicit source_pages / pages / page_names already on the item
-    2. evidence mentioning audited page names
-    3. fallback to all audited pages
-    """
     explicit_candidates: List[str] = []
 
     for key in ("source_pages", "pages", "page_names"):
@@ -200,12 +199,9 @@ def enrich_result_with_provenance(
 
     enriched["source_pages"] = source_page_records
 
-    # Distinguish "unknown" from true "not applicable"
     basis = str(enriched.get("decision_basis", "") or "").strip().lower()
     if status == "N/A":
-        if basis == "interactive_required":
-            enriched["applicability"] = "unknown"
-        elif basis == "proxy":
+        if basis in {"interactive_required", "proxy"}:
             enriched["applicability"] = "unknown"
         else:
             enriched["applicability"] = "not_applicable"
@@ -222,6 +218,29 @@ def summarize_sheet(results: List[Dict[str, Any]]) -> Dict[str, int]:
         counts[status] = counts.get(status, 0) + 1
         counts["total"] += 1
     return counts
+
+
+def generate_checks_schema(cleaned_path: Path, rendered_path: Path) -> Dict[str, Any]:
+    context = AuditContext.from_files(cleaned_path, rendered_path)
+
+    sheets: Dict[str, Dict[str, Any]] = {}
+    for sheet_name, runner in SHEET_RUNNERS:
+        raw_results = [item.to_dict() for item in runner(context)]
+        sheets[sheet_name] = {
+            "summary": summarize_sheet(raw_results),
+            "results": raw_results,
+        }
+
+    return {
+        "version": 1,
+        "generator": "src.audit.checks.run_sheet_checks",
+        "inputs": {
+            "person_a": str(cleaned_path),
+            "rendered": str(rendered_path),
+        },
+        "pagesAudited": context.page_names(),
+        "sheets": sheets,
+    }
 
 
 def enrich_checks_schema(checks_data: Dict[str, Any], cleaned_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -267,22 +286,32 @@ def enrich_checks_schema(checks_data: Dict[str, Any], cleaned_data: Dict[str, An
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checks", required=True, help="Path to existing person_a_sheet_checks.json")
+    parser.add_argument("--checks", help="Path to an existing person_a_sheet_checks.json to enrich")
     parser.add_argument("--cleaned", required=True, help="Path to person_a_cleaned.json")
+    parser.add_argument("--rendered", help="Path to rendered_ui_extraction.json. When provided, checks are generated before enrichment.")
     parser.add_argument("--output", required=True, help="Path to enriched checks output json")
     args = parser.parse_args()
 
-    checks_path = Path(args.checks)
     cleaned_path = Path(args.cleaned)
     output_path = Path(args.output)
 
-    if not checks_path.exists():
-        raise FileNotFoundError(f"Checks JSON not found: {checks_path}")
     if not cleaned_path.exists():
         raise FileNotFoundError(f"Cleaned JSON not found: {cleaned_path}")
 
-    checks_data = load_json(checks_path)
     cleaned_data = load_json(cleaned_path)
+
+    if args.rendered:
+        rendered_path = Path(args.rendered)
+        if not rendered_path.exists():
+            raise FileNotFoundError(f"Rendered JSON not found: {rendered_path}")
+        checks_data = generate_checks_schema(cleaned_path, rendered_path)
+    elif args.checks:
+        checks_path = Path(args.checks)
+        if not checks_path.exists():
+            raise FileNotFoundError(f"Checks JSON not found: {checks_path}")
+        checks_data = load_json(checks_path)
+    else:
+        raise ValueError("Provide either --rendered to generate checks or --checks to enrich an existing checks JSON.")
 
     enriched = enrich_checks_schema(checks_data, cleaned_data)
     save_json(output_path, enriched)

@@ -6,7 +6,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
 
-TARGET_SHEETS = ["Content", "Labeling", "Navigation", "Feedback"]
+TARGET_SHEETS = ["Content", "Labeling", "Navigation", "Feedback", "Forms"]
 
 TRUE_FILL = PatternFill(fill_type="solid", fgColor="C6EFCE")
 TRUE_FONT = Font(color="006100", bold=True)

@@ -152,47 +152,77 @@ def _filter_forms(forms_payload: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(forms_payload, dict):
         return forms_payload
 
-    forms = forms_payload.get("forms", [])
+    forms_payload = deepcopy(forms_payload)
+    data = forms_payload.get("data", {})
+    if not isinstance(data, dict):
+        data = {}
+
+    forms = data.get("items")
+    if not isinstance(forms, list):
+        forms = data.get("forms")
+    if not isinstance(forms, list):
+        forms = forms_payload.get("forms", [])
+
     meaningful_forms = []
 
     for form in forms:
         if not isinstance(form, dict):
             continue
 
-        if form.get("isLocalizationForm") is True:
+        action = str(form.get("action") or form.get("formAction") or "").strip().lower()
+        if form.get("isLocalizationForm") is True or "localization" in action:
             continue
 
-        user_input_fields = form.get("userInputFields", [])
+        raw_fields = (
+            form.get("visibleFields")
+            or form.get("userInputFields")
+            or form.get("fields")
+            or []
+        )
         filtered_fields = []
-        for field in user_input_fields:
+        for field in raw_fields:
             if not isinstance(field, dict):
                 continue
-            label = str(field.get("label") or field.get("placeholder") or "").strip()
-            if label and _keep_meaningful_text(label):
-                filtered_fields.append(field)
+            field_type = str(field.get("type") or field.get("tag") or "").strip().lower()
+            if field_type == "hidden":
+                continue
+
+            label = str(
+                field.get("label")
+                or field.get("placeholder")
+                or field.get("name")
+                or ""
+            ).strip()
+            if not label:
+                continue
+            if not _keep_meaningful_text(label):
+                continue
+            filtered_fields.append(field)
 
         form = deepcopy(form)
+        form["fields"] = filtered_fields
+        form["visibleFields"] = filtered_fields
         form["userInputFields"] = filtered_fields
         counts = form.get("counts", {})
         if isinstance(counts, dict):
             counts["userInputFields"] = len(filtered_fields)
+            counts["visibleFields"] = len(filtered_fields)
+            counts["fields"] = len(filtered_fields)
             form["counts"] = counts
 
         if filtered_fields:
             meaningful_forms.append(form)
 
-    forms_payload = deepcopy(forms_payload)
-    data = forms_payload.get("data", {})
-    if isinstance(data, dict):
-        data["forms"] = meaningful_forms
-        data["meaningfulFormCount"] = len(meaningful_forms)
+    data["items"] = meaningful_forms
+    data["forms"] = meaningful_forms
+    data["meaningfulFormCount"] = len(meaningful_forms)
 
-        total_user_input_fields = 0
-        for form in meaningful_forms:
-            total_user_input_fields += len(form.get("userInputFields", []))
-        data["userInputFields"] = total_user_input_fields
+    total_user_input_fields = 0
+    for form in meaningful_forms:
+        total_user_input_fields += len(form.get("userInputFields", []))
+    data["userInputFields"] = total_user_input_fields
 
-        forms_payload["data"] = data
+    forms_payload["data"] = data
 
     return forms_payload
 
@@ -204,9 +234,46 @@ def refine_page(page: Dict[str, Any]) -> Dict[str, Any]:
     tah = page.get("titlesAndHeadings", {})
     tah_data = tah.get("data", {})
     if isinstance(tah_data, dict):
-        for key in ("rawHeadings", "contentHeadings"):
-            if isinstance(tah_data.get(key), list):
-                tah_data[key] = _filter_string_list(tah_data[key])
+        heading_items = tah_data.get("headings", [])
+        raw_headings = []
+        content_headings = []
+        filtered_heading_items = []
+
+        if isinstance(heading_items, list):
+            for item in heading_items:
+                if not isinstance(item, dict):
+                    continue
+                text = str(item.get("text") or "").strip()
+                if not text:
+                    continue
+                raw_headings.append(text)
+                if _keep_meaningful_text(text):
+                    filtered_heading_items.append(item)
+                    content_headings.append({"text": text})
+
+            tah_data["headings"] = filtered_heading_items
+
+        if isinstance(tah_data.get("rawHeadings"), list):
+            raw_headings.extend(str(item).strip() for item in tah_data.get("rawHeadings", []) if str(item).strip())
+        if isinstance(tah_data.get("contentHeadings"), list):
+            for item in tah_data.get("contentHeadings", []):
+                text = str(item.get("text") if isinstance(item, dict) else item).strip()
+                if text and _keep_meaningful_text(text):
+                    content_headings.append({"text": text})
+
+        if raw_headings:
+            tah_data["rawHeadings"] = list(dict.fromkeys(raw_headings))
+        if content_headings:
+            deduped_content = []
+            seen_content = set()
+            for item in content_headings:
+                text = str(item.get("text") or "").strip()
+                key = text.lower()
+                if text and key not in seen_content:
+                    deduped_content.append(item)
+                    seen_content.add(key)
+            tah_data["contentHeadings"] = deduped_content
+
         tah["data"] = tah_data
         page["titlesAndHeadings"] = tah
 
@@ -224,9 +291,21 @@ def refine_page(page: Dict[str, Any]) -> Dict[str, Any]:
     navigation = page.get("navigation", {})
     nav_data = navigation.get("data", {})
     if isinstance(nav_data, dict):
-        for key in ("primaryNavItems", "secondaryNavItems", "allNavItems", "breadcrumbs", "activeItems"):
-            if isinstance(nav_data.get(key), list):
-                nav_data[key] = _filter_nav_items(nav_data[key])
+        primary_nav = _filter_nav_items(nav_data.get("primaryNav", []) or nav_data.get("primaryNavItems", []))
+        footer_nav = _filter_nav_items(nav_data.get("footerNav", []) or nav_data.get("footerNavUseful", []))
+        side_nav = _filter_nav_items(nav_data.get("sideNav", []) or nav_data.get("secondaryNavItems", []))
+        breadcrumbs = _filter_nav_items(nav_data.get("breadcrumbs", [])) if isinstance(nav_data.get("breadcrumbs"), list) else []
+        active_items = _filter_nav_items(nav_data.get("activeItems", [])) if isinstance(nav_data.get("activeItems"), list) else []
+
+        nav_data["primaryNav"] = primary_nav
+        nav_data["primaryNavItems"] = primary_nav
+        nav_data["footerNav"] = footer_nav
+        nav_data["footerNavUseful"] = footer_nav
+        nav_data["sideNav"] = side_nav
+        nav_data["secondaryNavItems"] = side_nav
+        nav_data["breadcrumbs"] = breadcrumbs
+        nav_data["activeItems"] = active_items
+        nav_data["allNavItems"] = primary_nav + footer_nav + side_nav + breadcrumbs + active_items
         navigation["data"] = nav_data
         page["navigation"] = navigation
 
@@ -297,6 +376,10 @@ def postprocess(data: Dict[str, Any]) -> Dict[str, Any]:
     out["source"] = "person_a_cleaned"
     out["generatedFrom"] = "src.audit.person_a_postprocess"
     return out
+
+
+def clean_person_a_output(data: Dict[str, Any]) -> Dict[str, Any]:
+    return postprocess(data)
 
 
 def main() -> None:

@@ -54,6 +54,15 @@ SAFE_UPPER_TOKENS = {
     "TND", "USD", "EUR", "DT", "ML", "CM", "KG", "XL", "XXL",
 }
 
+FORM_FIELD_NOISE_TYPES = {"hidden", "submit", "reset", "button", "image"}
+CHOICE_FIELD_TYPES = {"checkbox", "radio", "select"}
+FORMAT_SENSITIVE_FIELD_TYPES = {"email", "tel", "number", "date", "datetime-local", "month", "password", "url"}
+REQUIRED_MARKERS = {"required", "obligatoire", "mandatory"}
+GUIDANCE_MARKERS = {"example", "exemple", "format", "yyyy", "dd/mm", "mm/yy", "e.g", "ex."}
+LOCALIZATION_TOKENS = {"country", "currency", "locale", "region", "pays", "région", "localization"}
+SEARCH_FORM_TOKENS = {"search", "recherche"}
+FILTER_FORM_TOKENS = {"filter", "facet", "sort", "tri", "availability", "price", "prix"}
+
 
 def strip_accents(text: str) -> str:
     return "".join(ch for ch in unicodedata.normalize("NFKD", text) if not unicodedata.combining(ch))
@@ -295,6 +304,170 @@ def uppercase_token_ratio(texts: Iterable[str]) -> float:
     return sum(1 for token in alpha_tokens if is_upper_noise(token)) / len(alpha_tokens)
 
 
+def field_display_label(field: Dict[str, Any]) -> str:
+    return clean_text(
+        field.get("label")
+        or field.get("placeholder")
+        or field.get("ariaLabel")
+        or field.get("accessibleName")
+        or field.get("name")
+        or ""
+    )
+
+
+def button_display_label(button: Dict[str, Any]) -> str:
+    return clean_text(
+        button.get("accessibleName")
+        or button.get("label")
+        or button.get("text")
+        or button.get("ariaLabel")
+        or button.get("name")
+        or ""
+    )
+
+
+def field_semantic_type(field: Dict[str, Any]) -> str:
+    raw_type = normalize_text(field.get("type"))
+    semantic_type = normalize_text(field.get("semanticType"))
+    tag = normalize_text(field.get("tag"))
+
+    if raw_type:
+        return raw_type
+    if semantic_type:
+        return semantic_type
+    return tag
+
+
+def field_has_required_indicator(field: Dict[str, Any]) -> bool:
+    if field.get("required") is True:
+        return True
+
+    label = field_display_label(field)
+    norm = normalize_text(label)
+    if "*" in label:
+        return True
+
+    return any(marker in norm for marker in REQUIRED_MARKERS)
+
+
+def field_has_guidance_signal(field: Dict[str, Any]) -> bool:
+    label = field_display_label(field)
+    placeholder = clean_text(field.get("placeholder"))
+    described_by = clean_text(field.get("ariaDescribedBy") or field.get("helperText"))
+
+    if described_by:
+        return True
+
+    normalized_placeholder = normalize_text(re.sub(r"[*:]+", " ", placeholder))
+    normalized_label = normalize_text(re.sub(r"[*:]+", " ", label))
+
+    if placeholder and normalized_placeholder != normalized_label:
+        return True
+
+    combined = normalize_text(" ".join(part for part in (label, placeholder, described_by) if part))
+    if any(marker in combined for marker in GUIDANCE_MARKERS):
+        return True
+
+    if placeholder and any(token in placeholder for token in ("@", "/", "(", ")")):
+        return True
+
+    if placeholder and re.search(r"\d", placeholder):
+        return True
+
+    return False
+
+
+def _heading_item_text(item: Any) -> str:
+    if isinstance(item, dict):
+        return clean_text(item.get("text") or item.get("label") or item.get("title") or "")
+    return clean_text(item)
+
+
+def _iter_heading_texts(data: Dict[str, Any]) -> List[str]:
+    out: List[str] = []
+    for key in ("rawHeadings", "contentHeadings", "headings", "h1", "h2", "h3", "h4", "h5", "h6"):
+        values = data.get(key, [])
+        if not isinstance(values, list):
+            continue
+        for item in values:
+            txt = _heading_item_text(item)
+            if txt:
+                out.append(txt)
+    return unique_preserve_order(out)
+
+
+def _contains_any_token(text: str, tokens: Iterable[str]) -> bool:
+    norm = normalize_text(text)
+    return any(token in norm for token in tokens)
+
+
+def _form_identity_text(form: Dict[str, Any]) -> str:
+    parts = [
+        form.get("formAction"),
+        form.get("formKey"),
+        form.get("formId"),
+        form.get("formName"),
+    ]
+    parts.extend(field_display_label(field) for field in form.get("fields", []))
+    parts.extend(button_display_label(button) for button in form.get("buttons", []))
+    return normalize_text(" | ".join(part for part in parts if part))
+
+
+def _form_is_localization_like(form: Dict[str, Any]) -> bool:
+    haystack = _form_identity_text(form)
+    if _contains_any_token(haystack, LOCALIZATION_TOKENS):
+        return True
+    return any(
+        looks_like_locale_picker(field_display_label(field))
+        for field in form.get("fields", [])
+    )
+
+
+def _form_is_search_like(form: Dict[str, Any]) -> bool:
+    haystack = _form_identity_text(form)
+    fields = form.get("fields", [])
+
+    if _contains_any_token(haystack, SEARCH_FORM_TOKENS):
+        return True
+
+    if not fields:
+        return False
+
+    for field in fields:
+        semantic_type = field_semantic_type(field)
+        name = normalize_text(field.get("name"))
+        if semantic_type == "search" or name in {"q", "query", "search"}:
+            continue
+        return False
+
+    return True
+
+
+def _form_is_filter_like(form: Dict[str, Any]) -> bool:
+    haystack = _form_identity_text(form)
+    if _contains_any_token(haystack, FILTER_FORM_TOKENS):
+        return True
+
+    for field in form.get("fields", []):
+        name = normalize_text(field.get("name"))
+        label = normalize_text(field_display_label(field))
+        if _contains_any_token(name, FILTER_FORM_TOKENS) or _contains_any_token(label, FILTER_FORM_TOKENS):
+            return True
+
+    return False
+
+
+def _has_help_marker(text: str) -> bool:
+    norm = normalize_text(text)
+    if not norm:
+        return False
+
+    words = set(re.findall(r"[a-z0-9]+", norm))
+    if words.intersection({"contact", "support", "help", "aide", "assistance", "email", "phone", "telephone"}):
+        return True
+    return "live chat" in norm
+
+
 @dataclass
 class CheckResult:
     sheet: str
@@ -401,7 +574,18 @@ class AuditContext:
 
     def all_navigation_labels(self) -> List[str]:
         out: List[str] = []
-        nav_keys = ["primaryNav", "footerNavUseful", "sideNav", "breadcrumbs", "utilityNav", "localeOrPickerLinks"]
+        nav_keys = [
+            "primaryNav",
+            "primaryNavItems",
+            "footerNav",
+            "footerNavUseful",
+            "sideNav",
+            "secondaryNavItems",
+            "breadcrumbs",
+            "utilityNav",
+            "localeOrPickerLinks",
+            "allNavItems",
+        ]
         for page in self.pages:
             nav = page.person_a.get("navigation", {}).get("data", {})
             for key in nav_keys:
@@ -423,14 +607,103 @@ class AuditContext:
                     out.append(txt)
         return unique_preserve_order(out)
 
+    def all_forms(self) -> List[Dict[str, Any]]:
+        forms: List[Dict[str, Any]] = []
+        for page in self.pages:
+            page_name = clean_text(page.person_a.get("name"))
+            page_url = clean_text(page.person_a.get("finalUrl") or page.person_a.get("url"))
+            rendered_forms = page.rendered.get("renderedUi", {}).get("forms", [])
+
+            if rendered_forms:
+                for form in rendered_forms:
+                    copied = dict(form)
+                    copied["fields"] = [dict(field) for field in form.get("fields", [])]
+                    copied["buttons"] = [dict(button) for button in form.get("buttons", [])]
+                    copied["_pageName"] = page_name
+                    copied["_pageUrl"] = page_url
+                    copied["_formAction"] = clean_text(form.get("formAction") or "")
+                    copied["_formKey"] = clean_text(form.get("formKey") or form.get("formId") or form.get("formName") or "")
+                    forms.append(copied)
+                continue
+
+            person_a_forms = page.person_a.get("forms", {}).get("data", {}).get("items", [])
+            for form in person_a_forms:
+                fields = []
+                for field in form.get("visibleFields", []) or form.get("userInputFields", []) or form.get("fields", []):
+                    fields.append(dict(field))
+
+                copied = dict(form)
+                copied["fields"] = fields
+                copied["buttons"] = []
+                copied["_pageName"] = page_name
+                copied["_pageUrl"] = page_url
+                copied["_formAction"] = clean_text(form.get("action") or "")
+                copied["_formKey"] = clean_text(form.get("formKey") or form.get("id") or form.get("name") or "")
+                forms.append(copied)
+
+        return forms
+
+    def user_forms(self) -> List[Dict[str, Any]]:
+        out: List[Dict[str, Any]] = []
+        for form in self.all_forms():
+            if _form_is_localization_like(form):
+                continue
+            if not form.get("fields") and not form.get("buttons"):
+                continue
+            out.append(form)
+        return out
+
+    def task_forms(self) -> List[Dict[str, Any]]:
+        out: List[Dict[str, Any]] = []
+        for form in self.user_forms():
+            visible_fields = []
+            for field in form.get("fields", []):
+                semantic_type = field_semantic_type(field)
+                if semantic_type in FORM_FIELD_NOISE_TYPES:
+                    continue
+                if field.get("visible") is False:
+                    continue
+                visible_fields.append(field)
+
+            if not visible_fields:
+                continue
+            if _form_is_search_like(form):
+                continue
+            if _form_is_filter_like(form):
+                continue
+
+            copied = dict(form)
+            copied["fields"] = visible_fields
+            out.append(copied)
+
+        return out
+
     def all_form_fields(self) -> List[Dict[str, Any]]:
         fields: List[Dict[str, Any]] = []
-        for page in self.pages:
-            for form in page.person_a.get("forms", {}).get("data", {}).get("items", []):
-                for field in form.get("visibleFields", []):
-                    copied = dict(field)
-                    copied["_formAction"] = form.get("action")
-                    fields.append(copied)
+        for form in self.user_forms():
+            form_action = clean_text(form.get("_formAction") or form.get("formAction") or form.get("action") or "")
+            form_key = clean_text(form.get("_formKey") or form.get("formKey") or "")
+            page_name = clean_text(form.get("_pageName"))
+            page_url = clean_text(form.get("_pageUrl"))
+            is_search_like = _form_is_search_like(form)
+            is_filter_like = _form_is_filter_like(form)
+
+            for field in form.get("fields", []):
+                semantic_type = field_semantic_type(field)
+                if semantic_type in FORM_FIELD_NOISE_TYPES:
+                    continue
+                if field.get("visible") is False:
+                    continue
+
+                copied = dict(field)
+                copied["_formAction"] = form_action
+                copied["_formKey"] = form_key
+                copied["_pageName"] = page_name
+                copied["_pageUrl"] = page_url
+                copied["_formIsSearchLike"] = is_search_like
+                copied["_formIsFilterLike"] = is_filter_like
+                fields.append(copied)
+
         return fields
 
     def user_form_fields(self) -> List[Dict[str, Any]]:
@@ -439,8 +712,10 @@ class AuditContext:
             action = normalize_text(field.get("_formAction"))
             name = normalize_text(field.get("name"))
             fid = normalize_text(field.get("id"))
-            label = normalize_text(field.get("label") or field.get("placeholder") or "")
+            label = normalize_text(field_display_label(field))
             if "localization" in action:
+                continue
+            if field.get("_formIsSearchLike") or field.get("_formIsFilterLike"):
                 continue
             if any(part in name for part in ("country", "currency", "locale")):
                 continue
@@ -449,6 +724,32 @@ class AuditContext:
             if looks_like_locale_picker(label):
                 continue
             out.append(field)
+        return out
+
+    def form_submit_buttons(self) -> List[Dict[str, Any]]:
+        out: List[Dict[str, Any]] = []
+        for form in self.user_forms():
+            for button in form.get("buttons", []):
+                if button.get("visible") is False:
+                    continue
+
+                label = button_display_label(button)
+                if not label:
+                    continue
+                if normalize_text(label) in {"epuise", "sold out", "out of stock"}:
+                    continue
+
+                button_type = normalize_text(button.get("type"))
+                if button_type == "submit" or any(
+                    token in normalize_text(label)
+                    for token in ("submit", "envoyer", "send", "save", "s'inscrire", "search", "recherche")
+                ):
+                    copied = dict(button)
+                    copied["_pageName"] = form.get("_pageName")
+                    copied["_pageUrl"] = form.get("_pageUrl")
+                    copied["_formKey"] = form.get("_formKey") or form.get("formKey")
+                    copied["_formAction"] = form.get("_formAction") or form.get("formAction")
+                    out.append(copied)
         return out
 
     def all_media_images(self) -> List[Dict[str, Any]]:
@@ -532,8 +833,7 @@ class AuditContext:
         out: List[str] = []
         for page in self.pages:
             data = page.person_a.get("titlesAndHeadings", {}).get("data", {})
-            for item in data.get("contentHeadings", []):
-                txt = clean_text(item.get("text"))
+            for txt in _iter_heading_texts(data):
                 if is_meaningful_heading(txt):
                     out.append(txt)
         return unique_preserve_order(out)
@@ -607,8 +907,8 @@ class AuditContext:
     def all_feedback_headings(self) -> List[str]:
         out: List[str] = []
         for page in self.pages:
-            for item in page.person_a.get("titlesAndHeadings", {}).get("data", {}).get("rawHeadings", []):
-                txt = clean_text(item)
+            data = page.person_a.get("titlesAndHeadings", {}).get("data", {})
+            for txt in _iter_heading_texts(data):
                 if txt:
                     out.append(txt)
         return out
@@ -616,8 +916,7 @@ class AuditContext:
     def has_contact_or_help_path(self) -> bool:
         labels = self.meaningful_navigation_labels() + self.button_labels() + self.link_labels()
         for label in labels:
-            norm = normalize_text(label)
-            if any(word in norm for word in ("contact", "support", "help", "aide", "assistance", "email", "phone", "telephone", "téléphone")):
+            if _has_help_marker(label):
                 return True
         return False
 

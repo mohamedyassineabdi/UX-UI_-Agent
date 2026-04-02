@@ -3,11 +3,15 @@ import os
 import subprocess
 import sys
 
+from dotenv import load_dotenv
 
-ROOT_DIR = os.getcwd()
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NAVIGATOR_DIR = os.path.join(ROOT_DIR, "navigator")
 GENERATED_DIR = os.path.join(ROOT_DIR, "shared", "generated")
 OUTPUT_JSON = os.path.join(GENERATED_DIR, "website_menu.json")
+
+load_dotenv(os.path.join(ROOT_DIR, ".env"))
 
 
 def run_command(args, cwd=None):
@@ -51,8 +55,18 @@ def main():
     ensure_dir(GENERATED_DIR)
 
     print("\n[1/2] Running partner crawler...\n")
+    crawler_args = [
+        sys.executable,
+        os.path.join(NAVIGATOR_DIR, "crawler.py"),
+        target_url,
+        "--json-out",
+        OUTPUT_JSON,
+    ]
+    if os.getenv("OLLAMA_MODEL") or os.getenv("OLLAMA_BASE_URL") or os.getenv("OLLAMA_HOST"):
+        crawler_args.append("--use-ai-nav")
+
     run_command(
-        [sys.executable, os.path.join(NAVIGATOR_DIR, "crawler.py"), target_url],
+        crawler_args,
         cwd=GENERATED_DIR,
     )
 
