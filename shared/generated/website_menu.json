@@ -1,63 +1,150 @@
 {
-  "homepage": "https://3afsatunisie.com/",
+  "homepage": "https://weefizz.com/",
   "language": "fr",
   "auth": {
     "signin": null,
     "signup": null
   },
+  "search": null,
   "navigation": [
     {
-      "name": "Catalog",
-      "url": "https://3afsatunisie.com/collections/all",
-      "type": "link",
+      "name": "Accueil",
+      "url": "https://weefizz.com/index.html",
+      "type": "menu",
       "children": []
     },
     {
       "name": "Contact",
-      "url": "https://3afsatunisie.com/pages/contact",
-      "type": "link",
+      "url": "https://weefizz.com/contactfr.html",
+      "type": "menu",
       "children": []
     },
     {
-      "name": "Home",
-      "url": "https://3afsatunisie.com/",
-      "type": "link",
+      "name": "Qui sommes nous ?",
+      "url": "https://weefizz.com/qui-sommes-nousfr.html",
+      "type": "menu",
       "children": []
     },
     {
-      "name": "Panier",
-      "url": "https://3afsatunisie.com/cart",
-      "type": "link",
-      "children": []
+      "name": "Solutions",
+      "url": null,
+      "type": "menu",
+      "children": [
+        {
+          "name": "General",
+          "type": "section",
+          "children": [
+            {
+              "name": "Solutions",
+              "type": "link",
+              "url": "https://weefizz.com/#",
+              "children": []
+            },
+            {
+              "name": "WeeFizz Fashion",
+              "type": "link",
+              "url": "https://weefizz.com/weefizz-fashionfr.html"
+            },
+            {
+              "name": "WeeFizz PRO",
+              "type": "link",
+              "url": "https://weefizz.com/weefizz-profr.html"
+            }
+          ]
+        }
+      ]
     }
   ],
   "extra": {
     "desktop": {
-      "forms_detected": 6,
-      "total_internal_links": 801,
-      "external_links": 10,
-      "title": "3afsatunisia.tn",
-      "page_size_kb": 826.83,
-      "images_found": 46,
+      "forms_detected": 1,
+      "total_internal_links": 30,
+      "external_links": 4,
+      "title": "WeeFizz – Prise de mesure à distance pour vêtements professionnels",
+      "page_size_kb": 37.93,
+      "images_found": 31,
       "mode": "desktop",
-      "page_language": "fr"
+      "page_language": "fr",
+      "ai_recovery": {
+        "used": false,
+        "reason": "not_needed",
+        "clicked_candidate": null,
+        "ai_response": null,
+        "improved": false
+      }
     },
     "mobile": {
-      "forms_detected": 6,
-      "total_internal_links": 801,
-      "external_links": 10,
-      "title": "3afsatunisia.tn",
-      "page_size_kb": 826.94,
-      "images_found": 46,
+      "forms_detected": 1,
+      "total_internal_links": 30,
+      "external_links": 4,
+      "title": "WeeFizz – Prise de mesure à distance pour vêtements professionnels",
+      "page_size_kb": 38.01,
+      "images_found": 31,
       "mode": "mobile",
-      "page_language": "fr"
+      "page_language": "fr",
+      "ai_recovery": {
+        "used": true,
+        "reason": "too_few_menu_items",
+        "clicked_candidate": null,
+        "ai_response": {
+          "navigation_present": true,
+          "navigation_style": "hamburger",
+          "interaction_style": "click",
+          "menu_trigger": {
+            "exists": true,
+            "candidate_id": "ai_candidate_1",
+            "reason": "Button near the top with aria-label \"Toggle navigation\", typical hamburger toggle for mobile menus.",
+            "confidence": 0.95
+          },
+          "top_categories": [
+            {
+              "name": "Accueil",
+              "confidence": 0.92
+            },
+            {
+              "name": "Solutions",
+              "confidence": 0.9
+            },
+            {
+              "name": "Qui sommes nous ?",
+              "confidence": 0.9
+            },
+            {
+              "name": "Contact",
+              "confidence": 0.9
+            }
+          ],
+          "utility_items": {
+            "signin": {
+              "visible": false,
+              "candidate_id": null,
+              "label": null,
+              "confidence": 0.2
+            },
+            "signup": {
+              "visible": false,
+              "candidate_id": null,
+              "label": null,
+              "confidence": 0.2
+            },
+            "search": {
+              "visible": false,
+              "candidate_id": null,
+              "label": null,
+              "confidence": 0.2
+            }
+          },
+          "notes": "The primary navigation is hidden behind a hamburger button (candidate_1). Clicking it reveals a vertical list of top‑level links: Accueil, Solutions, Qui sommes nous ?, and Contact. The crawler's current result only captured a subset because it did not trigger the menu. No explicit sign‑in, sign‑up, or search elements are present in the immediate header area."
+        },
+        "improved": true
+      }
     },
     "menu_count": 4,
-    "navbar_score": 17.0,
+    "navbar_score": 11.0,
     "source_container": "merged(desktop+mobile)",
-    "sitemap_found": "https://3afsatunisie.com/sitemap.xml",
-    "robots_txt": "https://3afsatunisie.com/robots.txt",
-    "crawl_time_ms": 132488
+    "sitemap_found": "https://weefizz.com/sitemap.xml",
+    "robots_txt": "https://weefizz.com/robots.txt",
+    "crawl_time_ms": 114742
   },
   "requested_language": "en-US",
   "language_warning": "Requested English, but detected page language was fr."

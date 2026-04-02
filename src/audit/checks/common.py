@@ -101,6 +101,32 @@ def unique_preserve_order(items: Iterable[str]) -> List[str]:
     return out
 
 
+def normalize_evidence_items(evidence: Any) -> List[str]:
+    if evidence in (None, ""):
+        return []
+
+    if isinstance(evidence, str):
+        items = [evidence]
+    else:
+        try:
+            items = list(evidence)
+        except Exception:
+            items = [str(evidence)]
+
+    out: List[str] = []
+    seen = set()
+    for item in items:
+        cleaned = clean_text(item)
+        if not cleaned:
+            continue
+        key = normalize_text(cleaned)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(cleaned)
+    return out
+
+
 def safe_float(value: Any) -> Optional[float]:
     if isinstance(value, (int, float)):
         return float(value)
@@ -931,6 +957,12 @@ def make_result(
     evidence: Optional[List[str]] = None,
     decision_basis: str = "direct",
 ) -> CheckResult:
+    normalized_evidence = normalize_evidence_items(evidence)
+    if not normalized_evidence and status in {TRUE, FALSE}:
+        fallback_rationale = clean_text(rationale)
+        if fallback_rationale:
+            normalized_evidence = [fallback_rationale]
+
     return CheckResult(
         sheet=sheet,
         row=row,
@@ -938,6 +970,6 @@ def make_result(
         status=status,
         confidence=max(0.0, min(1.0, float(confidence))),
         rationale=rationale,
-        evidence=evidence or [],
+        evidence=normalized_evidence,
         decision_basis=decision_basis,
     )

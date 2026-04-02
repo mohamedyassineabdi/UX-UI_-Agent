@@ -26,6 +26,12 @@ LOW_CONF_FONT = Font(color="7F6000", bold=True)
 LINK_FONT = Font(color="0563C1", underline="single")
 
 
+def _safe_str(value) -> str:
+    if value is None:
+        return ""
+    return str(value)
+
+
 def load_checks(checks_path: Path) -> dict:
     with checks_path.open("r", encoding="utf-8") as f:
         return json.load(f)
@@ -114,12 +120,20 @@ def write_answers_to_sheet(ws, sheet_results) -> None:
         apply_status_style(cell, normalized_status)
 
 
-def _stringify_evidence(value) -> str:
+def _stringify_evidence_row(item: dict) -> str:
+    value = item.get("evidence")
     if isinstance(value, list):
-        return " | ".join(str(x) for x in value)
-    if value is None:
-        return ""
-    return str(value)
+        cleaned = [str(x).strip() for x in value if str(x).strip()]
+        if cleaned:
+            return " | ".join(cleaned)
+    elif value is not None and str(value).strip():
+        return str(value)
+
+    rationale = _safe_str(item.get("rationale"))
+    if rationale:
+        return rationale
+
+    return ""
 
 
 def _source_pages_text(source_pages) -> str:
@@ -192,7 +206,7 @@ def build_evidence_sheet(wb, checks_data: dict) -> None:
                 item.get("screenshot_path", ""),
                 item.get("decision_basis", ""),
                 item.get("rationale", ""),
-                _stringify_evidence(item.get("evidence", [])),
+                _stringify_evidence_row(item),
                 _source_pages_text(item.get("source_pages", [])),
             ])
 
