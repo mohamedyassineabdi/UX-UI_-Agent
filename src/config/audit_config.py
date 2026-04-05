@@ -40,6 +40,16 @@ AUDIT_CONFIG = {
         "saveDomSnapshot": True,
         "saveNetworkLog": True,
     },
+    "presentationChecks": {
+        "runtimeMotion": {
+            "enabled": True,
+            "sampleIntervalMs": 350,
+            "sampleCount": 4,
+            "motionThresholdPx": 6,
+            "opacityThreshold": 0.2,
+            "maxElements": 120,
+        },
+    },
     "urlNormalization": {
         "removeHash": True,
         "removeTrailingSlash": False,

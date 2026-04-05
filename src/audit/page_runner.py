@@ -9,6 +9,7 @@ from src.audit.page_visit_helpers import (
     wait_for_page_ready,
 )
 from src.audit.person_a_extractor import extract_person_a_blocks
+from src.audit.checks.runtime_motion_detector import detect_runtime_motion
 from src.audit.rendered_css_extractor import extract_rendered_ui
 from src.audit.safe_interaction_tester import test_safe_clickables
 from src.utils.file_utils import ensure_dir, join_path, write_json_file
@@ -71,6 +72,7 @@ async def run_page_audit(*, context, page_info, page_index, config):
         "pageMetadata": None,
         "personA": None,
         "renderedUi": None,
+        "runtimeMotion": None,
         "networkLogPath": None,
         "pageMetadataPath": None,
         "domSnapshotPath": None,
@@ -156,6 +158,8 @@ async def run_page_audit(*, context, page_info, page_index, config):
 
         if config.get("renderedUi", {}).get("enabled"):
             result["renderedUi"] = await extract_rendered_ui(page, config)
+        if (config.get("presentationChecks") or {}).get("runtimeMotion", {}).get("enabled", False):
+            result["runtimeMotion"] = await detect_runtime_motion(page, config)
 
         if keep_debug_artifacts and config.get("pageCapture", {}).get("saveNetworkLog"):
             network_log_path = join_path(artifacts_dir, "network_log.json")

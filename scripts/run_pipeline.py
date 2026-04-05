@@ -12,12 +12,15 @@ from dotenv import load_dotenv
 ROOT_DIR = Path(__file__).resolve().parents[1]
 NAVIGATOR_DIR = ROOT_DIR / "navigator"
 GENERATED_DIR = ROOT_DIR / "shared" / "generated"
+RESULTS_DIR = ROOT_DIR / "shared" / "output" / "results"
 
 WEBSITE_MENU_JSON = GENERATED_DIR / "website_menu.json"
 PERSON_A_CLEANED_JSON = GENERATED_DIR / "person_a_cleaned.json"
 RENDERED_UI_JSON = GENERATED_DIR / "rendered_ui_extraction.json"
 CHECKS_JSON = GENERATED_DIR / "person_a_sheet_checks_v2.json"
 WORKBOOK_OUTPUT = GENERATED_DIR / "UX-Audit-Workbook-final.xlsx"
+REPORT_OUTPUT_DIR = GENERATED_DIR / "audit-report"
+REPORT_INDEX = REPORT_OUTPUT_DIR / "index.html"
 DEFAULT_TEMPLATE_CANDIDATE = GENERATED_DIR / "UX-Audit-Workbook-template.xlsx"
 
 load_dotenv(ROOT_DIR / ".env")
@@ -40,6 +43,15 @@ def ensure_dir(dir_path: Path) -> None:
 def ensure_file_exists(file_path: Path) -> None:
     if not file_path.exists():
         raise RuntimeError(f"Expected file was not created: {file_path}")
+
+
+def latest_audit_results_file() -> Optional[Path]:
+    candidates = sorted(
+        RESULTS_DIR.glob("audit-results_*.json"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    return candidates[0] if candidates else None
 
 
 def read_json_file(file_path: Path):
@@ -80,6 +92,11 @@ def parse_args() -> argparse.Namespace:
         "--skip-workbook",
         action="store_true",
         help="Generate checks JSON but skip workbook export",
+    )
+    parser.add_argument(
+        "--report-out",
+        default=str(REPORT_OUTPUT_DIR),
+        help="Directory for the generated audit landing page",
     )
     return parser.parse_args()
 
@@ -131,12 +148,17 @@ def main() -> None:
     if not workbook_output.is_absolute():
         workbook_output = ROOT_DIR / workbook_output
 
+    report_output_dir = Path(args.report_out)
+    if not report_output_dir.is_absolute():
+        report_output_dir = ROOT_DIR / report_output_dir
+
     ensure_dir(GENERATED_DIR)
     ensure_dir(checks_output.parent)
+    ensure_dir(report_output_dir)
     if not args.skip_workbook:
         ensure_dir(workbook_output.parent)
 
-    print("\n[1/4] Running crawler...\n")
+    print("\n[1/5] Running crawler...\n")
     crawler_args = [
         sys.executable,
         NAVIGATOR_DIR / "crawler.py",
@@ -152,66 +174,88 @@ def main() -> None:
     ensure_file_exists(WEBSITE_MENU_JSON)
     validate_crawler_output(WEBSITE_MENU_JSON)
 
-    print("\n[2/4] Running page audit...\n")
+    print("\n[2/5] Running page audit...\n")
     run_command([sys.executable, "-m", "src.main"], cwd=ROOT_DIR)
 
     ensure_file_exists(PERSON_A_CLEANED_JSON)
     ensure_file_exists(RENDERED_UI_JSON)
+    latest_results = latest_audit_results_file()
 
-    print("\n[3/4] Generating checks JSON...\n")
-    run_command(
-        [
-            sys.executable,
-            "-m",
-            "src.audit.checks.run_sheet_checks",
-            "--cleaned",
-            PERSON_A_CLEANED_JSON,
-            "--rendered",
-            RENDERED_UI_JSON,
-            "--output",
-            checks_output,
-        ],
-        cwd=ROOT_DIR,
-    )
+    print("\n[3/5] Generating checks JSON...\n")
+    checks_args = [
+        sys.executable,
+        "-m",
+        "src.audit.checks.run_sheet_checks",
+        "--cleaned",
+        PERSON_A_CLEANED_JSON,
+        "--rendered",
+        RENDERED_UI_JSON,
+        "--output",
+        checks_output,
+    ]
+    if latest_results:
+        checks_args.extend(["--results", latest_results])
+    run_command(checks_args, cwd=ROOT_DIR)
 
     ensure_file_exists(checks_output)
 
+    workbook_for_report = ""
     if args.skip_workbook:
-        print("\n[4/4] Workbook export skipped.\n")
-        print("Pipeline completed successfully.")
-        print(f"Navigation JSON: {WEBSITE_MENU_JSON}")
-        print(f"Cleaned content JSON: {PERSON_A_CLEANED_JSON}")
-        print(f"Rendered UI JSON: {RENDERED_UI_JSON}")
-        print(f"Checks JSON: {checks_output}")
-        return
+        print("\n[4/5] Workbook export skipped.\n")
+    else:
+        workbook_template = resolve_workbook_template(args.workbook_template, workbook_output)
 
-    workbook_template = resolve_workbook_template(args.workbook_template, workbook_output)
+        print("\n[4/5] Exporting workbook...\n")
+        print(f"Using workbook template: {workbook_template}")
+        run_command(
+            [
+                sys.executable,
+                "-m",
+                "src.audit.export.write_checks_to_workbook",
+                "--template",
+                workbook_template,
+                "--checks",
+                checks_output,
+                "--output",
+                workbook_output,
+            ],
+            cwd=ROOT_DIR,
+        )
 
-    print("\n[4/4] Exporting workbook...\n")
-    print(f"Using workbook template: {workbook_template}")
-    run_command(
-        [
-            sys.executable,
-            "-m",
-            "src.audit.export.write_checks_to_workbook",
-            "--template",
-            workbook_template,
-            "--checks",
-            checks_output,
-            "--output",
-            workbook_output,
-        ],
-        cwd=ROOT_DIR,
-    )
+        ensure_file_exists(workbook_output)
+        workbook_for_report = str(workbook_output)
 
-    ensure_file_exists(workbook_output)
+    print("\n[5/5] Generating audit report site...\n")
+    report_args = [
+        sys.executable,
+        "-m",
+        "src.report.generate_audit_report",
+        "--website-menu",
+        WEBSITE_MENU_JSON,
+        "--cleaned",
+        PERSON_A_CLEANED_JSON,
+        "--rendered",
+        RENDERED_UI_JSON,
+        "--checks",
+        checks_output,
+        "--output-dir",
+        report_output_dir,
+    ]
+    if workbook_for_report:
+        report_args.extend(["--workbook", workbook_for_report])
+
+    run_command(report_args, cwd=ROOT_DIR)
+
+    ensure_file_exists(report_output_dir / "index.html")
 
     print("\nPipeline completed successfully.")
     print(f"Navigation JSON: {WEBSITE_MENU_JSON}")
     print(f"Cleaned content JSON: {PERSON_A_CLEANED_JSON}")
     print(f"Rendered UI JSON: {RENDERED_UI_JSON}")
     print(f"Checks JSON: {checks_output}")
-    print(f"Workbook: {workbook_output}")
+    if workbook_for_report:
+        print(f"Workbook: {workbook_output}")
+    print(f"Audit report: {report_output_dir / 'index.html'}")
 
 
 if __name__ == "__main__":

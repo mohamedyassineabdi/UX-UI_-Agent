@@ -6,7 +6,16 @@ from openpyxl import load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
 
-TARGET_SHEETS = ["Content", "Labeling", "Navigation", "Feedback", "Forms"]
+SHEET_EXPORT_MAP = {
+    "Content": "Content",
+    "Labeling": "Labeling",
+    "Presentation": "Presentation",
+    "Navigation": "Navigation",
+    "Interaction": "Interaction",
+    "Feedback": "Feedback",
+    "Forms": "Forms",
+    "Visual hierarchy": "Visual hirarchy",
+}
 
 TRUE_FILL = PatternFill(fill_type="solid", fgColor="C6EFCE")
 TRUE_FONT = Font(color="006100", bold=True)
@@ -299,13 +308,13 @@ def main() -> None:
 
     sheets_data = checks_data.get("sheets", {})
 
-    for sheet_name in TARGET_SHEETS:
-        if sheet_name not in wb.sheetnames:
-            print(f"Warning: sheet '{sheet_name}' not found in workbook, skipped.")
+    for checks_sheet_name, workbook_sheet_name in SHEET_EXPORT_MAP.items():
+        if workbook_sheet_name not in wb.sheetnames:
+            print(f"Warning: sheet '{workbook_sheet_name}' not found in workbook, skipped.")
             continue
 
-        ws = wb[sheet_name]
-        sheet_payload = sheets_data.get(sheet_name, {})
+        ws = wb[workbook_sheet_name]
+        sheet_payload = sheets_data.get(checks_sheet_name, {})
         results = sheet_payload.get("results", [])
         write_answers_to_sheet(ws, results)
 

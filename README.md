@@ -11,6 +11,7 @@ Current pipeline:
 - writes `shared/generated/rendered_ui_extraction.json`
 - generates `shared/generated/person_a_sheet_checks_v2.json`
 - exports a final workbook `.xlsx`
+- generates a static audit landing page in `shared/generated/audit-report/index.html`
 
 The crawler and AI review code use Ollama configuration from the repo `.env` file.
 Typical variables are `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, and optional `OLLAMA_API_KEY`.
@@ -35,6 +36,7 @@ The full pipeline now runs these stages in order:
 2. `python -m src.main`
 3. `python -m src.audit.checks.run_sheet_checks`
 4. `python -m src.audit.export.write_checks_to_workbook`
+5. `python -m src.report.generate_audit_report`
 
 Direct Python usage also works:
 
@@ -47,10 +49,17 @@ Optional flags:
 ```bash
 python scripts/run_pipeline.py https://example.com --workbook-template "shared/generated/UX-Audit-Workbook-template.xlsx"
 python scripts/run_pipeline.py https://example.com --skip-workbook
+python scripts/run_pipeline.py https://example.com --report-out "shared/generated/audit-report"
 ```
 
 Running the crawler directly also writes to `shared/generated/website_menu.json` by default:
 
 ```bash
 python navigator/crawler.py https://example.com
+```
+
+To regenerate only the audit landing page from existing artifacts:
+
+```bash
+npm run report -- --checks shared/generated/person_a_sheet_checks_v2.json
 ```
