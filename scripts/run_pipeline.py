@@ -19,8 +19,9 @@ PERSON_A_CLEANED_JSON = GENERATED_DIR / "person_a_cleaned.json"
 RENDERED_UI_JSON = GENERATED_DIR / "rendered_ui_extraction.json"
 CHECKS_JSON = GENERATED_DIR / "person_a_sheet_checks_v2.json"
 WORKBOOK_OUTPUT = GENERATED_DIR / "UX-Audit-Workbook-final.xlsx"
-REPORT_OUTPUT_DIR = GENERATED_DIR / "audit-report"
-REPORT_INDEX = REPORT_OUTPUT_DIR / "index.html"
+GTM_AUDIT_JSON = GENERATED_DIR / "gtm_audit.json"
+DETAILED_REPORT_OUTPUT_DIR = GENERATED_DIR / "audit-report"
+GTM_REPORT_OUTPUT_DIR = GENERATED_DIR / "gtm-report"
 DEFAULT_TEMPLATE_CANDIDATE = GENERATED_DIR / "UX-Audit-Workbook-template.xlsx"
 
 load_dotenv(ROOT_DIR / ".env")
@@ -74,6 +75,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the full UX/UI auditor pipeline.")
     parser.add_argument("url", help="Website URL to crawl and audit")
     parser.add_argument(
+        "--mode",
+        choices=("detailed", "gtm"),
+        default="detailed",
+        help="Audit mode. 'detailed' runs the existing sheet-based audit. 'gtm' runs the 7-axis go-to-market audit.",
+    )
+    parser.add_argument(
         "--workbook-template",
         default="",
         help="Optional workbook template path. If omitted, the pipeline auto-discovers one.",
@@ -95,8 +102,18 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--report-out",
-        default=str(REPORT_OUTPUT_DIR),
-        help="Directory for the generated audit landing page",
+        default="",
+        help="Directory for the generated report site. Defaults depend on the selected mode.",
+    )
+    parser.add_argument(
+        "--gtm-out",
+        default=str(GTM_AUDIT_JSON),
+        help="Path for the GTM analysis JSON output when --mode gtm is used.",
+    )
+    parser.add_argument(
+        "--skip-vision",
+        action="store_true",
+        help="When --mode gtm is used, skip the multimodal vision synthesis layer.",
     )
     return parser.parse_args()
 
@@ -148,13 +165,21 @@ def main() -> None:
     if not workbook_output.is_absolute():
         workbook_output = ROOT_DIR / workbook_output
 
-    report_output_dir = Path(args.report_out)
+    report_output_dir = Path(args.report_out or (
+        GTM_REPORT_OUTPUT_DIR if args.mode == "gtm" else DETAILED_REPORT_OUTPUT_DIR
+    ))
     if not report_output_dir.is_absolute():
         report_output_dir = ROOT_DIR / report_output_dir
+
+    gtm_output = Path(args.gtm_out)
+    if not gtm_output.is_absolute():
+        gtm_output = ROOT_DIR / gtm_output
 
     ensure_dir(GENERATED_DIR)
     ensure_dir(checks_output.parent)
     ensure_dir(report_output_dir)
+    if args.mode == "gtm":
+        ensure_dir(gtm_output.parent)
     if not args.skip_workbook:
         ensure_dir(workbook_output.parent)
 
@@ -200,53 +225,90 @@ def main() -> None:
     ensure_file_exists(checks_output)
 
     workbook_for_report = ""
-    if args.skip_workbook:
-        print("\n[4/5] Workbook export skipped.\n")
-    else:
-        workbook_template = resolve_workbook_template(args.workbook_template, workbook_output)
+    if args.mode == "detailed":
+        if args.skip_workbook:
+            print("\n[4/5] Workbook export skipped.\n")
+        else:
+            workbook_template = resolve_workbook_template(args.workbook_template, workbook_output)
 
-        print("\n[4/5] Exporting workbook...\n")
-        print(f"Using workbook template: {workbook_template}")
+            print("\n[4/5] Exporting workbook...\n")
+            print(f"Using workbook template: {workbook_template}")
+            run_command(
+                [
+                    sys.executable,
+                    "-m",
+                    "src.audit.export.write_checks_to_workbook",
+                    "--template",
+                    workbook_template,
+                    "--checks",
+                    checks_output,
+                    "--output",
+                    workbook_output,
+                ],
+                cwd=ROOT_DIR,
+            )
+
+            ensure_file_exists(workbook_output)
+            workbook_for_report = str(workbook_output)
+
+        print("\n[5/5] Generating audit report site...\n")
+        report_args = [
+            sys.executable,
+            "-m",
+            "src.report.generate_audit_report",
+            "--website-menu",
+            WEBSITE_MENU_JSON,
+            "--cleaned",
+            PERSON_A_CLEANED_JSON,
+            "--rendered",
+            RENDERED_UI_JSON,
+            "--checks",
+            checks_output,
+            "--output-dir",
+            report_output_dir,
+        ]
+        if workbook_for_report:
+            report_args.extend(["--workbook", workbook_for_report])
+        run_command(report_args, cwd=ROOT_DIR)
+        ensure_file_exists(report_output_dir / "index.html")
+    else:
+        print("\n[4/5] Generating GTM 7-axis audit...\n")
+        gtm_args = [
+            sys.executable,
+            "-m",
+            "src.gtm_audit.generate_gtm_audit",
+            "--website-menu",
+            WEBSITE_MENU_JSON,
+            "--cleaned",
+            PERSON_A_CLEANED_JSON,
+            "--rendered",
+            RENDERED_UI_JSON,
+            "--checks",
+            checks_output,
+            "--output",
+            gtm_output,
+        ]
+        if latest_results:
+            gtm_args.extend(["--results", latest_results])
+        if args.skip_vision:
+            gtm_args.append("--skip-vision")
+        run_command(gtm_args, cwd=ROOT_DIR)
+        ensure_file_exists(gtm_output)
+
+        print("\n[5/5] Generating GTM report site...\n")
         run_command(
             [
                 sys.executable,
                 "-m",
-                "src.audit.export.write_checks_to_workbook",
-                "--template",
-                workbook_template,
-                "--checks",
-                checks_output,
-                "--output",
-                workbook_output,
+                "src.gtm_audit.generate_gtm_report",
+                "--input",
+                gtm_output,
+                "--output-dir",
+                report_output_dir,
             ],
             cwd=ROOT_DIR,
         )
-
-        ensure_file_exists(workbook_output)
-        workbook_for_report = str(workbook_output)
-
-    print("\n[5/5] Generating audit report site...\n")
-    report_args = [
-        sys.executable,
-        "-m",
-        "src.report.generate_audit_report",
-        "--website-menu",
-        WEBSITE_MENU_JSON,
-        "--cleaned",
-        PERSON_A_CLEANED_JSON,
-        "--rendered",
-        RENDERED_UI_JSON,
-        "--checks",
-        checks_output,
-        "--output-dir",
-        report_output_dir,
-    ]
-    if workbook_for_report:
-        report_args.extend(["--workbook", workbook_for_report])
-
-    run_command(report_args, cwd=ROOT_DIR)
-
-    ensure_file_exists(report_output_dir / "index.html")
+        ensure_file_exists(report_output_dir / "index.html")
 
     print("\nPipeline completed successfully.")
     print(f"Navigation JSON: {WEBSITE_MENU_JSON}")
@@ -255,6 +317,8 @@ def main() -> None:
     print(f"Checks JSON: {checks_output}")
     if workbook_for_report:
         print(f"Workbook: {workbook_output}")
+    if args.mode == "gtm":
+        print(f"GTM audit JSON: {gtm_output}")
     print(f"Audit report: {report_output_dir / 'index.html'}")
 
 

@@ -22,3 +22,4 @@ typing-extensions==4.12.2
 python-dotenv
 requests
 openpyxl
+pillow

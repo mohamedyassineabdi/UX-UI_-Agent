@@ -93,17 +93,17 @@
           "menu_trigger": {
             "exists": true,
             "candidate_id": "ai_candidate_1",
-            "reason": "Button near the top with aria-label 'Toggle navigation', typical for opening a mobile hamburger menu.",
+            "reason": "Button near top with aria_label 'Toggle navigation', typical hamburger menu trigger on mobile.",
             "confidence": 0.95
           },
           "top_categories": [
             {
               "name": "Accueil",
-              "confidence": 0.94
+              "confidence": 0.9
             },
             {
               "name": "Solutions",
-              "confidence": 0.92
+              "confidence": 0.9
             },
             {
               "name": "Qui sommes nous ?",
@@ -119,22 +119,22 @@
               "visible": false,
               "candidate_id": null,
               "label": null,
-              "confidence": 0.0
+              "confidence": 0.2
             },
             "signup": {
               "visible": false,
               "candidate_id": null,
               "label": null,
-              "confidence": 0.0
+              "confidence": 0.2
             },
             "search": {
               "visible": false,
               "candidate_id": null,
               "label": null,
-              "confidence": 0.0
+              "confidence": 0.2
             }
           },
-          "notes": "The mobile homepage uses a hamburger button (candidate_1) to reveal a drawer containing the primary navigation links (Accueil, Solutions, Qui sommes nous ?, Contact). The crawler's current result missed these because it did not activate the toggle. No explicit sign‑in, sign‑up, or search controls are visible in the top area; the only input element (candidate_14) appears far down the page and is likely part of a form rather than a site‑wide search."
+          "notes": "The main navigation is hidden behind a hamburger button (candidate ai_candidate_1). Clicking it reveals a vertical list of top‑level links: Accueil, Solutions, Qui sommes nous ?, and Contact. No sign‑in, sign‑up, or search elements are present in the primary navigation area on the mobile view."
         },
         "improved": true
       }
@@ -144,7 +144,7 @@
     "source_container": "merged(desktop+mobile)",
     "sitemap_found": "https://weefizz.com/sitemap.xml",
     "robots_txt": "https://weefizz.com/robots.txt",
-    "crawl_time_ms": 106026
+    "crawl_time_ms": 112821
   },
   "requested_language": "en-US",
   "language_warning": "Requested English, but detected page language was fr."

@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Weefizz</title>
+  <style>
+    :root {
+      --bg: #f6f1e8;
+      --panel: rgba(255,255,255,0.74);
+      --ink: #1f2733;
+      --muted: #5d6775;
+      --accent: #c95f2d;
+      --accent-2: #0e6d63;
+      --line: rgba(31,39,51,0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top right, rgba(14,109,99,0.18), transparent 28rem),
+        radial-gradient(circle at left center, rgba(201,95,45,0.18), transparent 22rem),
+        var(--bg);
+      font-family: "Trebuchet MS", "Gill Sans", sans-serif;
+      line-height: 1.5;
+    }
+    .shell { max-width: 1180px; margin: 0 auto; padding: 32px 20px 80px; }
+    .hero, .section-panel, .priority-panel, .axis-card {
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      box-shadow: 0 16px 50px rgba(31,39,51,0.08);
+    }
+    .hero { padding: 28px; display: grid; gap: 24px; grid-template-columns: 1.35fr 0.85fr; }
+    .section-panel, .priority-panel { margin-top: 22px; padding: 24px; }
+    .eyebrow { margin: 0 0 8px; color: var(--accent-2); font-size: 0.84rem; letter-spacing: 0.12em; text-transform: uppercase; }
+    h1, h2, h3, h4 { margin: 0 0 12px; font-family: Georgia, "Times New Roman", serif; line-height: 1.1; }
+    h1 { font-size: clamp(2.3rem, 5vw, 4.3rem); }
+    h2 { font-size: clamp(1.6rem, 3vw, 2.2rem); }
+    p { margin: 0 0 12px; color: var(--muted); }
+    .hero-stats, .context-grid, .method-grid, .reco-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .stat, .context-card, .method-card, .reco-card {
+      padding: 16px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.84);
+      border: 1px solid var(--line);
+    }
+    .stat strong, .context-card strong { display: block; font-size: 1.5rem; color: var(--ink); }
+    .shot-grid { display: grid; gap: 12px; }
+    .shot {
+      display: block;
+      padding: 16px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(14,109,99,0.12), rgba(201,95,45,0.12));
+      border: 1px solid var(--line);
+      color: inherit;
+      text-decoration: none;
+    }
+    .shot span { display: block; color: var(--muted); font-size: 0.84rem; }
+    .finding-grid, .axes { display: grid; gap: 14px; grid-template-columns: 1fr; }
+    .score-diagram {
+      display: grid;
+      gap: 18px;
+      grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.05fr);
+      align-items: start;
+      margin-bottom: 18px;
+    }
+    .radar-card {
+      padding: 18px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.86);
+      border: 1px solid var(--line);
+    }
+    .radar-chart {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .finding-card, .axis-card {
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.86);
+      border: 1px solid var(--line);
+    }
+    .finding-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .finding-copy p { margin-bottom: 10px; }
+    .finding-card h4 { font-size: 1.05rem; }
+    .finding-meta, .finding-rec, .reco-meta, .finding-shot-meta { color: var(--muted); font-size: 0.92rem; }
+    .finding-expl { color: var(--ink); font-size: 1rem; }
+    .finding-visual {
+      aspect-ratio: 16 / 9;
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.88);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .finding-visual img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .finding-shot-meta { margin-top: 8px; }
+    .finding-link a {
+      color: inherit;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .finding-visual-empty span { color: var(--muted); font-size: 0.92rem; }
+    .axis-head { display: flex; justify-content: space-between; gap: 18px; align-items: start; }
+    .score-wrap {
+      min-width: 96px;
+      text-align: center;
+      padding: 12px 10px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.84);
+      border: 1px solid var(--line);
+    }
+    .score { display: block; font-size: 2rem; font-weight: 700; color: var(--ink); }
+    .score-label { color: var(--muted); }
+    .axis-summary { color: var(--ink); font-size: 1rem; }
+    .method-step, .reco-badge {
+      display: inline-block;
+      margin-bottom: 8px;
+      color: var(--accent-2);
+      font-size: 0.82rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .priority-critical { border-color: rgba(163,39,39,0.32); }
+    .priority-high { border-color: rgba(170,110,19,0.32); }
+    .priority-medium { border-color: rgba(25,98,78,0.32); }
+    .empty { color: var(--muted); }
+    @media (max-width: 860px) {
+      .hero { grid-template-columns: 1fr; }
+      .score-diagram { grid-template-columns: 1fr; }
+      .finding-card { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Go To Market Audit</p>
+        <h1>Weefizz</h1>
+        <p>Weefizz scores 59/100 on the first GTM-oriented UX/UI audit pass. The biggest commercial risk sits in cohérence ui &amp; design system (52/100). The strongest current signal is confiance &amp; accessibilité (wcag 2.2) (63/100).</p>
+        <p>Lead with &#x27;La bonne taille, dès la première dotation&#x27; and support it with a clearer commercial CTA like &#x27;Contact&#x27;.</p>
+        <div class="hero-stats">
+          <div class="stat"><span>Overall score</span><strong>5.9<small>/10</small></strong></div>
+          <div class="stat"><span>Strongest axis</span><strong>Confiance &amp; Accessibilité (WCAG 2.2)</strong></div>
+          <div class="stat"><span>Weakest axis</span><strong>Cohérence UI &amp; Design System</strong></div>
+        </div>
+      </div>
+      <div class="shot-grid">
+        
+            <a class="shot" href="../../output/screenshots/weefizz.com/Home/page/main.png" target="_blank" rel="noreferrer">
+              <span>Home</span>
+              <strong>Representative page</strong>
+            </a>
+            
+            <a class="shot" href="../../output/screenshots/weefizz.com/Contact/page/main.png" target="_blank" rel="noreferrer">
+              <span>Contact</span>
+              <strong>Representative page</strong>
+            </a>
+            
+            <a class="shot" href="../../output/screenshots/weefizz.com/Accueil/page/main.png" target="_blank" rel="noreferrer">
+              <span>Accueil</span>
+              <strong>Representative page</strong>
+            </a>
+            
+      </div>
+    </section>
+
+    <section class="section-panel" id="context">
+      <p class="eyebrow">Context</p>
+      <h2>Audit framing</h2>
+      <div class="context-grid">
+        <div class="context-card"><span>Pages audited</span><strong>6</strong><p>Representative product and conversion pages used for this GTM synthesis.</p></div>
+        <div class="context-card"><span>Navigation scope</span><strong>4</strong><p>Top-level navigation areas used to assess the commercial information architecture.</p></div>
+        <div class="context-card"><span>Axes reviewed</span><strong>7</strong><p>The product is reviewed through the seven GTM-oriented UX/UI lenses.</p></div>
+      </div>
+    </section>
+
+    <section class="section-panel">
+      <p class="eyebrow">Methodology</p>
+      <h2>How the GTM audit is built</h2>
+      <div class="method-grid">
+        <div class="method-card">
+          <span class="method-step">01</span>
+          <h4>Context</h4>
+          <p>We isolate the homepage, core conversion pages, and the strongest commercial story signals before scoring.</p>
+        </div>
+        
+        <div class="method-card">
+          <span class="method-step">02</span>
+          <h4>Axis Review</h4>
+          <p>The product is reviewed through 7 GTM-oriented UX/UI axes with rule-based evidence from the detailed audit.</p>
+        </div>
+        
+        <div class="method-card">
+          <span class="method-step">03</span>
+          <h4>Prioritization</h4>
+          <p>Only the highest-impact friction points are kept, then converted into sales-facing recommendations.</p>
+        </div>
+        </div>
+    </section>
+
+    <section class="priority-panel">
+      <p class="eyebrow">Priority Issues</p>
+      <h2>Only the pain points that matter most</h2>
+      <div class="finding-grid">
+    <article class="finding-card tone-high">
+      <div class="finding-copy">
+        <p class="finding-meta">Cohérence UI &amp; Design System | Accueil</p>
+        <h4>Verbs are used for all actions (e.g. Save, Go, Submit, Continue).</h4>
+        <p class="finding-expl"><strong>Issue:</strong> On Accueil, the audit found that &#x27;Verbs are used for all actions (e.g. Save, Go, Submit, Continue).&#x27; is not fully met. Action labels do not pass the verb criterion. At least one page relies too heavily on non-verb action labels.</p>
+        <p><strong>Why it matters:</strong> This matters because recurring patterns do not behave or look consistently, which makes the product feel less mature. In a GTM context, visible friction on Accueil can make the product feel harder to understand, trust, or adopt during a first review.</p>
+        <p><strong>Evidence:</strong> Action labels do not pass the verb criterion At least one page relies too heavily on non-verb action labels.</p>
+        <p class="finding-rec"><strong>What to change:</strong> Prefer direct verb-led action labels such as Search, Add to cart, Continue, Save, or Send.</p>
+        <p class="finding-link"><strong>Page:</strong> <a href="https://weefizz.com/index.html" target="_blank" rel="noreferrer">https://weefizz.com/index.html</a></p>
+      </div>
+      
+        <div class="finding-visual">
+          <img src="evidence/issue-01-verbs-are-used-for-all-actions-e-g-save-go-submit-continue.png" alt="Verbs are used for all actions (e.g. Save, Go, Submit, Continue). evidence">
+        </div>
+        <p class="finding-shot-meta">Spotlight from Accueil</p>
+        
+    </article>
+    
+    <article class="finding-card tone-high">
+      <div class="finding-copy">
+        <p class="finding-meta">Cohérence UI &amp; Design System | Accueil</p>
+        <h4>Users have control over interactive content, experiences or workflows — where they’re going, how they get there, and how easily they can stop and start.</h4>
+        <p class="finding-expl"><strong>Issue:</strong> On Accueil, the audit found that &#x27;Users have control over interactive content, experiences or workflows — where they’re going, how they get there, and how easily they can stop and start.&#x27; is not fully met. User control over flows does not pass. The available signals do not strongly support user control over interactive flows.</p>
+        <p><strong>Why it matters:</strong> This matters because recurring patterns do not behave or look consistently, which makes the product feel less mature. In a GTM context, visible friction on Accueil can make the product feel harder to understand, trust, or adopt during a first review.</p>
+        <p><strong>Evidence:</strong> User control over flows does not pass The available signals do not strongly support user control over interactive flows.</p>
+        <p class="finding-rec"><strong>What to change:</strong> Expose back, cancel, close, search, filter, and escape routes consistently, and add runtime checks to verify actual flow control.</p>
+        <p class="finding-link"><strong>Page:</strong> <a href="https://weefizz.com/index.html" target="_blank" rel="noreferrer">https://weefizz.com/index.html</a></p>
+      </div>
+      
+        <div class="finding-visual">
+          <img src="evidence/issue-02-users-have-control-over-interactive-content-experiences-or-w.png" alt="Users have control over interactive content, experiences or workflows — where they’re going, how they get there, and how easily they can stop and start. evidence">
+        </div>
+        <p class="finding-shot-meta">Spotlight from Accueil</p>
+        
+    </article>
+    
+    <article class="finding-card tone-high">
+      <div class="finding-copy">
+        <p class="finding-meta">Cohérence UI &amp; Design System | Accueil</p>
+        <h4>The UI (and all buttons or controls) responds consistently to user actions in terms of visual display, appropriate context and data functionality.</h4>
+        <p class="finding-expl"><strong>Issue:</strong> On Accueil, the audit found that &#x27;The UI (and all buttons or controls) responds consistently to user actions in terms of visual display, appropriate context and data functionality.&#x27; is not fully met. Control response consistency does not pass. The visible control styles are too inconsistent to support reliable interaction behavior expectations.</p>
+        <p><strong>Why it matters:</strong> This matters because recurring patterns do not behave or look consistently, which makes the product feel less mature. In a GTM context, visible friction on Accueil can make the product feel harder to understand, trust, or adopt during a first review.</p>
+        <p><strong>Evidence:</strong> Control response consistency does not pass The visible control styles are too inconsistent to support reliable interaction behavior expectations.</p>
+        <p class="finding-rec"><strong>What to change:</strong> Standardize control variants and add runtime hover, focus, active, and disabled-state extraction.</p>
+        <p class="finding-link"><strong>Page:</strong> <a href="https://weefizz.com/index.html" target="_blank" rel="noreferrer">https://weefizz.com/index.html</a></p>
+      </div>
+      
+        <div class="finding-visual">
+          <img src="evidence/issue-03-the-ui-and-all-buttons-or-controls-responds-consistently-to-.png" alt="The UI (and all buttons or controls) responds consistently to user actions in terms of visual display, appropriate context and data functionality. evidence">
+        </div>
+        <p class="finding-shot-meta">Spotlight from Accueil</p>
+        
+    </article>
+    
+    <article class="finding-card tone-high">
+      <div class="finding-copy">
+        <p class="finding-meta">Adéquation Stratégique au Marché | Home</p>
+        <h4>Search is available on every page, not just the homepage.</h4>
+        <p class="finding-expl"><strong>Issue:</strong> On Home, the audit found that &#x27;Search is available on every page, not just the homepage.&#x27; is not fully met. Actual site-search inputs detected on every page was not found.</p>
+        <p><strong>Why it matters:</strong> This matters because prospects may not immediately understand why this product is relevant for their context or market. In a GTM context, visible friction on Home can make the product feel harder to understand, trust, or adopt during a first review.</p>
+        <p><strong>Evidence:</strong> Actual site-search inputs detected on every page=False.</p>
+        <p class="finding-rec"><strong>What to change:</strong> Fix this first on Home by clarifying the interaction, tightening the label or feedback, and making the intended next step more obvious.</p>
+        <p class="finding-link"><strong>Page:</strong> <a href="https://weefizz.com/" target="_blank" rel="noreferrer">https://weefizz.com/</a></p>
+      </div>
+      
+        <div class="finding-visual">
+          <img src="evidence/issue-04-search-is-available-on-every-page-not-just-the-homepage.png" alt="Search is available on every page, not just the homepage. evidence">
+        </div>
+        <p class="finding-shot-meta">Spotlight from Home</p>
+        
+    </article>
+    
+    <article class="finding-card tone-high">
+      <div class="finding-copy">
+        <p class="finding-meta">Logique de Flux &amp; Architecture | Accueil</p>
+        <h4>Frequently used features are readily available.</h4>
+        <p class="finding-expl"><strong>Issue:</strong> On Accueil, the audit found that &#x27;Frequently used features are readily available.&#x27; is not fully met. Frequently used features are not surfaced strongly enough. Frequently used controls are not sufficiently visible in top or navigation zones.</p>
+        <p><strong>Why it matters:</strong> This matters because people struggle to understand where they are, what comes next, or how the product is organized. In a GTM context, visible friction on Accueil can make the product feel harder to understand, trust, or adopt during a first review.</p>
+        <p><strong>Evidence:</strong> Frequently used features are not surfaced strongly enough Frequently used controls are not sufficiently visible in top or navigation zones.</p>
+        <p class="finding-rec"><strong>What to change:</strong> Expose high-frequency features such as search, filter, cart, account, and menu in predictable top or navigation regions.</p>
+        <p class="finding-link"><strong>Page:</strong> <a href="https://weefizz.com/index.html" target="_blank" rel="noreferrer">https://weefizz.com/index.html</a></p>
+      </div>
+      
+        <div class="finding-visual">
+          <img src="evidence/issue-05-frequently-used-features-are-readily-available.png" alt="Frequently used features are readily available. evidence">
+        </div>
+        <p class="finding-shot-meta">Spotlight from Accueil</p>
+        
+    </article>
+    </div>
+    </section>
+
+    <section class="section-panel">
+      <p class="eyebrow">Axis Snapshot</p>
+      <h2>Seven axes, kept concise</h2>
+      <div class="score-diagram">
+        
+    <div class="radar-card">
+      <svg class="radar-chart" viewBox="0 0 520 500" role="img" aria-label="Seven-axis scoring radar chart">
+        <defs>
+          <linearGradient id="radarFill" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="rgba(14,159,122,0.22)"></stop>
+            <stop offset="100%" stop-color="rgba(14,109,99,0.10)"></stop>
+          </linearGradient>
+        </defs>
+        <polygon points="260.0,220.0 283.5,231.3 289.2,256.7 273.0,277.0 247.0,277.0 230.8,256.7 236.5,231.3" fill="none" stroke="rgba(31,39,51,0.08)" stroke-width="1"></polygon><text x="266" y="224.0" fill="rgba(93,103,117,0.9)" font-size="12">2</text><polygon points="260.0,190.0 306.9,212.6 318.5,263.4 286.0,304.1 234.0,304.1 201.5,263.4 213.1,212.6" fill="none" stroke="rgba(31,39,51,0.08)" stroke-width="1"></polygon><text x="266" y="194.0" fill="rgba(93,103,117,0.9)" font-size="12">4</text><polygon points="260.0,160.0 330.4,193.9 347.7,270.0 299.0,331.1 221.0,331.1 172.3,270.0 189.6,193.9" fill="none" stroke="rgba(31,39,51,0.08)" stroke-width="1"></polygon><text x="266" y="164.0" fill="rgba(93,103,117,0.9)" font-size="12">6</text><polygon points="260.0,130.0 353.8,175.2 377.0,276.7 312.1,358.1 207.9,358.1 143.0,276.7 166.2,175.2" fill="none" stroke="rgba(31,39,51,0.08)" stroke-width="1"></polygon><text x="266" y="134.0" fill="rgba(93,103,117,0.9)" font-size="12">8</text><polygon points="260.0,100.0 377.3,156.5 406.2,283.4 325.1,385.1 194.9,385.1 113.8,283.4 142.7,156.5" fill="none" stroke="rgba(31,39,51,0.08)" stroke-width="1"></polygon><text x="266" y="104.0" fill="rgba(93,103,117,0.9)" font-size="12">10</text>
+        <line x1="260" y1="250" x2="260.0" y2="100.0" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line><line x1="260" y1="250" x2="377.3" y2="156.5" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line><line x1="260" y1="250" x2="406.2" y2="283.4" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line><line x1="260" y1="250" x2="325.1" y2="385.1" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line><line x1="260" y1="250" x2="194.9" y2="385.1" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line><line x1="260" y1="250" x2="113.8" y2="283.4" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line><line x1="260" y1="250" x2="142.7" y2="156.5" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line>
+        <polygon points="260.0,161.5 330.4,193.9 352.1,271.0 293.8,320.3 219.0,335.1 172.3,270.0 195.5,198.6" fill="url(#radarFill)" stroke="#0e9f7a" stroke-width="3"></polygon>
+        <circle cx="260.0" cy="161.5" r="4.5" fill="#0e9f7a" stroke="#ffffff" stroke-width="2"></circle><circle cx="330.4" cy="193.9" r="4.5" fill="#0e9f7a" stroke="#ffffff" stroke-width="2"></circle><circle cx="352.1" cy="271.0" r="4.5" fill="#0e9f7a" stroke="#ffffff" stroke-width="2"></circle><circle cx="293.8" cy="320.3" r="4.5" fill="#0e9f7a" stroke="#ffffff" stroke-width="2"></circle><circle cx="219.0" cy="335.1" r="4.5" fill="#0e9f7a" stroke="#ffffff" stroke-width="2"></circle><circle cx="172.3" cy="270.0" r="4.5" fill="#0e9f7a" stroke="#ffffff" stroke-width="2"></circle><circle cx="195.5" cy="198.6" r="4.5" fill="#0e9f7a" stroke="#ffffff" stroke-width="2"></circle>
+        <text x="260.0" y="65.5" text-anchor="middle" fill="#4d5868" font-size="15" font-weight="600">Task Execution</text><text x="404.2" y="135.0" text-anchor="start" fill="#4d5868" font-size="15" font-weight="600">Flow &amp; Architecture</text><text x="439.9" y="291.1" text-anchor="start" fill="#4d5868" font-size="15" font-weight="600">Trust &amp; Accessibility</text><text x="340.1" y="416.2" text-anchor="start" fill="#4d5868" font-size="15" font-weight="600">UI Consistency</text><text x="179.9" y="416.2" text-anchor="end" fill="#4d5868" font-size="15" font-weight="600">Visual Brand</text><text x="80.1" y="291.1" text-anchor="end" fill="#4d5868" font-size="15" font-weight="600">Content &amp; Microcopy</text><text x="115.8" y="135.0" text-anchor="end" fill="#4d5868" font-size="15" font-weight="600">Market Alignment</text>
+      </svg>
+    </div>
+    
+        <div class="context-card">
+          <span>Scoring logic</span>
+          <strong>5.9/10</strong>
+          <p>The diagram summarizes the seven GTM axes on a ten-point scale so weak areas are visible at a glance before reading the detailed comments.</p>
+          <p>Each axis score is derived from the rule-based audit signals, page-level extraction, and optional vision review when enabled.</p>
+        </div>
+      </div>
+      <div class="axes">
+    <article class="axis-card tone-medium">
+      <div class="axis-head">
+        <div>
+          <p class="eyebrow">Task Execution</p>
+          <h3>Expérience &amp; Exécution des Tâches</h3>
+        </div>
+        <div class="score-wrap">
+          <span class="score">5.9</span>
+          <span class="score-label">/10</span>
+        </div>
+      </div>
+      <p class="axis-summary">Task Execution scores 59/100 in this GTM view. Structured evidence surfaced 29 pain point(s) and 23 positive signal(s).</p>
+    </article>
+    
+    <article class="axis-card tone-medium">
+      <div class="axis-head">
+        <div>
+          <p class="eyebrow">Flow &amp; Architecture</p>
+          <h3>Logique de Flux &amp; Architecture</h3>
+        </div>
+        <div class="score-wrap">
+          <span class="score">6.0</span>
+          <span class="score-label">/10</span>
+        </div>
+      </div>
+      <p class="axis-summary">Flow &amp; Architecture scores 60/100 in this GTM view. Structured evidence surfaced 18 pain point(s) and 18 positive signal(s).</p>
+    </article>
+    
+    <article class="axis-card tone-medium">
+      <div class="axis-head">
+        <div>
+          <p class="eyebrow">Trust &amp; Accessibility</p>
+          <h3>Confiance &amp; Accessibilité (WCAG 2.2)</h3>
+        </div>
+        <div class="score-wrap">
+          <span class="score">6.3</span>
+          <span class="score-label">/10</span>
+        </div>
+      </div>
+      <p class="axis-summary">Trust &amp; Accessibility scores 63/100 in this GTM view. Structured evidence surfaced 22 pain point(s) and 36 positive signal(s).</p>
+    </article>
+    
+    <article class="axis-card tone-medium">
+      <div class="axis-head">
+        <div>
+          <p class="eyebrow">UI Consistency</p>
+          <h3>Cohérence UI &amp; Design System</h3>
+        </div>
+        <div class="score-wrap">
+          <span class="score">5.2</span>
+          <span class="score-label">/10</span>
+        </div>
+      </div>
+      <p class="axis-summary">UI Consistency scores 52/100 in this GTM view. Structured evidence surfaced 30 pain point(s) and 20 positive signal(s).</p>
+    </article>
+    
+    <article class="axis-card tone-medium">
+      <div class="axis-head">
+        <div>
+          <p class="eyebrow">Visual Brand</p>
+          <h3>Design Visuel &amp; Expression de Marque</h3>
+        </div>
+        <div class="score-wrap">
+          <span class="score">6.3</span>
+          <span class="score-label">/10</span>
+        </div>
+      </div>
+      <p class="axis-summary">Visual Brand scores 63/100 in this GTM view. Structured evidence surfaced 28 pain point(s) and 29 positive signal(s).</p>
+    </article>
+    
+    <article class="axis-card tone-medium">
+      <div class="axis-head">
+        <div>
+          <p class="eyebrow">Content &amp; Microcopy</p>
+          <h3>Contenu &amp; Microcopy</h3>
+        </div>
+        <div class="score-wrap">
+          <span class="score">6.0</span>
+          <span class="score-label">/10</span>
+        </div>
+      </div>
+      <p class="axis-summary">Content &amp; Microcopy scores 60/100 in this GTM view. Structured evidence surfaced 36 pain point(s) and 34 positive signal(s).</p>
+    </article>
+    
+    <article class="axis-card tone-medium">
+      <div class="axis-head">
+        <div>
+          <p class="eyebrow">Market Alignment</p>
+          <h3>Adéquation Stratégique au Marché</h3>
+        </div>
+        <div class="score-wrap">
+          <span class="score">5.5</span>
+          <span class="score-label">/10</span>
+        </div>
+      </div>
+      <p class="axis-summary">Market Alignment scores 55/100 in this GTM view. Structured evidence surfaced 35 pain point(s) and 25 positive signal(s).</p>
+    </article>
+    </div>
+    </section>
+
+    <section class="section-panel">
+      <p class="eyebrow">Recommendations</p>
+      <h2>Prioritized actions</h2>
+      <div class="reco-grid">
+        <article class="reco-card priority-critical">
+          <span class="reco-badge">Critical</span>
+          <h4>Verbs are used for all actions (e.g. Save, Go, Submit, Continue).</h4>
+          <p>Prefer direct verb-led action labels such as Search, Add to cart, Continue, Save, or Send.</p>
+          <p class="reco-meta">Screen or area: Accueil | Cohérence UI &amp; Design System</p>
+        </article>
+        
+        <article class="reco-card priority-critical">
+          <span class="reco-badge">Critical</span>
+          <h4>Users have control over interactive content, experiences or workflows — where they’re going, how they get there, and how easily they can stop and start.</h4>
+          <p>Expose back, cancel, close, search, filter, and escape routes consistently, and add runtime checks to verify actual flow control.</p>
+          <p class="reco-meta">Screen or area: Accueil | Cohérence UI &amp; Design System</p>
+        </article>
+        
+        <article class="reco-card priority-critical">
+          <span class="reco-badge">Critical</span>
+          <h4>The UI (and all buttons or controls) responds consistently to user actions in terms of visual display, appropriate context and data functionality.</h4>
+          <p>Standardize control variants and add runtime hover, focus, active, and disabled-state extraction.</p>
+          <p class="reco-meta">Screen or area: Accueil | Cohérence UI &amp; Design System</p>
+        </article>
+        
+        <article class="reco-card priority-critical">
+          <span class="reco-badge">Critical</span>
+          <h4>Search is available on every page, not just the homepage.</h4>
+          <p>Fix this first on Home by clarifying the interaction, tightening the label or feedback, and making the intended next step more obvious.</p>
+          <p class="reco-meta">Screen or area: Home | Adéquation Stratégique au Marché</p>
+        </article>
+        
+        <article class="reco-card priority-critical">
+          <span class="reco-badge">Critical</span>
+          <h4>Frequently used features are readily available.</h4>
+          <p>Expose high-frequency features such as search, filter, cart, account, and menu in predictable top or navigation regions.</p>
+          <p class="reco-meta">Screen or area: Accueil | Logique de Flux &amp; Architecture</p>
+        </article>
+        </div>
+    </section>
+  </div>
+</body>
+</html>

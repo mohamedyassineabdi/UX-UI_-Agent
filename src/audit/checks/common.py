@@ -494,6 +494,117 @@ def _has_help_marker(text: str) -> bool:
     return "live chat" in norm
 
 
+def _component_rect(component: Dict[str, Any]) -> Optional[Dict[str, float]]:
+    rect = component.get("rect") or {}
+    try:
+        x = float(rect.get("x"))
+        y = float(rect.get("y"))
+        width = float(rect.get("width"))
+        height = float(rect.get("height"))
+    except Exception:
+        return None
+    if width <= 0 or height <= 0:
+        return None
+    return {
+        "x": round(x, 2),
+        "y": round(y, 2),
+        "width": round(width, 2),
+        "height": round(height, 2),
+    }
+
+
+def _merged_rect(components: List[Dict[str, Any]]) -> Optional[Dict[str, float]]:
+    rects = [_component_rect(component) for component in components]
+    usable = [rect for rect in rects if rect]
+    if not usable:
+        return None
+    left = min(rect["x"] for rect in usable)
+    top = min(rect["y"] for rect in usable)
+    right = max(rect["x"] + rect["width"] for rect in usable)
+    bottom = max(rect["y"] + rect["height"] for rect in usable)
+    return {
+        "x": round(left, 2),
+        "y": round(top, 2),
+        "width": round(right - left, 2),
+        "height": round(bottom - top, 2),
+    }
+
+
+def component_evidence_target(
+    component: Dict[str, Any],
+    *,
+    reason: str,
+    target_kind: str = "component",
+    issue_kind: str = "presence",
+) -> Optional[Dict[str, Any]]:
+    rect = _component_rect(component)
+    if not rect:
+        return None
+    return {
+        "target_kind": target_kind,
+        "issue_kind": issue_kind,
+        "page_name": clean_text(component.get("_pageName")),
+        "page_url": clean_text(component.get("_pageUrl")),
+        "final_url": clean_text(component.get("_finalUrl") or component.get("_pageUrl")),
+        "screenshot_path": clean_text(component.get("_screenshotPath")),
+        "component_type": clean_text(component.get("semanticType") or component.get("tag") or component.get("uxRole")),
+        "component_text": clean_text(component.get("accessibleName") or component.get("label") or component.get("text") or component.get("placeholder")),
+        "highlight_shape": "circle",
+        "reason": clean_text(reason),
+        "rect": rect,
+    }
+
+
+def region_evidence_target(
+    components: List[Dict[str, Any]],
+    *,
+    page_name: str,
+    page_url: str,
+    final_url: str,
+    screenshot_path: str,
+    reason: str,
+    target_kind: str = "region",
+    issue_kind: str = "absence",
+    component_type: str = "region",
+    component_text: str = "",
+) -> Optional[Dict[str, Any]]:
+    rect = _merged_rect(components)
+    if not rect:
+        return None
+    return {
+        "target_kind": target_kind,
+        "issue_kind": issue_kind,
+        "page_name": clean_text(page_name),
+        "page_url": clean_text(page_url),
+        "final_url": clean_text(final_url or page_url),
+        "screenshot_path": clean_text(screenshot_path),
+        "component_type": clean_text(component_type),
+        "component_text": clean_text(component_text),
+        "highlight_shape": "circle",
+        "reason": clean_text(reason),
+        "rect": rect,
+    }
+
+
+def build_evidence_bundle(
+    *,
+    criterion: str,
+    source: str,
+    target: Optional[Dict[str, Any]],
+    alternatives: Optional[List[Dict[str, Any]]] = None,
+    notes: str = "",
+) -> Dict[str, Any]:
+    bundle: Dict[str, Any] = {
+        "version": 1,
+        "criterion": clean_text(criterion),
+        "source": clean_text(source),
+        "notes": clean_text(notes),
+        "target": target or {},
+        "alternatives": [item for item in (alternatives or []) if item],
+    }
+    return bundle
+
+
 @dataclass
 class CheckResult:
     sheet: str
@@ -504,6 +615,7 @@ class CheckResult:
     rationale: str
     evidence: List[str]
     decision_basis: str = "direct"
+    evidence_bundle: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -551,6 +663,23 @@ class AuditContext:
 
     def page_titles(self) -> List[str]:
         return [clean_text(page.person_a.get("pageMeta", {}).get("data", {}).get("title")) for page in self.pages]
+
+    @staticmethod
+    def _page_provenance(page: PageBundle) -> Dict[str, str]:
+        page_meta = page.person_a.get("pageMeta", {}).get("data", {})
+        screenshot_paths = page_meta.get("screenshotPaths", {}) or {}
+        return {
+            "_pageName": clean_text(page.person_a.get("name") or page_meta.get("name")),
+            "_pageUrl": clean_text(page.person_a.get("url") or page_meta.get("url")),
+            "_finalUrl": clean_text(page.person_a.get("finalUrl") or page_meta.get("finalUrl") or page.person_a.get("url") or page_meta.get("url")),
+            "_screenshotPath": clean_text(screenshot_paths.get("page") or ""),
+        }
+
+    @classmethod
+    def _with_page_provenance(cls, component: Dict[str, Any], page: PageBundle) -> Dict[str, Any]:
+        copied = dict(component)
+        copied.update(cls._page_provenance(page))
+        return copied
 
     def page_languages(self) -> List[str]:
         langs: List[str] = []
@@ -793,7 +922,9 @@ class AuditContext:
     def all_buttons(self) -> List[Dict[str, Any]]:
         out: List[Dict[str, Any]] = []
         for page in self.pages:
-            out.extend(page.rendered.get("renderedUi", {}).get("components", {}).get("buttons", []))
+            for button in page.rendered.get("renderedUi", {}).get("components", {}).get("buttons", []):
+                if isinstance(button, dict):
+                    out.append(self._with_page_provenance(button, page))
         return out
 
     def user_buttons(self) -> List[Dict[str, Any]]:
@@ -811,8 +942,12 @@ class AuditContext:
         out: List[Dict[str, Any]] = []
         for page in self.pages:
             comps = page.rendered.get("renderedUi", {}).get("components", {})
-            out.extend(comps.get("links", []))
-            out.extend(comps.get("navLinks", []))
+            for link in comps.get("links", []):
+                if isinstance(link, dict):
+                    out.append(self._with_page_provenance(link, page))
+            for link in comps.get("navLinks", []):
+                if isinstance(link, dict):
+                    out.append(self._with_page_provenance(link, page))
         return out
 
     def user_links(self) -> List[Dict[str, Any]]:
@@ -826,7 +961,9 @@ class AuditContext:
     def all_inputs(self) -> List[Dict[str, Any]]:
         out: List[Dict[str, Any]] = []
         for page in self.pages:
-            out.extend(page.rendered.get("renderedUi", {}).get("components", {}).get("inputs", []))
+            for field in page.rendered.get("renderedUi", {}).get("components", {}).get("inputs", []):
+                if isinstance(field, dict):
+                    out.append(self._with_page_provenance(field, page))
         return out
 
     def site_search_inputs(self) -> List[Dict[str, Any]]:
@@ -867,7 +1004,9 @@ class AuditContext:
     def all_text_blocks(self) -> List[Dict[str, Any]]:
         out: List[Dict[str, Any]] = []
         for page in self.pages:
-            out.extend(page.rendered.get("renderedUi", {}).get("components", {}).get("textBlocks", []))
+            for block in page.rendered.get("renderedUi", {}).get("components", {}).get("textBlocks", []):
+                if isinstance(block, dict):
+                    out.append(self._with_page_provenance(block, page))
         return out
 
     def meaningful_text_blocks(self) -> List[Dict[str, Any]]:
@@ -882,7 +1021,9 @@ class AuditContext:
     def nav_components(self) -> List[Dict[str, Any]]:
         out: List[Dict[str, Any]] = []
         for page in self.pages:
-            out.extend(page.rendered.get("renderedUi", {}).get("components", {}).get("navigation", []))
+            for component in page.rendered.get("renderedUi", {}).get("components", {}).get("navigation", []):
+                if isinstance(component, dict):
+                    out.append(self._with_page_provenance(component, page))
         return out
 
     def design_summaries(self) -> List[Dict[str, Any]]:
@@ -956,6 +1097,7 @@ def make_result(
     rationale: str,
     evidence: Optional[List[str]] = None,
     decision_basis: str = "direct",
+    evidence_bundle: Optional[Dict[str, Any]] = None,
 ) -> CheckResult:
     normalized_evidence = normalize_evidence_items(evidence)
     if not normalized_evidence and status in {TRUE, FALSE}:
@@ -972,4 +1114,5 @@ def make_result(
         rationale=rationale,
         evidence=normalized_evidence,
         decision_basis=decision_basis,
+        evidence_bundle=evidence_bundle,
     )

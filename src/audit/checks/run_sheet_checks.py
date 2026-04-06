@@ -417,6 +417,7 @@ def synthesize_partner_result(
             "decision_basis": "proxy",
             "page_names": [],
             "machine_criterion": ",".join(spec["criterion_ids"]),
+            "evidence_bundle": None,
         }
 
     worst_item = max(raw_items, key=lambda item: rank_partner_status(item.get("status")))
@@ -471,6 +472,7 @@ def synthesize_partner_result(
         "machine_criterion": ",".join(spec["criterion_ids"]),
         "partner_status": clean_text(worst_item.get("status")),
         "partner_category": clean_text(worst_item.get("category")),
+        "evidence_bundle": worst_item.get("evidence_bundle"),
     }
 
 
@@ -578,6 +580,7 @@ def enrich_checks_schema(checks_data: Dict[str, Any], cleaned_data: Dict[str, An
             "rationale",
             "evidence",
             "decision_basis",
+            "evidence_bundle",
         ]
     }
 

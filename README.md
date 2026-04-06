@@ -16,6 +16,10 @@ Current pipeline:
 The crawler and AI review code use Ollama configuration from the repo `.env` file.
 Typical variables are `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, and optional `OLLAMA_API_KEY`.
 
+For the GTM audit mode, you can also set a dedicated multimodal model with:
+- `OLLAMA_VISION_MODEL`
+- or `GTM_VISION_MODEL`
+
 ## Install
 
 ```bash
@@ -31,12 +35,22 @@ Keep the existing usage:
 npm run scan -- https://example.com
 ```
 
+Run the new GTM-oriented 7-axis audit mode:
+
+```bash
+npm run scan -- https://example.com --mode gtm
+```
+
 The full pipeline now runs these stages in order:
 1. `navigator/crawler.py`
 2. `python -m src.main`
 3. `python -m src.audit.checks.run_sheet_checks`
-4. `python -m src.audit.export.write_checks_to_workbook`
-5. `python -m src.report.generate_audit_report`
+4. detailed mode: `python -m src.audit.export.write_checks_to_workbook`
+5. detailed mode: `python -m src.report.generate_audit_report`
+
+In GTM mode, stages 4 and 5 become:
+4. `python -m src.gtm_audit.generate_gtm_audit`
+5. `python -m src.gtm_audit.generate_gtm_report`
 
 Direct Python usage also works:
 

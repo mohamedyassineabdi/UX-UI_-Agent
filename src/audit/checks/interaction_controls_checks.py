@@ -9,6 +9,7 @@ import re
 
 from .ai_review_layer import review_page_criterion_with_ai
 from .ai_reconciliation import should_run_ai_review, reconcile_deterministic_and_ai
+from .common import build_evidence_bundle
 
 
 # ============================================================
@@ -216,10 +217,13 @@ def _normalize_score(v: Optional[float], min_v: float, max_v: float) -> float:
 
 
 def _page_ref(page: Dict[str, Any]) -> Dict[str, Any]:
+    page_meta = (page.get("pageMeta") or {}).get("data", {}) if isinstance(page, dict) else {}
+    screenshot_paths = page_meta.get("screenshotPaths", {}) or {}
     return {
         "name": page.get("name", ""),
         "url": page.get("url", ""),
         "finalUrl": page.get("finalUrl", page.get("url", "")),
+        "screenshotPath": screenshot_paths.get("page", "") if isinstance(screenshot_paths, dict) else "",
     }
 
 
@@ -315,6 +319,7 @@ def _make_result(
     severity: Optional[str] = None,
     recommendation: Optional[str] = None,
     evidence: Optional[Dict[str, Any]] = None,
+    evidence_bundle: Optional[Dict[str, Any]] = None,
     confidence: Optional[str] = None,
     method: Optional[List[str]] = None,
     score: Optional[float] = None,
@@ -331,6 +336,8 @@ def _make_result(
     }
     if evidence is not None:
         result["evidence"] = evidence
+    if evidence_bundle is not None:
+        result["evidence_bundle"] = evidence_bundle
     if confidence is not None:
         result["confidence"] = confidence
     if method is not None:
@@ -516,6 +523,7 @@ class ElementModel:
     raw: Dict[str, Any]
     page_name: str
     page_url: str
+    screenshot_path: str
 
     kind: str
     family: str
@@ -889,6 +897,7 @@ def _build_elements_for_page(
     rendered_page: Optional[Dict[str, Any]],
     page_name: str,
     page_url: str,
+    screenshot_path: str,
     viewport_height: Optional[float],
 ) -> List[ElementModel]:
     out: List[ElementModel] = []
@@ -919,6 +928,7 @@ def _build_elements_for_page(
             raw=raw,
             page_name=page_name,
             page_url=page_url,
+            screenshot_path=screenshot_path,
             kind=kind,
             family=_element_family(raw),
             text=_element_text_name(raw),
@@ -1000,14 +1010,14 @@ def _extract_form_fields(persona_page: Optional[Dict[str, Any]]) -> Tuple[List[F
 
 
 def _build_page_summary(persona_page: Optional[Dict[str, Any]], rendered_page: Optional[Dict[str, Any]]) -> PageSummary:
-    page_ref = _page_ref(rendered_page or persona_page or {})
+    page_ref = _page_ref(persona_page or rendered_page or {})
     viewport_height = _parse_float(_safe_get(persona_page or {}, "pageMeta", "data", "viewport", "height"))
     scroll_height = _parse_float(_safe_get(persona_page or {}, "pageMeta", "data", "documentMetrics", "scrollHeight"))
     page_width = _parse_float(_safe_get(persona_page or {}, "pageMeta", "data", "documentMetrics", "scrollWidth"))
     buttons_count = int(_safe_get(persona_page or {}, "pageMeta", "data", "documentMetrics", "buttons", default=0) or 0)
     forms_count = int(_safe_get(persona_page or {}, "pageMeta", "data", "documentMetrics", "forms", default=0) or 0)
 
-    elements = _build_elements_for_page(rendered_page, page_ref["name"], page_ref["url"], viewport_height)
+    elements = _build_elements_for_page(rendered_page, page_ref["name"], page_ref["url"], page_ref.get("screenshotPath", ""), viewport_height)
     visible = [e for e in elements if e.visible]
 
     archetype = _detect_page_archetype(persona_page, rendered_page, visible)
@@ -1111,6 +1121,7 @@ def _strict_site_result_from_page_items(
     reviewed_items = page_items
     if page_summaries:
         reviewed_items = _apply_ai_review_to_page_items(criterion, page_items, page_summaries)
+    evidence_bundle = _interaction_evidence_bundle(criterion, reviewed_items, page_summaries)
 
     applicable = [p for p in reviewed_items if p.get("status") != STATUS_NA]
     failing = [p for p in applicable if p.get("status") == STATUS_FAIL]
@@ -1156,6 +1167,7 @@ def _strict_site_result_from_page_items(
                 },
                 "pageResults": reviewed_items,
             },
+            evidence_bundle=evidence_bundle,
             confidence=_confidence_from_coverage(coverage),
             method=method,
             score=None,
@@ -1207,6 +1219,7 @@ def _strict_site_result_from_page_items(
             },
             "pageResults": reviewed_items,
         },
+        evidence_bundle=evidence_bundle,
         confidence=_confidence_from_coverage(coverage),
         method=method,
         score=site_score,
@@ -1600,6 +1613,140 @@ def _page_item(page: PageSummary, criterion: str, score: Optional[float], metric
         "criterion": criterion,
         "metrics_suspicious": metrics_suspicious,
     }
+
+
+def _element_target(element: ElementModel, *, reason: str, issue_kind: str = "presence") -> Dict[str, Any]:
+    return {
+        "target_kind": "component",
+        "issue_kind": issue_kind,
+        "page_name": element.page_name,
+        "page_url": element.page_url,
+        "final_url": element.page_url,
+        "screenshot_path": element.screenshot_path,
+        "component_type": element.semantic_type or element.tag or element.ux_role or element.kind,
+        "component_text": element.text or element.accessible_name or element.label or element.placeholder,
+        "highlight_shape": "circle",
+        "reason": reason,
+        "rect": {
+            "x": round(element.x, 2),
+            "y": round(element.y, 2),
+            "width": round(element.width, 2),
+            "height": round(element.height, 2),
+        },
+    }
+
+
+def _region_target(page: PageSummary, elements: List[ElementModel], *, reason: str, issue_kind: str = "absence") -> Optional[Dict[str, Any]]:
+    usable = [element for element in elements if element.width > 0 and element.height > 0]
+    if not usable:
+        return None
+    left = min(element.x for element in usable)
+    top = min(element.y for element in usable)
+    right = max(element.right for element in usable)
+    bottom = max(element.bottom for element in usable)
+    return {
+        "target_kind": "region",
+        "issue_kind": issue_kind,
+        "page_name": page.page_ref.get("name", ""),
+        "page_url": page.page_ref.get("url", ""),
+        "final_url": page.page_ref.get("finalUrl", page.page_ref.get("url", "")),
+        "screenshot_path": page.page_ref.get("screenshotPath", ""),
+        "component_type": "region",
+        "component_text": "",
+        "highlight_shape": "circle",
+        "reason": reason,
+        "rect": {
+            "x": round(left, 2),
+            "y": round(top, 2),
+            "width": round(right - left, 2),
+            "height": round(bottom - top, 2),
+        },
+    }
+
+
+def _summary_map(page_summaries: Optional[List[PageSummary]]) -> Dict[Tuple[str, str], PageSummary]:
+    return {(page.page_ref.get("name", ""), page.page_ref.get("url", "")): page for page in (page_summaries or [])}
+
+
+def _interaction_evidence_bundle(
+    criterion: str,
+    reviewed_items: List[Dict[str, Any]],
+    page_summaries: Optional[List[PageSummary]],
+) -> Optional[Dict[str, Any]]:
+    summary_map = _summary_map(page_summaries)
+    failing = [item for item in reviewed_items if item.get("status") == STATUS_FAIL]
+    warning = [item for item in reviewed_items if item.get("status") == STATUS_WARNING]
+    source_items = failing or warning
+    if not source_items:
+        return None
+
+    primary_item = source_items[0]
+    page = summary_map.get((primary_item.get("name", ""), primary_item.get("url", "")))
+    if not page:
+        return None
+
+    target = None
+    notes = ""
+
+    if criterion == "cta-clearly-labeled-and-clickable":
+        candidates = page.ctas + page.controls + page.links
+        weak = [
+            element for element in candidates
+            if not (element.text or element.accessible_name or element.label)
+            or not (
+                _lower(_safe_get(element.raw, "styles", "cursor")) == "pointer"
+                or element.tag in {"button", "a"}
+                or element.role_attr.lower() == "button"
+            )
+            or element.touch_target_pass is False
+        ]
+        if weak:
+            target = _element_target(
+                weak[0],
+                reason="This control is a representative CTA/clickability issue on the failing page.",
+            )
+            notes = "Chosen from controls that lack a clear label, clickable cue, or adequate touch target."
+
+    elif criterion == "verbs-used-for-actions":
+        candidates = [element for element in (page.ctas + page.controls + page.links) if (element.text or element.accessible_name)]
+        non_verbs = [element for element in candidates if not _is_action_like_label(element.text or element.accessible_name)]
+        if non_verbs:
+            target = _element_target(
+                non_verbs[0],
+                reason="This action label is representative of the non-verb naming issue.",
+            )
+            notes = "Chosen from visible actions whose label does not start with a clear action verb."
+
+    elif criterion == "frequently-used-features-readily-available":
+        region_elements = page.top_controls + page.nav_controls
+        target = _region_target(
+            page,
+            region_elements[:8],
+            reason="Header/top-control area highlighted because high-frequency features are not sufficiently surfaced here.",
+            issue_kind="absence",
+        )
+        notes = "This issue is best represented as a header/navigation zone rather than a single control."
+
+    elif criterion == "primary-secondary-tertiary-controls-visually-distinct":
+        primary = sorted(page.ctas, key=lambda element: element.prominence_score, reverse=True)[:1]
+        supporting = sorted(page.controls + page.links, key=lambda element: element.prominence_score, reverse=True)[:2]
+        target = _region_target(
+            page,
+            primary + supporting,
+            reason="This grouped control area is used to judge whether control tiers are visually differentiated.",
+            issue_kind="presence",
+        )
+        notes = "This issue is represented as a grouped control region so the contrast between priority tiers stays visible."
+
+    if not target:
+        return None
+
+    return build_evidence_bundle(
+        criterion=criterion,
+        source="interaction_controls_check",
+        target=target,
+        notes=notes,
+    )
 
 def _wrap_pagewise(
     *,

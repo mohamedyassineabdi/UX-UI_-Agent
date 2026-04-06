@@ -9,11 +9,15 @@ from .common import (
     NA,
     TRUE,
     average,
+    build_evidence_bundle,
     clean_text,
     comparable_label,
+    component_evidence_target,
+    looks_like_locale_picker,
     make_result,
     normalize_text,
     page_title_core,
+    region_evidence_target,
 )
 
 SHEET = "Navigation"
@@ -138,6 +142,66 @@ def run(context: AuditContext) -> List[CheckResult]:
         decision_basis="proxy",
     ))
 
+    search_bundle = None
+    if search_all_pages:
+        first_search_input = context.site_search_inputs()[0] if context.site_search_inputs() else None
+        if first_search_input:
+            search_bundle = build_evidence_bundle(
+                criterion="Search is available on every page, not just the homepage.",
+                source="deterministic_check",
+                target=component_evidence_target(
+                    first_search_input,
+                    reason="Detected site-search input on an audited page.",
+                    issue_kind="presence",
+                ),
+                notes="Directly grounded in extracted search-input geometry.",
+            )
+    else:
+        for page in context.pages:
+            inputs = page.rendered.get("renderedUi", {}).get("components", {}).get("inputs", [])
+            page_has_site_search = False
+            for field in inputs:
+                field_type = normalize_text(field.get("type"))
+                if field_type != "search":
+                    continue
+                name = normalize_text(field.get("name"))
+                fid = normalize_text(field.get("id"))
+                cls = normalize_text(field.get("className"))
+                label = clean_text(field.get("label") or field.get("placeholder") or field.get("name") or "")
+                if (name == "q" or "search" in fid or "search" in cls) and not label:
+                    page_has_site_search = True
+                    break
+                if looks_like_locale_picker(label):
+                    continue
+                if name == "q" or "search" in fid or "search" in cls:
+                    page_has_site_search = True
+                    break
+            if page_has_site_search:
+                continue
+
+            provenance = context._page_provenance(page)
+            nav_region_components = [
+                component
+                for component in context.nav_components()
+                if clean_text(component.get("_pageUrl")) == provenance["_pageUrl"]
+            ]
+            search_bundle = build_evidence_bundle(
+                criterion="Search is available on every page, not just the homepage.",
+                source="deterministic_check",
+                target=region_evidence_target(
+                    nav_region_components,
+                    page_name=provenance["_pageName"],
+                    page_url=provenance["_pageUrl"],
+                    final_url=provenance["_finalUrl"],
+                    screenshot_path=provenance["_screenshotPath"],
+                    reason="Header/navigation area highlighted because no site-search input was detected on this page.",
+                    issue_kind="absence",
+                    component_type="navigation-region",
+                ),
+                notes="For missing-search issues, the evidence target is the main navigation/header zone rather than an unrelated component.",
+            )
+            break
+
     results.append(make_result(
         SHEET, 13,
         "Search is available on every page, not just the homepage.",
@@ -146,6 +210,7 @@ def run(context: AuditContext) -> List[CheckResult]:
         f"Actual site-search inputs detected on every page={search_all_pages}.",
         evidence=context.page_names(),
         decision_basis="direct",
+        evidence_bundle=search_bundle,
     ))
 
     avg_search_width = average(search_widths)

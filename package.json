@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "scan": "python scripts/run_pipeline.py",
-    "report": "python -m src.report.generate_audit_report"
+    "scan:gtm": "python scripts/run_pipeline.py --mode gtm",
+    "report": "python -m src.report.generate_audit_report",
+    "report:gtm": "python -m src.gtm_audit.generate_gtm_report"
   }
 }
