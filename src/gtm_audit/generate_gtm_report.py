@@ -5,8 +5,9 @@ import html
 import json
 import os
 import math
+from datetime import date
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote
 
 from .evidence import build_gtm_spotlight
@@ -64,6 +65,15 @@ def axis_label(axis_id: Any, fallback: Any = "") -> str:
     return AXIS_LABELS.get(clean_text(axis_id), clean_text(fallback) or "Priority issue")
 
 
+def severity_label(value: Any) -> str:
+    tone = severity_tone(value)
+    if tone == "high":
+        return "Major Issue"
+    if tone == "low":
+        return "Minor Issue"
+    return "Moderate Issue"
+
+
 def render_score_ring(score_ten: float, *, label: str, accent: str = "#caa23b", size: int = 138) -> str:
     normalized = max(0.0, min(10.0, float(score_ten)))
     stroke = max(8.0, size * 0.075)
@@ -80,7 +90,7 @@ def render_score_ring(score_ten: float, *, label: str, accent: str = "#caa23b", 
       </svg>
       <div class="score-ring-copy">
         <strong>{normalized:.1f}</strong>
-        <span>{html.escape(label)}</span>
+        {f'<span>{html.escape(label)}</span>' if clean_text(label) else ''}
       </div>
     </div>
     """
@@ -89,11 +99,9 @@ def render_score_ring(score_ten: float, *, label: str, accent: str = "#caa23b", 
 def render_priority_story(item: Dict[str, Any], index: int, output_dir: Path) -> str:
     spotlight = clean_text(item.get("spotlightImage"))
     shot = spotlight or href_from_repo(item.get("screenshotPath", ""), output_dir)
-    page_name = clean_text(item.get("pageName")) or "Main journey"
-    page_url = clean_text(item.get("pageUrl"))
     axis_score = round(float(item.get("axisScore", 0)) / 10, 1)
-    axis_name = axis_label(item.get("axisId"), item.get("axisName"))
     tone = severity_tone(item.get("severity"))
+    severity = severity_label(item.get("severity"))
     return f"""
     <article class="story-row tone-{tone}">
       <div class="story-index">0{index}</div>
@@ -106,22 +114,16 @@ def render_priority_story(item: Dict[str, Any], index: int, output_dir: Path) ->
             </div>
           </div>
         </div>
-        <p class="story-visual-meta">Evidence from {html.escape(page_name)}</p>
       </div>
       <div class="story-score-pane">
-        {render_score_ring(axis_score, label="Axis score", accent="#caa23b", size=128)}
-        <p class="story-score-axis">{html.escape(axis_name)}</p>
-        <p class="story-score-severity">{html.escape(tone.title())} severity</p>
+        {render_score_ring(axis_score, label="", accent="#caa23b", size=128)}
       </div>
       <div class="story-copy">
-        <p class="story-meta">{html.escape(axis_name)} | {html.escape(page_name)}</p>
+        <span class="severity-badge severity-{tone}"><span class="severity-icon">!</span>{html.escape(severity)}</span>
         <h3>{html.escape(clean_text(item.get("title")))}</h3>
         <p><strong>Issue:</strong> {html.escape(clean_text(item.get("explanation")))}</p>
         <p><strong>Why it matters:</strong> {html.escape(clean_text(item.get("whyItMatters")))}</p>
-        <p><strong>Evidence:</strong> {html.escape(clean_text(item.get("evidence")))}</p>
-        <p><strong>What to change:</strong> {html.escape(clean_text(item.get("recommendation")))}</p>
-        {f'<p class="story-link"><strong>Page:</strong> <a href="{html.escape(page_url)}" target="_blank" rel="noreferrer">{html.escape(page_url)}</a></p>' if page_url else ''}
-        <p class="story-confidence">Confidence {float(item.get("confidence", 0)):.2f}</p>
+        <p><strong>Direction:</strong> {html.escape(clean_text(item.get("recommendation")))}</p>
       </div>
     </article>
     """
@@ -147,10 +149,7 @@ def render_axis_section(axis: Dict[str, Any], index: int, output_dir: Path) -> s
     lead_item = ((axis.get("painPoints") or [])[:1] or (axis.get("strengths") or [])[:1] or [{}])[0]
     shot = clean_text(lead_item.get("spotlightImage")) or href_from_repo(lead_item.get("screenshotPath", ""), output_dir)
     axis_score = round(float(axis.get("score", 0)) / 10, 1)
-    signals = axis.get("signals") or {}
     tone = severity_tone(axis.get("severity"))
-    evidence_items = [clean_text(item) for item in (axis.get("evidence") or []) if clean_text(item)][:4]
-    evidence_html = "".join(f'<span class="signal-chip">{html.escape(item)}</span>' for item in evidence_items)
     return f"""
     <article class="axis-story tone-{tone}" id="axis-{index}">
       <div class="story-index">0{index}</div>
@@ -165,18 +164,14 @@ def render_axis_section(axis: Dict[str, Any], index: int, output_dir: Path) -> s
         </div>
       </div>
       <div class="axis-story-score">
-        {render_score_ring(axis_score, label="Axis score", accent="#caa23b", size=154)}
-        <p class="axis-story-title">{html.escape(clean_text(axis.get("shortName")))}</p>
-        <p class="axis-story-metric">{html.escape(tone.title())} severity</p>
+        {render_score_ring(axis_score, label="", accent="#caa23b", size=154)}
       </div>
       <div class="axis-story-copy">
-        <p class="story-meta">{html.escape(clean_text(axis.get("shortName")) or clean_text(axis.get("name")))}</p>
-        <h3>{html.escape(clean_text(axis.get("summary")))}</h3>
+        <h3>{html.escape(clean_text(axis.get("shortName")) or clean_text(axis.get("name")))}</h3>
         <p><strong>Commercial impact:</strong> {html.escape(clean_text(axis.get("businessImpact")))}</p>
         {f'<p><strong>Lead issue:</strong> {html.escape(clean_text(lead_item.get("title")))}</p>' if clean_text(lead_item.get("title")) else ''}
         {f'<p><strong>Observed friction:</strong> {html.escape(clean_text(lead_item.get("explanation")))}</p>' if clean_text(lead_item.get("explanation")) else ''}
         {f'<p><strong>Recommended move:</strong> {html.escape(clean_text(lead_item.get("recommendation")))}</p>' if clean_text(lead_item.get("recommendation")) else ''}
-        <div class="signal-chip-row">{evidence_html}</div>
       </div>
     </article>
     """
@@ -187,19 +182,102 @@ def render_scanned_page(item: Dict[str, Any], output_dir: Path) -> str:
     if not href:
         return ""
     page_name = clean_text(item.get("page_name")) or clean_text(item.get("pageName")) or "Page"
-    page_url = clean_text(item.get("page_url")) or clean_text(item.get("pageUrl"))
-    title = clean_text(item.get("title")) or clean_text(item.get("reason")) or page_name
     return f"""
     <a class="scan-card" href="{href}" target="_blank" rel="noreferrer">
       <div class="scan-screen">
         <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
         <img src="{href}" alt="{html.escape(page_name)} screenshot">
       </div>
-      <span>{html.escape(page_name)}</span>
-      <strong>{html.escape(title)}</strong>
-      {f'<em>{html.escape(page_url)}</em>' if page_url else ''}
     </a>
     """
+
+
+def _safe_number(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except Exception:
+        return default
+
+
+def _visual_region_from_item(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    for key in ("visualRegion", "visual_region", "region", "boundingBox", "bounding_box"):
+        value = item.get(key)
+        if isinstance(value, dict):
+            return value
+    bundle = item.get("evidenceBundle")
+    if isinstance(bundle, dict):
+        target = bundle.get("target")
+        if isinstance(target, dict) and isinstance(target.get("rect"), dict):
+            return target["rect"]
+    return None
+
+
+def _region_to_pixels(region: Optional[Dict[str, Any]], image_width: int, image_height: int) -> Tuple[float, float, float, float]:
+    if not region:
+        return image_width * 0.18, image_height * 0.16, image_width * 0.64, image_height * 0.58
+
+    x = _safe_number(region.get("x"), 0.18)
+    y = _safe_number(region.get("y"), 0.16)
+    width = _safe_number(region.get("width"), 0.64)
+    height = _safe_number(region.get("height"), 0.58)
+    normalized_hint = clean_text(region.get("coordinate_system")).lower()
+    values_look_normalized = max(abs(x), abs(y), abs(width), abs(height)) <= 1.5
+
+    if "normalized" in normalized_hint or values_look_normalized:
+        x *= image_width
+        width *= image_width
+        y *= image_height
+        height *= image_height
+
+    width = max(24.0, min(width, image_width))
+    height = max(24.0, min(height, image_height))
+    x = max(0.0, min(x, image_width - width))
+    y = max(0.0, min(y, image_height - height))
+    return x, y, width, height
+
+
+def build_screenshot_spotlight(item: Dict[str, Any], output_dir: Path, issue_index: int) -> str:
+    screenshot_path = clean_text(item.get("screenshotPath"))
+    if not screenshot_path:
+        return ""
+
+    source = Path(screenshot_path)
+    absolute = source if source.is_absolute() else ROOT_DIR / source
+    if not absolute.exists():
+        return ""
+
+    try:
+        from PIL import Image, ImageDraw
+    except Exception:
+        return ""
+
+    try:
+        with Image.open(absolute) as source_image:
+            image = source_image.convert("RGBA")
+    except Exception:
+        return ""
+
+    max_width = 1920
+    if image.width > max_width:
+        scale = max_width / image.width
+        image = image.resize((max_width, max(1, int(round(image.height * scale)))))
+
+    x, y, width, height = _region_to_pixels(_visual_region_from_item(item), image.width, image.height)
+    draw = ImageDraw.Draw(image, "RGBA")
+    halo = max(20, int(max(width, height) * 0.12))
+    bounds = (x - halo, y - halo, x + width + halo, y + height + halo)
+    draw.ellipse(bounds, outline=(255, 52, 52, 245), width=max(8, int(max(image.width, image.height) * 0.006)))
+    draw.ellipse(
+        (bounds[0] - 10, bounds[1] - 10, bounds[2] + 10, bounds[3] + 10),
+        outline=(255, 52, 52, 115),
+        width=max(12, int(max(image.width, image.height) * 0.008)),
+    )
+
+    evidence_dir = output_dir / "evidence"
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    output_path = evidence_dir / f"screenshot-issue-{issue_index:02d}.png"
+    image.convert("RGB").save(output_path, format="PNG", optimize=True)
+    return quote(os.path.relpath(output_path, output_dir).replace(os.sep, "/"), safe="/:#?&=%")
 
 
 def render_radar_chart(axes: list[Dict[str, Any]]) -> str:
@@ -278,6 +356,7 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     context = payload.get("context") or {}
     methodology = payload.get("methodology") or []
     recommendations = payload.get("recommendations") or []
+    is_screenshot_audit = clean_text(payload.get("mode")).lower() == "screenshot"
 
     scanned_pages_data: List[Dict[str, Any]] = []
     seen_scanned_pages: set[str] = set()
@@ -302,10 +381,10 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
 
     priorities_data = list((summary.get("topPriorities") or [])[:5])
     artifacts = payload.get("artifacts") or {}
-    cleaned_path = to_path(clean_text(artifacts.get("cleanedPath")), ROOT_DIR / "shared" / "generated" / "person_a_cleaned.json")
+    cleaned_path = to_path(clean_text(artifacts.get("cleanedPath")), ROOT_DIR / "shared" / "generated" / "html_cleaned.json")
     rendered_path = to_path(clean_text(artifacts.get("renderedPath")), ROOT_DIR / "shared" / "generated" / "rendered_ui_extraction.json")
     for index, item in enumerate(priorities_data, start=1):
-        item["spotlightImage"] = build_gtm_spotlight(
+        item["spotlightImage"] = build_screenshot_spotlight(item, output_dir, index) if is_screenshot_audit else build_gtm_spotlight(
             item=item,
             output_dir=output_dir,
             cleaned_path=cleaned_path,
@@ -327,7 +406,7 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     axes_data = payload.get("axes") or []
     for index, axis in enumerate(axes_data, start=1):
         lead_item = ((axis.get("painPoints") or [])[:1] or (axis.get("strengths") or [])[:1] or [{}])[0]
-        lead_item["spotlightImage"] = build_gtm_spotlight(
+        lead_item["spotlightImage"] = build_screenshot_spotlight(lead_item, output_dir, 100 + index) if is_screenshot_audit else build_gtm_spotlight(
             item=lead_item,
             output_dir=output_dir,
             cleaned_path=cleaned_path,
@@ -349,14 +428,15 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     )
     reco_html = "".join(
         f"""
-        <article class="reco-card priority-{html.escape(clean_text(item.get('priority')).lower())}">
+        <article class="reco-card priority-{html.escape(clean_text(item.get('priority')).lower())}" tabindex="0">
+          <span class="reco-orb">{index:02d}</span>
           <span class="reco-badge">{html.escape(clean_text(item.get("priority")))}</span>
           <h4>{html.escape(clean_text(item.get("title")))}</h4>
           <p>{html.escape(clean_text(item.get("description")))}</p>
-          <p class="reco-meta">{html.escape(clean_text(item.get("impact")))} | {html.escape(clean_text(item.get("axis")))}</p>
+          <span class="reco-cta">Recommended move</span>
         </article>
         """
-        for item in recommendations[:5]
+        for index, item in enumerate(recommendations[:5], start=1)
     )
     strongest_axis = summary.get("strongestAxis") or {}
     weakest_axis = summary.get("weakestAxis") or {}
@@ -366,6 +446,26 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     hero_score = render_score_ring(overall_ten, label="Overall", accent="#caa23b", size=170)
     client_lockup = clean_text(site.get("display_name")) or clean_text(site.get("domain")) or "Client"
     scanned_pages_html = "".join(render_scanned_page(item, output_dir) for item in scanned_pages_data)
+    scanned_pages_clone_html = scanned_pages_html.replace('<a class="scan-card"', '<a class="scan-card" tabindex="-1"')
+    scanned_pages_loop = (
+        f"""
+        <div class="scan-marquee">
+          <div class="scan-strip">
+            <div class="scan-track">{scanned_pages_html}</div>
+            <div class="scan-track" aria-hidden="true">{scanned_pages_clone_html}</div>
+          </div>
+        </div>
+        """
+        if scanned_pages_html
+        else "<p class='empty'>No scanned-page screenshots were available for this run.</p>"
+    )
+    company_name = clean_text(site.get("display_name")) or "Client site"
+    pages_count = clean_text(context.get("pagesAudited")) or str(len(scanned_pages_data) or "selected")
+    generated_month = date.today().strftime("%B %Y")
+    audit_subject = "uploaded screenshots" if is_screenshot_audit else f"{company_name} website"
+    scan_eyebrow = "Screenshots Analyzed" if is_screenshot_audit else "Pages Scanned"
+    scan_heading = "Representative screenshots reviewed during the audit" if is_screenshot_audit else "Representative pages captured during the audit"
+    nav_scope_label = "Input scope" if is_screenshot_audit else "Navigation scope"
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -396,7 +496,7 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
         radial-gradient(circle at top left, rgba(198,161,55,0.15), transparent 22rem),
         radial-gradient(circle at top right, rgba(202,162,59,0.10), transparent 24rem),
         linear-gradient(180deg, #fbf7f0 0%, #f6f1e8 100%);
-      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-family: Aptos, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
       line-height: 1.55;
     }}
     a {{ color: inherit; }}
@@ -517,9 +617,9 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     }}
     h1, h2, h3, h4 {{
       margin: 0;
-      font-family: Georgia, "Times New Roman", serif;
+      font-family: Aptos, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
       line-height: 1.06;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.035em;
     }}
     h1 {{ font-size: clamp(2.1rem, 4vw, 3.2rem); }}
     h2 {{ font-size: clamp(1.35rem, 2.2vw, 1.9rem); margin-bottom: 10px; }}
@@ -535,6 +635,25 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       display: grid;
       gap: 12px;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }}
+    .hero-meta {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 28px;
+      margin-top: 10px;
+    }}
+    .hero-meta span {{
+      display: block;
+      color: #a3a9b3;
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }}
+    .hero-meta strong {{
+      display: block;
+      margin-top: 4px;
+      color: var(--ink);
+      font-size: 1rem;
     }}
     .hero-subcopy {{
       max-width: 48ch;
@@ -640,21 +759,41 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       text-transform: uppercase;
       color: var(--muted);
     }}
+    .scan-marquee {{
+      position: relative;
+      overflow: hidden;
+      margin: 6px calc(50% - 50vw) 18px;
+      padding: 8px 0 26px;
+      mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+    }}
     .scan-strip {{
-      display: grid;
-      grid-auto-flow: column;
-      grid-auto-columns: minmax(280px, 340px);
+      display: flex;
+      width: max-content;
+      gap: 0;
+      animation: scan-marquee 38s linear infinite;
+      will-change: transform;
+    }}
+    .scan-marquee:hover .scan-strip,
+    .scan-marquee:focus-within .scan-strip {{
+      animation-play-state: paused;
+    }}
+    .scan-track {{
+      display: flex;
       gap: 18px;
-      overflow-x: auto;
-      padding: 6px 0 8px;
-      margin: 6px 0 18px;
-      scrollbar-width: thin;
-      scrollbar-color: rgba(32,39,51,0.22) transparent;
+      padding-right: 18px;
     }}
     .scan-card {{
       display: block;
+      flex: 0 0 clamp(280px, 25vw, 360px);
       text-decoration: none;
       color: inherit;
+      transform: translateY(0) scale(1);
+      transition: transform 220ms ease, filter 220ms ease;
+    }}
+    .scan-card:hover,
+    .scan-card:focus-visible {{
+      transform: translateY(-6px) scale(1.015);
+      filter: saturate(1.04);
     }}
     .scan-screen {{
       overflow: hidden;
@@ -696,6 +835,23 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }}
+    @keyframes scan-marquee {{
+      from {{ transform: translateX(0); }}
+      to {{ transform: translateX(-50%); }}
+    }}
+    @media (prefers-reduced-motion: reduce) {{
+      .scan-strip {{
+        animation: none;
+      }}
+      .scan-marquee {{
+        overflow-x: auto;
+        mask-image: none;
+      }}
+      .reco-card,
+      .scan-card {{
+        transition: none;
+      }}
     }}
     .section-panel,
     .priority-panel {{
@@ -751,7 +907,7 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       box-shadow: 0 18px 36px rgba(32,39,51,0.05);
     }}
     .method-card h4 {{
-      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-family: Aptos, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
       font-size: 1.06rem;
       letter-spacing: 0;
       margin-bottom: 10px;
@@ -826,7 +982,7 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       grid-column: 3 / span 4;
     }}
     .axis-tile h4 {{
-      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-family: Aptos, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
       font-size: 1rem;
       line-height: 1.3;
       letter-spacing: 0;
@@ -860,7 +1016,7 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       display: grid;
       grid-template-columns: 42px minmax(420px, 1.18fr) minmax(155px, 0.34fr) minmax(0, 0.88fr);
       gap: 22px;
-      align-items: start;
+      align-items: center;
       padding: 12px 0 0;
       border: none;
       border-radius: 0;
@@ -868,6 +1024,7 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       box-shadow: none;
     }}
     .story-index {{
+      align-self: start;
       display: inline-grid;
       place-items: center;
       width: 44px;
@@ -881,9 +1038,10 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     }}
     .story-media,
     .axis-story-media {{
+      align-self: center;
       display: grid;
       gap: 10px;
-      align-content: start;
+      align-content: center;
       justify-items: center;
     }}
     .story-visual-frame,
@@ -944,6 +1102,7 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     }}
     .story-score-pane,
     .axis-story-score {{
+      align-self: center;
       display: grid;
       grid-auto-rows: min-content;
       gap: 12px;
@@ -979,9 +1138,49 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     }}
     .story-copy,
     .axis-story-copy {{
+      align-self: center;
       display: grid;
       gap: 12px;
       align-content: start;
+      position: relative;
+    }}
+    .severity-badge {{
+      justify-self: start;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: max-content;
+      padding: 8px 12px;
+      border-radius: 3px;
+      border: 1px solid #f0b47d;
+      background: #fff3e6;
+      color: #9a3b0b;
+      font-size: 0.84rem;
+      font-weight: 700;
+      line-height: 1;
+    }}
+    .severity-icon {{
+      display: inline-grid;
+      place-items: center;
+      width: 16px;
+      height: 16px;
+      border: 1.6px solid currentColor;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      line-height: 1;
+    }}
+    .severity-icon {{
+      font-family: Aptos, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    }}
+    .severity-medium {{
+      border-color: #e5c453;
+      background: #fff8d7;
+      color: #7b5c00;
+    }}
+    .severity-low {{
+      border-color: rgba(32,39,51,0.16);
+      background: rgba(255,255,255,0.78);
+      color: #4f5d6f;
     }}
     .story-meta {{
       color: var(--muted);
@@ -1024,22 +1223,126 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     .tone-critical {{ border-left: 4px solid var(--red); }}
     .tone-high {{ border-left: 4px solid #d98e2f; }}
     .tone-medium {{ border-left: 4px solid var(--gold); }}
+    .reco-grid {{
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+      perspective: 1200px;
+    }}
     .reco-card {{
-      padding: 8px 0 0;
-      border-top: 1px solid rgba(32,39,51,0.08);
+      position: relative;
+      isolation: isolate;
+      min-height: 270px;
+      display: grid;
+      align-content: start;
+      gap: 14px;
+      overflow: hidden;
+      padding: 28px;
+      border: 1px solid rgba(198,161,55,0.22);
+      border-radius: 26px;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.82), rgba(255,255,255,0.36)),
+        radial-gradient(circle at 10% 0%, rgba(255,225,0,0.22), transparent 34%),
+        rgba(255,255,255,0.62);
+      box-shadow: 0 24px 54px rgba(32,39,51,0.08);
+      transform: translateY(0) rotateX(0deg);
+      transition: transform 260ms ease, border-color 260ms ease, box-shadow 260ms ease, background 260ms ease;
+    }}
+    .reco-card::before {{
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+      background:
+        linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.65) 42%, transparent 62%);
+      opacity: 0;
+      transform: translateX(-120%);
+      transition: opacity 220ms ease, transform 680ms ease;
+    }}
+    .reco-card::after {{
+      content: "";
+      position: absolute;
+      inset: auto 22px 18px 22px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      opacity: 0.58;
+      transform: scaleX(0.35);
+      transform-origin: left center;
+      transition: transform 260ms ease, opacity 260ms ease;
+    }}
+    .reco-card:hover,
+    .reco-card:focus-visible {{
+      outline: none;
+      transform: translateY(-10px) rotateX(2deg);
+      border-color: rgba(198,161,55,0.62);
+      box-shadow: 0 34px 78px rgba(32,39,51,0.14), 0 0 0 1px rgba(255,225,0,0.12) inset;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.92), rgba(255,255,255,0.58)),
+        radial-gradient(circle at 12% 0%, rgba(255,225,0,0.34), transparent 36%),
+        rgba(255,255,255,0.72);
+    }}
+    .reco-card:hover::before,
+    .reco-card:focus-visible::before {{
+      opacity: 1;
+      transform: translateX(120%);
+    }}
+    .reco-card:hover::after,
+    .reco-card:focus-visible::after {{
+      opacity: 1;
+      transform: scaleX(1);
+    }}
+    .reco-orb {{
+      display: inline-grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      background: #ffe100;
+      color: var(--ink);
+      font-size: 0.9rem;
+      font-weight: 800;
+      box-shadow: 0 0 0 10px rgba(255,225,0,0.12), 0 18px 30px rgba(198,161,55,0.18);
     }}
     .reco-badge {{
-      display: inline-block;
-      margin-bottom: 10px;
+      display: inline-flex;
+      width: max-content;
       color: var(--ink);
       font-size: 0.78rem;
       letter-spacing: 0.12em;
       text-transform: uppercase;
       font-weight: 700;
     }}
+    .reco-card h4 {{
+      font-size: clamp(1.1rem, 1.5vw, 1.38rem);
+      max-width: 22ch;
+    }}
+    .reco-card p {{
+      max-width: 32ch;
+      font-size: 0.98rem;
+    }}
     .reco-meta {{
       margin-top: 10px;
       font-size: 0.88rem;
+    }}
+    .reco-cta {{
+      align-self: end;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+      color: var(--ink);
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }}
+    .reco-cta::after {{
+      content: "->";
+      color: var(--gold);
+      transition: transform 220ms ease;
+    }}
+    .reco-card:hover .reco-cta::after,
+    .reco-card:focus-visible .reco-cta::after {{
+      transform: translateX(6px);
     }}
     .footer {{
       display: flex;
@@ -1136,14 +1439,17 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     <section class="hero">
       <div class="hero-copy">
         <p class="eyebrow">GTM UX/UI Audit</p>
-        <h1>Hello, {html.escape(clean_text(site.get("display_name")) or "Client site")}</h1>
-        <p class="hero-lead">Take a look at your go-to-market experience score.</p>
-        <p class="hero-subcopy">{html.escape(clean_text(summary.get("summary")))}</p>
+        <h1>{html.escape(company_name)}</h1>
+        <p class="hero-lead">Comprehensive evaluation of the user experience and interface of {html.escape(audit_subject)} through 7 axes of analysis on {html.escape(pages_count)} main screen(s).</p>
+        <div class="hero-meta">
+          <div><span>Date</span><strong>{html.escape(generated_month)}</strong></div>
+          <div><span>Pages analyzed</span><strong>{html.escape(str(context.get("pagesAudited", "")))}</strong></div>
+          <div><span>Audit axes</span><strong>{html.escape(str(context.get("auditAxes", "")))}</strong></div>
+        </div>
       </div>
       <aside class="hero-side">
         <div class="hero-score-card">
           {hero_score}
-          <p>This first-pass score is built from the GTM-focused UX/UI signals already collected by the audit pipeline.</p>
         </div>
       </aside>
     </section>
@@ -1151,12 +1457,11 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     <section class="section-panel">
       <div class="section-head">
         <div>
-          <p class="eyebrow">Pages Scanned</p>
-          <h2>Representative pages captured during the audit</h2>
+          <p class="eyebrow">{html.escape(scan_eyebrow)}</p>
+          <h2>{html.escape(scan_heading)}</h2>
         </div>
-        <p>Scroll horizontally to review the pages used as visual evidence before reading the commercial synthesis.</p>
       </div>
-      <div class="scan-strip">{scanned_pages_html or "<p class='empty'>No scanned-page screenshots were available for this run.</p>"}</div>
+      {scanned_pages_loop}
     </section>
 
     <section class="section-panel" id="context">
@@ -1165,12 +1470,11 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
           <p class="eyebrow">Context</p>
           <h2>Audit framing</h2>
         </div>
-        <p>The GTM layer does not repeat the full detailed audit. It isolates the friction points most likely to affect first impressions, trust, clarity, and sales readiness.</p>
       </div>
       <div class="context-grid">
-        <div class="context-card"><span>Pages audited</span><strong>{html.escape(str(context.get("pagesAudited", "")))}</strong><p>Representative pages used for the commercial synthesis.</p></div>
-        <div class="context-card"><span>Navigation scope</span><strong>{html.escape(str(context.get("topLevelNavigation", "")))}</strong><p>Primary navigation areas considered for information architecture review.</p></div>
-        <div class="context-card"><span>Axes reviewed</span><strong>{html.escape(str(context.get("auditAxes", "")))}</strong><p>The seven GTM-oriented UX/UI lenses used in this report.</p></div>
+        <div class="context-card"><span>Pages audited</span><strong>{html.escape(str(context.get("pagesAudited", "")))}</strong></div>
+        <div class="context-card"><span>{html.escape(nav_scope_label)}</span><strong>{html.escape(str(context.get("topLevelNavigation", "")))}</strong></div>
+        <div class="context-card"><span>Axes reviewed</span><strong>{html.escape(str(context.get("auditAxes", "")))}</strong></div>
       </div>
     </section>
 
@@ -1180,7 +1484,6 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
           <p class="eyebrow">Methodology</p>
           <h2>Our structured 3-step approach to evaluating the user experience</h2>
         </div>
-        <p>The model reads structured audit evidence first, then adds concise synthesis so the final output stays commercial, not overly technical.</p>
       </div>
       <div class="method-grid">{methodology_html}</div>
     </section>
@@ -1191,15 +1494,9 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
           <p class="eyebrow">Scoring</p>
           <h2>Seven axes at a glance</h2>
         </div>
-        <p>The chart shows where the product feels solid and where the experience starts to weaken before a prospect even engages with sales.</p>
       </div>
       <div class="score-overview">
         {radar_html}
-        <div class="score-note">
-          <span>Scoring logic</span>
-          <strong>{html.escape(str(overall_ten))}/10</strong>
-          <p>Each axis score is normalized on a ten-point scale from the detailed checks, rendered UI extraction, interaction traces, and optional vision review.</p>
-        </div>
         <div class="axis-grid">{axes_tiles_html}</div>
       </div>
     </section>
@@ -1210,7 +1507,6 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
           <p class="eyebrow">Priority Issues</p>
           <h2>Only the pain points that matter most</h2>
         </div>
-        <p>The evidence stays on the left so each issue can be read against the exact UI state that triggered the finding.</p>
       </div>
       <div class="stories">{priorities or "<p class='empty'>No major GTM priorities were identified in this first pass.</p>"}</div>
     </section>
@@ -1221,7 +1517,6 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
           <p class="eyebrow">Axis Deep Dive</p>
           <h2>One section per commercial lens</h2>
         </div>
-        <p>Each axis keeps one lead visual, one score, and one practical interpretation so the report remains presentable in a business conversation.</p>
       </div>
       <div class="axis-stories">{axis_sections_html or "<p class='empty'>No axis breakdown was generated yet.</p>"}</div>
     </section>
@@ -1232,7 +1527,6 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
           <p class="eyebrow">Recommendations</p>
           <h2>Prioritized actions</h2>
         </div>
-        <p>The action list is intentionally short. The goal is to frame the first commercial moves, not to exhaust every possible optimization.</p>
       </div>
       <div class="reco-grid">{reco_html or "<p class='empty'>No prioritized recommendation was generated yet.</p>"}</div>
     </section>

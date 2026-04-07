@@ -125,6 +125,7 @@ def _build_prompt(site_context: Dict[str, Any], screenshots: List[Dict[str, Any]
         "axes": {
             axis["id"]: {
                 "observation": "string",
+                "score": 0,
                 "severity": "low | medium | high",
                 "confidence": 0.0,
             }
@@ -135,7 +136,68 @@ def _build_prompt(site_context: Dict[str, Any], screenshots: List[Dict[str, Any]
                 "axis_id": "string",
                 "title": "string",
                 "severity": "low | medium | high",
+                "confidence": 0.0,
+                "page_name": "string",
+                "page_url": "string",
+                "screenshot_index": 0,
                 "reason": "string",
+                "evidence": "string",
+                "recommendation": "string",
+                "visual_region": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "width": 0.0,
+                    "height": 0.0,
+                    "coordinate_system": "normalized_0_1",
+                    "description": "string",
+                },
+                "outside_workbook": True,
+            }
+        ],
+        "criteria_discoveries": [
+            {
+                "axis_id": "string",
+                "criterion": "string",
+                "severity": "low | medium | high",
+                "confidence": 0.0,
+                "page_name": "string",
+                "page_url": "string",
+                "screenshot_index": 0,
+                "evidence": "string",
+                "why_it_matters": "string",
+                "recommendation": "string",
+                "visual_region": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "width": 0.0,
+                    "height": 0.0,
+                    "coordinate_system": "normalized_0_1",
+                    "description": "string",
+                },
+            }
+        ],
+        "visual_trust_findings": [
+            {
+                "axis_id": "trust_accessibility | visual_brand | market_alignment",
+                "title": "string",
+                "severity": "low | medium | high",
+                "confidence": 0.0,
+                "visual_signal_type": "ai_generated_looking_portraits | broken_images | generic_stock_imagery | brand_inconsistency | rendering_artifact | other",
+                "page_name": "string",
+                "page_url": "string",
+                "screenshot_index": 0,
+                "evidence": "string",
+                "why_it_matters": "string",
+                "recommendation": "string",
+                "visual_region": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "width": 0.0,
+                    "height": 0.0,
+                    "coordinate_system": "normalized_0_1",
+                    "description": "string",
+                },
+                "outside_workbook": True,
             }
         ],
         "strengths": ["string"],
@@ -150,8 +212,30 @@ decision-oriented synthesis for a B2B sales context.
 
 Rules:
 - Focus on the seven axes below.
+- Score every axis from 0 to 100, where 100 is launch-ready and 0 is commercially risky. Use the score field inside `axes`.
+- Calibrate severity from commercial GTM risk: high means likely to hurt comprehension, trust, or conversion; medium means meaningful friction; low means polish or secondary risk.
+- Do not limit yourself to the spreadsheet/workbook criteria. If screenshots reveal a more important GTM UX/UI issue, add it to `criteria_discoveries`.
+- Actively inspect for visual trust risks that workbook criteria may miss, especially:
+  - AI-generated-looking or heavily AI-enhanced people/team photos.
+  - Generic stock imagery that weakens authenticity.
+  - Broken images, partial renders, clipping, overlapped UI, corrupted text, or obvious screenshot/rendering artifacts.
+  - Visual credibility problems in founder/team/proof/client sections.
+  - Brand imagery that feels inconsistent with the product promise or target buyer.
+- Put those visual credibility issues in `visual_trust_findings`.
+- Do not claim a person is AI-generated as a fact. Use careful wording such as "appears heavily AI-enhanced" or "may read as synthetic" and explain the visible signals.
+- Use `priority_issues` for the most important issues overall, whether they come from workbook logic or your own visual/strategic review.
+- Return 3 to 8 `priority_issues` total. Prefer fewer precise, evidence-backed findings over many generic ones.
+- For each axis, make `observation` specific to visible evidence. If an axis cannot be confidently assessed from the screenshots, say what is not visible and lower confidence.
 - Stay grounded in what is visible in the screenshots and the provided site context.
 - Prefer concise, specific observations over generic design language.
+- Cite exact visible text, CTA labels, section names, or UI elements when relevant.
+- Include page_name/page_url or screenshot_index when you can identify where the issue appears.
+- Use zero-based `screenshot_index` matching the Screenshot metadata array order.
+- Every issue must explain: what is visible, why it matters commercially, and what to change next.
+- For every issue in `priority_issues`, `criteria_discoveries`, and `visual_trust_findings`, include `visual_region` when the affected area is visible.
+- `visual_region` must be an approximate bounding box around the concerned visible area in normalized 0-1 screenshot coordinates: x, y, width, height.
+- If the issue affects the whole screen, use a broad visual_region covering the primary affected area rather than omitting it.
+- If a visual issue is high impact but not part of the workbook, still return it with `outside_workbook: true`.
 - If uncertain, lower confidence instead of overstating.
 - Return STRICT JSON ONLY matching this schema:
 
@@ -226,6 +310,11 @@ def run_gtm_vision_review(
                 "page_url": clean_text(item.get("page_url")),
                 "title": clean_text(item.get("title")),
                 "reason": clean_text(item.get("reason")),
+                "source_type": clean_text(item.get("source_type")),
+                "file_name": clean_text(item.get("file_name")),
+                "image_width": item.get("image_width"),
+                "image_height": item.get("image_height"),
+                "aspect_ratio": item.get("aspect_ratio"),
             }
         )
         image_paths.append(absolute)

@@ -248,7 +248,7 @@ def enrich_workbook(workbook_path: str, enriched_json_path: str, output_path: st
 def main() -> None:
     parser = argparse.ArgumentParser(description="Append AI review columns to workbook.")
     parser.add_argument("--workbook", required=True, help="Path to current exported workbook")
-    parser.add_argument("--enriched-json", required=True, help="Path to person_a_sheet_checks_ai_enriched.json")
+    parser.add_argument("--enriched-json", required=True, help="Path to sheet_checks_ai_enriched.json")
     parser.add_argument("--output", required=True, help="Path to final workbook output")
     args = parser.parse_args()
 

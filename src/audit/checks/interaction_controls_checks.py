@@ -645,10 +645,10 @@ def _rendered_page_map(rendered_ui_data: Dict[str, Any]) -> Dict[Tuple[str, str]
     }
 
 
-def _persona_page_map(person_a_data: Dict[str, Any]) -> Dict[Tuple[str, str], Dict[str, Any]]:
+def _persona_page_map(html_data: Dict[str, Any]) -> Dict[Tuple[str, str], Dict[str, Any]]:
     return {
         (page.get("name", ""), page.get("url", "")): page
-        for page in person_a_data.get("pages", [])
+        for page in html_data.get("pages", [])
         if isinstance(page, dict)
     }
 
@@ -1080,10 +1080,10 @@ def _build_page_summary(persona_page: Optional[Dict[str, Any]], rendered_page: O
 
 
 def _collect_page_summaries(
-    person_a_data: Dict[str, Any],
+    html_data: Dict[str, Any],
     rendered_ui_data: Dict[str, Any],
 ) -> List[PageSummary]:
-    persona_map = _persona_page_map(person_a_data)
+    persona_map = _persona_page_map(html_data)
     rendered_map = _rendered_page_map(rendered_ui_data)
 
     page_summaries: List[PageSummary] = []
@@ -2104,10 +2104,10 @@ def check_secondary_actions_as_links(page_summaries: List[PageSummary]) -> Dict[
 # ============================================================
 
 def run_interaction_controls_checks(
-    person_a_data: Dict[str, Any],
+    html_data: Dict[str, Any],
     rendered_ui_data: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
-    page_summaries = _collect_page_summaries(person_a_data, rendered_ui_data)
+    page_summaries = _collect_page_summaries(html_data, rendered_ui_data)
 
     if not page_summaries:
         return [
@@ -2118,7 +2118,7 @@ def run_interaction_controls_checks(
                 title="Interaction and controls checks could not be evaluated",
                 description="No usable page data was available to evaluate the interaction and controls checklist.",
                 pages=[],
-                recommendation="Verify that both person_a_cleaned.json and rendered_ui_extraction.json contain page-level data.",
+                recommendation="Verify that both html_cleaned.json and rendered_ui_extraction.json contain page-level data.",
                 evidence={"checkedPages": 0},
                 confidence="low",
                 method=["page-summary-build"],

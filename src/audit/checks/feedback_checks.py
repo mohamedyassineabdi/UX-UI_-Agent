@@ -92,7 +92,7 @@ def _contains_help_marker(text: str) -> bool:
 
 def _page_heading_texts(page: Any) -> List[str]:
     out: List[str] = []
-    data = page.person_a.get("titlesAndHeadings", {}).get("data", {})
+    data = page.html.get("titlesAndHeadings", {}).get("data", {})
     for key in ("rawHeadings", "headings", "contentHeadings", "h1", "h2", "h3", "h4", "h5", "h6"):
         values = data.get(key, [])
         if not isinstance(values, list):
@@ -111,7 +111,7 @@ def _collect_text_records(context: AuditContext) -> List[Dict[str, str]]:
     records: List[Dict[str, str]] = []
 
     for page in context.pages:
-        page_name = clean_text(page.person_a.get("name"))
+        page_name = clean_text(page.html.get("name"))
 
         for text in _page_heading_texts(page):
             records.append({"page": page_name, "source": "heading", "text": text})

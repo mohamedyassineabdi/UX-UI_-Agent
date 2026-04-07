@@ -122,9 +122,9 @@ def _rendered_page_map(rendered_ui_data: Dict[str, Any]) -> Dict[Tuple[str, str]
     return mapping
 
 
-def _persona_page_map(person_a_data: Dict[str, Any]) -> Dict[Tuple[str, str], Dict[str, Any]]:
+def _persona_page_map(html_data: Dict[str, Any]) -> Dict[Tuple[str, str], Dict[str, Any]]:
     mapping: Dict[Tuple[str, str], Dict[str, Any]] = {}
-    for page in person_a_data.get("pages", []):
+    for page in html_data.get("pages", []):
         mapping[(page.get("name", ""), page.get("url", ""))] = page
     return mapping
 
@@ -155,8 +155,8 @@ def _page_type_hint(page: Dict[str, Any]) -> str:
 # Proxy: audited viewport coverage + stability
 # ============================================================
 
-def check_tested_viewport_support(person_a_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-    pages = person_a_data.get("pages", [])
+def check_tested_viewport_support(html_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    pages = html_data.get("pages", [])
     checked_pages: List[Dict[str, Any]] = []
     viewport_profiles: Counter = Counter()
     viewport_buckets = set()
@@ -320,8 +320,8 @@ def check_tested_viewport_support(person_a_data: Dict[str, Any]) -> List[Dict[st
 # There is no horizontal scrolling on any device, browser or screen resolution
 # ============================================================
 
-def check_horizontal_scrolling(person_a_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-    pages = person_a_data.get("pages", [])
+def check_horizontal_scrolling(html_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    pages = html_data.get("pages", [])
     tolerance_px = 8
 
     checked_pages: List[Dict[str, Any]] = []
@@ -473,10 +473,10 @@ def _simplified_layout_signature(signature: Dict[str, Any]) -> Tuple[Any, ...]:
 
 
 def check_layout_consistency(
-    person_a_data: Dict[str, Any],
+    html_data: Dict[str, Any],
     rendered_ui_data: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
-    persona_map = _persona_page_map(person_a_data)
+    persona_map = _persona_page_map(html_data)
     rendered_map = _rendered_page_map(rendered_ui_data)
 
     checked_pages: List[Dict[str, Any]] = []
@@ -671,10 +671,10 @@ def _spacing_quality_for_page(
 
 
 def check_negative_space_scanning(
-    person_a_data: Dict[str, Any],
+    html_data: Dict[str, Any],
     rendered_ui_data: Dict[str, Any],
 ) -> List[Dict[str, Any]]:
-    persona_map = _persona_page_map(person_a_data)
+    persona_map = _persona_page_map(html_data)
     rendered_map = _rendered_page_map(rendered_ui_data)
 
     checked_pages: List[Dict[str, Any]] = []
@@ -838,12 +838,12 @@ def _order_expectation_for_page(persona_page: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def check_information_order_expectation(person_a_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+def check_information_order_expectation(html_data: Dict[str, Any]) -> List[Dict[str, Any]]:
     checked_pages: List[Dict[str, Any]] = []
     warning_pages: List[Dict[str, Any]] = []
     failing_pages: List[Dict[str, Any]] = []
 
-    for page in person_a_data.get("pages", []):
+    for page in html_data.get("pages", []):
         page_ref = _page_ref(page)
         checked_pages.append(page_ref)
 
@@ -2021,24 +2021,24 @@ def check_visual_metaphor_clarity(rendered_ui_data: Dict[str, Any]) -> List[Dict
 # ============================================================
 
 def run_presentation_checks(
-    person_a_data: Dict[str, Any],
+    html_data: Dict[str, Any],
     rendered_ui_data: Optional[Dict[str, Any]] = None,
     page_results: Optional[List[Dict[str, Any]]] = None,
 ) -> List[Dict[str, Any]]:
     results: List[Dict[str, Any]] = []
 
     # 1
-    results += check_tested_viewport_support(person_a_data)
+    results += check_tested_viewport_support(html_data)
 
     # 2
-    results += check_horizontal_scrolling(person_a_data)
+    results += check_horizontal_scrolling(html_data)
 
     if rendered_ui_data:
         # 3
-        results += check_layout_consistency(person_a_data, rendered_ui_data)
+        results += check_layout_consistency(html_data, rendered_ui_data)
 
         # 4
-        results += check_negative_space_scanning(person_a_data, rendered_ui_data)
+        results += check_negative_space_scanning(html_data, rendered_ui_data)
 
         # 6
         results += check_modal_focus_appropriateness(rendered_ui_data, page_results)
@@ -2057,6 +2057,6 @@ def run_presentation_checks(
         results += check_animation_distraction_runtime(page_results)
 
     # 5
-    results += check_information_order_expectation(person_a_data)
+    results += check_information_order_expectation(html_data)
 
     return results

@@ -48,7 +48,7 @@ COMMON_LABEL_STOPWORDS = {"field", "input", "value", "option", "submit", "select
 def _collect_text_records(context: AuditContext) -> List[str]:
     texts: List[str] = []
     for page in context.pages:
-        data = page.person_a.get("titlesAndHeadings", {}).get("data", {})
+        data = page.html.get("titlesAndHeadings", {}).get("data", {})
         for key in ("rawHeadings", "headings", "contentHeadings", "h1", "h2", "h3", "h4", "h5", "h6"):
             values = data.get(key, [])
             if not isinstance(values, list):
@@ -222,7 +222,7 @@ def run(context: AuditContext) -> List[CheckResult]:
 
     media_blocks = []
     for page in context.pages:
-        media = page.person_a.get("media", {}).get("data", {})
+        media = page.html.get("media", {}).get("data", {})
         videos = media.get("videos", []) if isinstance(media.get("videos"), list) else []
         audios = media.get("audios", []) if isinstance(media.get("audios"), list) else []
         has_caption_tracks = bool(media.get("hasCaptionTracks"))

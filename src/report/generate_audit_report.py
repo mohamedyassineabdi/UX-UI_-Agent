@@ -18,9 +18,9 @@ RESULTS_DIR = ROOT_DIR / "shared" / "output" / "results"
 ASSETS_DIR = Path(__file__).resolve().parent / "site_assets"
 
 DEFAULT_WEBSITE_MENU = GENERATED_DIR / "website_menu.json"
-DEFAULT_CLEANED = GENERATED_DIR / "person_a_cleaned.json"
+DEFAULT_CLEANED = GENERATED_DIR / "html_cleaned.json"
 DEFAULT_RENDERED = GENERATED_DIR / "rendered_ui_extraction.json"
-DEFAULT_CHECKS = GENERATED_DIR / "person_a_sheet_checks_v2.json"
+DEFAULT_CHECKS = GENERATED_DIR / "sheet_checks.json"
 DEFAULT_WORKBOOK = GENERATED_DIR / "UX-Audit-Workbook-final.xlsx"
 DEFAULT_OUTPUT_DIR = GENERATED_DIR / "audit-report"
 SPOTLIGHT_FRAME_WIDTH = 1920
@@ -741,12 +741,12 @@ def build_methodology() -> List[Dict[str, str]]:
         {
             "step": "Structured Extraction",
             "description": "Page structure, headings, navigation, forms, media, and rendered UI signals were normalized into machine-readable audit inputs.",
-            "outputs": "person_a_cleaned.json, rendered_ui_extraction.json",
+            "outputs": "html_cleaned.json, rendered_ui_extraction.json",
         },
         {
             "step": "Checks Engine",
             "description": "The audit rules in Content, Labeling, Navigation, Feedback, and Forms produced scored TRUE / FALSE / N/A decisions with rationale and evidence.",
-            "outputs": "person_a_sheet_checks_v2.json, workbook",
+            "outputs": "sheet_checks.json, workbook",
         },
     ]
 
@@ -1030,9 +1030,9 @@ def render_index_html(report_data: Dict[str, Any]) -> str:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate a static audit landing page from the audit artifacts.")
     parser.add_argument("--website-menu", default=str(DEFAULT_WEBSITE_MENU), help="Path to website_menu.json")
-    parser.add_argument("--cleaned", default=str(DEFAULT_CLEANED), help="Path to person_a_cleaned.json")
+    parser.add_argument("--cleaned", default=str(DEFAULT_CLEANED), help="Path to html_cleaned.json")
     parser.add_argument("--rendered", default=str(DEFAULT_RENDERED), help="Path to rendered_ui_extraction.json")
-    parser.add_argument("--checks", default=str(DEFAULT_CHECKS), help="Path to person_a_sheet_checks_v2.json")
+    parser.add_argument("--checks", default=str(DEFAULT_CHECKS), help="Path to sheet_checks.json")
     parser.add_argument("--workbook", default=str(DEFAULT_WORKBOOK), help="Optional workbook path")
     parser.add_argument("--output-dir", default=str(DEFAULT_OUTPUT_DIR), help="Directory for the generated report site")
     return parser.parse_args()

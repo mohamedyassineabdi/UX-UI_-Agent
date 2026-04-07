@@ -12,7 +12,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.audit.page_runner import run_page_audit
-from src.audit.person_a_postprocess import clean_person_a_output
+from src.audit.html_postprecess import clean_html_output
 from src.audit.rendered_css_extractor import build_rendered_ui_output
 from src.config.audit_config import AUDIT_CONFIG
 from src.utils.file_utils import (
@@ -303,15 +303,15 @@ def summarize_run(page_results: List[Dict[str, Any]]) -> Dict[str, int]:
     return aggregate
 
 
-def build_person_a_output(page_results: List[Dict[str, Any]]) -> Dict[str, Any]:
+def build_html_output(page_results: List[Dict[str, Any]]) -> Dict[str, Any]:
     pages: List[Dict[str, Any]] = []
 
     for page_result in page_results:
-        person_a = page_result.get("personA")
-        if not person_a:
+        html_extraction = page_result.get("html")
+        if not html_extraction:
             continue
 
-        page_meta_data = ((person_a.get("pageMeta") or {}).get("data") or {})
+        page_meta_data = ((html_extraction.get("pageMeta") or {}).get("data") or {})
 
         pages.append(
             {
@@ -320,17 +320,17 @@ def build_person_a_output(page_results: List[Dict[str, Any]]) -> Dict[str, Any]:
                 "url": page_result.get("originalUrl"),
                 "finalUrl": page_result.get("finalUrl"),
                 "status": page_result.get("status"),
-                "pageMeta": person_a.get("pageMeta"),
-                "titlesAndHeadings": person_a.get("titlesAndHeadings"),
-                "navigation": person_a.get("navigation"),
-                "textContent": person_a.get("textContent"),
-                "forms": person_a.get("forms"),
-                "media": person_a.get("media"),
+                "pageMeta": html_extraction.get("pageMeta"),
+                "titlesAndHeadings": html_extraction.get("titlesAndHeadings"),
+                "navigation": html_extraction.get("navigation"),
+                "textContent": html_extraction.get("textContent"),
+                "forms": html_extraction.get("forms"),
+                "media": html_extraction.get("media"),
             }
         )
 
     return {
-        "source": "person_a",
+        "source": "html",
         "generatedFrom": "src.main",
         "totalPages": len(pages),
         "pages": pages,
@@ -537,21 +537,21 @@ async def async_main():
     )
     write_json_file(results_file_path, output)
 
-    person_a_output = build_person_a_output(page_results)
-    person_a_file_path = join_path("shared", "generated", "person_a_extraction.json")
-    write_json_file(person_a_file_path, person_a_output)
+    html_output = build_html_output(page_results)
+    html_file_path = join_path("shared", "generated", "html_extraction.json")
+    write_json_file(html_file_path, html_output)
 
-    person_a_cleaned_output = clean_person_a_output(person_a_output)
-    person_a_cleaned_file_path = join_path("shared", "generated", "person_a_cleaned.json")
-    write_json_file(person_a_cleaned_file_path, person_a_cleaned_output)
+    html_cleaned_output = clean_html_output(html_output)
+    html_cleaned_file_path = join_path("shared", "generated", "html_cleaned.json")
+    write_json_file(html_cleaned_file_path, html_cleaned_output)
 
     rendered_ui_output = build_rendered_ui_output(page_results)
     rendered_ui_file_path = join_path("shared", "generated", "rendered_ui_extraction.json")
     write_json_file(rendered_ui_file_path, rendered_ui_output)
 
     print(f"Results written to: {results_file_path}")
-    print(f"Person A extraction written to: {person_a_file_path}")
-    print(f"Person A cleaned output written to: {person_a_cleaned_file_path}")
+    print(f"HTML extraction written to: {html_file_path}")
+    print(f"HTML cleaned output written to: {html_cleaned_file_path}")
     print(f"Rendered UI extraction written to: {rendered_ui_file_path}")
     print("Audit completed.")
 

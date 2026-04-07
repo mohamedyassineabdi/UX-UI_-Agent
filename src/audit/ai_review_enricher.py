@@ -908,7 +908,7 @@ def enrich_checks(input_path: str, output_path: str) -> None:
     print(f"[DEBUG] Extracted candidate rows after dedupe: {len(base_rows)}")
 
     if not base_rows:
-        raise ValueError("No rows found in the input JSON. Check the structure of person_a_sheet_checks.json.")
+        raise ValueError("No rows found in the input JSON. Check the structure of sheet_checks.json.")
 
     enriched_rows: List[Dict[str, Any]] = []
 
@@ -969,12 +969,12 @@ def main() -> None:
     parser.add_argument(
         "--input",
         required=True,
-        help="Path to person_a_sheet_checks.json",
+        help="Path to sheet_checks.json",
     )
     parser.add_argument(
         "--output",
         required=True,
-        help="Path to write person_a_sheet_checks_ai_enriched.json",
+        help="Path to write sheet_checks_ai_enriched.json",
     )
     args = parser.parse_args()
 

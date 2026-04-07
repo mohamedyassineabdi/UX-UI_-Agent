@@ -408,7 +408,7 @@ async def _safe_extract(extractor_name: str, extractor_coro) -> Dict[str, Any]:
         }
 
 
-async def extract_person_a_blocks(
+async def extract_html_blocks(
     *,
     page,
     page_info: Dict[str, Any],

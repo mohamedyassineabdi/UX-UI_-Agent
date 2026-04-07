@@ -8,7 +8,7 @@ from src.audit.page_visit_helpers import (
     smart_scroll,
     wait_for_page_ready,
 )
-from src.audit.person_a_extractor import extract_person_a_blocks
+from src.audit.html_extractor import extract_html_blocks
 from src.audit.checks.runtime_motion_detector import detect_runtime_motion
 from src.audit.rendered_css_extractor import extract_rendered_ui
 from src.audit.safe_interaction_tester import test_safe_clickables
@@ -70,7 +70,7 @@ async def run_page_audit(*, context, page_info, page_index, config):
         "cookieActions": [],
         "scrollScreenshotPaths": [],
         "pageMetadata": None,
-        "personA": None,
+        "html": None,
         "renderedUi": None,
         "runtimeMotion": None,
         "networkLogPath": None,
@@ -148,7 +148,7 @@ async def run_page_audit(*, context, page_info, page_index, config):
                 },
             )
 
-        result["personA"] = await extract_person_a_blocks(
+        result["html"] = await extract_html_blocks(
             page=page,
             page_info=page_info,
             basic_page_info=result["pageMetadata"],

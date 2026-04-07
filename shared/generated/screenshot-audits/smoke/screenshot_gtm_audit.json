@@ -1,0 +1,315 @@
+{
+  "version": 1,
+  "mode": "screenshot",
+  "generator": "src.gtm_audit.generate_screenshot_gtm_audit",
+  "site": {
+    "homepage": "",
+    "domain": "uploaded-screenshots",
+    "display_name": "Smoke Test",
+    "language": ""
+  },
+  "context": {
+    "siteType": "Screenshot audit",
+    "pagesAudited": 1,
+    "topLevelNavigation": "N/A",
+    "auditAxes": 7,
+    "approach": "User-uploaded screenshots reviewed by the multimodal GTM synthesis layer against the same seven UX/UI audit axes."
+  },
+  "methodology": [
+    {
+      "step": "Upload",
+      "description": "Screenshots are uploaded directly by the user and preserved as report evidence."
+    },
+    {
+      "step": "Vision Review",
+      "description": "A multimodal model reviews visible UI evidence against seven GTM UX/UI axes."
+    },
+    {
+      "step": "Prioritization",
+      "description": "The highest-impact issues are translated into sales-facing recommendations and a static report."
+    }
+  ],
+  "profile": {
+    "site": {
+      "homepage": "",
+      "domain": "uploaded-screenshots",
+      "display_name": "Smoke Test",
+      "language": ""
+    },
+    "counts": {
+      "pages": 1,
+      "topLevelNavigation": 0,
+      "navigationItems": 0
+    },
+    "source": "uploaded screenshots",
+    "visual_review_goal": "Evaluate uploaded UI screenshots against the same seven GTM UX/UI audit axes used by the website audit mode."
+  },
+  "focusScreenshots": [
+    {
+      "page_name": "Screenshot 1",
+      "page_url": "",
+      "title": "README",
+      "source_type": "uploaded_screenshot",
+      "reason": "User-uploaded screenshot for GTM UX/UI review",
+      "screenshot_path": "C:\\dev\\UX-UI_-Agent\\README.md"
+    }
+  ],
+  "scannedPages": [
+    {
+      "page_name": "Screenshot 1",
+      "page_url": "",
+      "title": "README",
+      "source_type": "uploaded_screenshot",
+      "reason": "User-uploaded screenshot for GTM UX/UI review",
+      "screenshot_path": "C:\\dev\\UX-UI_-Agent\\README.md"
+    }
+  ],
+  "visionReview": {
+    "enabled": false,
+    "model": "qwen3-vl:235b-cloud",
+    "used_images": 1,
+    "error": "500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat",
+    "result": null
+  },
+  "aiDiscoveredFindings": [],
+  "axes": [
+    {
+      "id": "task_execution",
+      "name": "Task Execution",
+      "shortName": "Task Execution",
+      "description": "How clearly the product helps users complete key actions without friction.",
+      "score": 59,
+      "severity": "medium",
+      "confidence": 0.45,
+      "summary": "Task Execution was reviewed from the uploaded screenshots.",
+      "businessImpact": "Friction in key tasks increases drop-off and weakens the product story in a live sales context.",
+      "painPoints": [],
+      "strengths": [],
+      "opportunities": [
+        "Use the screenshot evidence to refine task execution before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 58.6,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": ""
+    },
+    {
+      "id": "flow_architecture",
+      "name": "Flow & Architecture",
+      "shortName": "Flow & Architecture",
+      "description": "How understandable the information architecture and navigation model feel.",
+      "score": 59,
+      "severity": "medium",
+      "confidence": 0.45,
+      "summary": "Flow & Architecture was reviewed from the uploaded screenshots.",
+      "businessImpact": "Weak architecture slows comprehension and makes the offer feel less mature.",
+      "painPoints": [],
+      "strengths": [],
+      "opportunities": [
+        "Use the screenshot evidence to refine flow & architecture before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 58.6,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": ""
+    },
+    {
+      "id": "trust_accessibility",
+      "name": "Trust & Accessibility",
+      "shortName": "Trust & Accessibility",
+      "description": "How credible, safe, and accessible the experience appears for real-world usage.",
+      "score": 59,
+      "severity": "medium",
+      "confidence": 0.45,
+      "summary": "Trust & Accessibility was reviewed from the uploaded screenshots.",
+      "businessImpact": "Trust and accessibility gaps create perceived risk and narrow the reachable audience.",
+      "painPoints": [],
+      "strengths": [],
+      "opportunities": [
+        "Use the screenshot evidence to refine trust & accessibility before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 58.6,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": ""
+    },
+    {
+      "id": "ui_consistency",
+      "name": "UI Consistency",
+      "shortName": "UI Consistency",
+      "description": "How consistently components, styles, spacing, and interaction patterns are applied.",
+      "score": 59,
+      "severity": "medium",
+      "confidence": 0.45,
+      "summary": "UI Consistency was reviewed from the uploaded screenshots.",
+      "businessImpact": "Inconsistent UI signals reduce perceived product maturity and scalability.",
+      "painPoints": [],
+      "strengths": [],
+      "opportunities": [
+        "Use the screenshot evidence to refine ui consistency before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 58.6,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": ""
+    },
+    {
+      "id": "visual_brand",
+      "name": "Visual Brand",
+      "shortName": "Visual Brand",
+      "description": "How the visual direction expresses the brand and supports persuasive storytelling.",
+      "score": 59,
+      "severity": "medium",
+      "confidence": 0.45,
+      "summary": "Visual Brand was reviewed from the uploaded screenshots.",
+      "businessImpact": "A weak visual narrative lowers memorability and product differentiation.",
+      "painPoints": [],
+      "strengths": [],
+      "opportunities": [
+        "Use the screenshot evidence to refine visual brand before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 58.6,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": ""
+    },
+    {
+      "id": "content_microcopy",
+      "name": "Content & Microcopy",
+      "shortName": "Content & Microcopy",
+      "description": "How clearly messaging, labels, and calls to action communicate value and next steps.",
+      "score": 59,
+      "severity": "medium",
+      "confidence": 0.45,
+      "summary": "Content & Microcopy was reviewed from the uploaded screenshots.",
+      "businessImpact": "Unclear messaging makes the value proposition harder to understand and repeat.",
+      "painPoints": [],
+      "strengths": [],
+      "opportunities": [
+        "Use the screenshot evidence to refine content & microcopy before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 58.6,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": ""
+    },
+    {
+      "id": "market_alignment",
+      "name": "Market Alignment",
+      "shortName": "Market Alignment",
+      "description": "How well the offer, audience cues, proof points, and CTA strategy support a GTM story.",
+      "score": 59,
+      "severity": "medium",
+      "confidence": 0.45,
+      "summary": "Market Alignment was reviewed from the uploaded screenshots.",
+      "businessImpact": "Weak GTM alignment makes it harder for prospects to see why this product fits them now.",
+      "painPoints": [],
+      "strengths": [],
+      "opportunities": [
+        "Use the screenshot evidence to refine market alignment before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 58.6,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": ""
+    }
+  ],
+  "executiveSummary": {
+    "overallScore": 59,
+    "strongestAxis": {
+      "id": "task_execution",
+      "name": "Task Execution",
+      "shortName": "Task Execution",
+      "description": "How clearly the product helps users complete key actions without friction.",
+      "score": 59,
+      "severity": "medium",
+      "confidence": 0.45,
+      "summary": "Task Execution was reviewed from the uploaded screenshots.",
+      "businessImpact": "Friction in key tasks increases drop-off and weakens the product story in a live sales context.",
+      "painPoints": [],
+      "strengths": [],
+      "opportunities": [
+        "Use the screenshot evidence to refine task execution before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 58.6,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": ""
+    },
+    "weakestAxis": {
+      "id": "task_execution",
+      "name": "Task Execution",
+      "shortName": "Task Execution",
+      "description": "How clearly the product helps users complete key actions without friction.",
+      "score": 59,
+      "severity": "medium",
+      "confidence": 0.45,
+      "summary": "Task Execution was reviewed from the uploaded screenshots.",
+      "businessImpact": "Friction in key tasks increases drop-off and weakens the product story in a live sales context.",
+      "painPoints": [],
+      "strengths": [],
+      "opportunities": [
+        "Use the screenshot evidence to refine task execution before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 58.6,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": ""
+    },
+    "summary": "Smoke Test scores 59/100 on the screenshot-based GTM UX/UI audit pass. The biggest commercial risk sits in task execution (59/100). Vision review note: 500 Server Error: Internal Server Error for url: http://localhost:11434/api/chat",
+    "positioningHook": "Use the uploaded screenshots to clarify the product story, trust signals, and conversion path before launch.",
+    "topPriorities": []
+  },
+  "recommendations": [],
+  "artifacts": {
+    "websiteMenu": "",
+    "cleanedPath": "",
+    "renderedPath": "",
+    "checksPath": ""
+  }
+}

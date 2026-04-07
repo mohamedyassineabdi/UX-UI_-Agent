@@ -93,25 +93,25 @@
           "menu_trigger": {
             "exists": true,
             "candidate_id": "ai_candidate_1",
-            "reason": "Button near top with aria_label 'Toggle navigation', typical hamburger menu trigger on mobile.",
-            "confidence": 0.95
+            "reason": "Button near the top of the viewport with aria-label \"Toggle navigation\", typical of a hamburger menu on mobile.",
+            "confidence": 0.98
           },
           "top_categories": [
             {
               "name": "Accueil",
-              "confidence": 0.9
+              "confidence": 0.96
             },
             {
               "name": "Solutions",
-              "confidence": 0.9
+              "confidence": 0.94
             },
             {
               "name": "Qui sommes nous ?",
-              "confidence": 0.9
+              "confidence": 0.94
             },
             {
               "name": "Contact",
-              "confidence": 0.9
+              "confidence": 0.94
             }
           ],
           "utility_items": {
@@ -119,22 +119,22 @@
               "visible": false,
               "candidate_id": null,
               "label": null,
-              "confidence": 0.2
+              "confidence": 0.0
             },
             "signup": {
               "visible": false,
               "candidate_id": null,
               "label": null,
-              "confidence": 0.2
+              "confidence": 0.0
             },
             "search": {
               "visible": false,
               "candidate_id": null,
               "label": null,
-              "confidence": 0.2
+              "confidence": 0.0
             }
           },
-          "notes": "The main navigation is hidden behind a hamburger button (candidate ai_candidate_1). Clicking it reveals a vertical list of top‑level links: Accueil, Solutions, Qui sommes nous ?, and Contact. No sign‑in, sign‑up, or search elements are present in the primary navigation area on the mobile view."
+          "notes": "The primary navigation is hidden behind a hamburger button (ai_candidate_1). Clicking it reveals a slide‑out drawer containing the main top‑level links: Accueil, Solutions, Qui sommes nous ?, and Contact. No explicit sign‑in, sign‑up, or search controls are present in the visible header or the revealed menu."
         },
         "improved": true
       }
@@ -144,7 +144,7 @@
     "source_container": "merged(desktop+mobile)",
     "sitemap_found": "https://weefizz.com/sitemap.xml",
     "robots_txt": "https://weefizz.com/robots.txt",
-    "crawl_time_ms": 112821
+    "crawl_time_ms": 104656
   },
   "requested_language": "en-US",
   "language_warning": "Requested English, but detected page language was fr."

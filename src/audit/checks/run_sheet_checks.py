@@ -546,7 +546,7 @@ def generate_checks_schema(
         "version": 1,
         "generator": "src.audit.checks.run_sheet_checks",
         "inputs": {
-            "person_a": str(cleaned_path),
+            "html": str(cleaned_path),
             "rendered": str(rendered_path),
             "results": str(results_path) if results_path else "",
         },
@@ -599,8 +599,8 @@ def enrich_checks_schema(checks_data: Dict[str, Any], cleaned_data: Dict[str, An
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--checks", help="Path to an existing person_a_sheet_checks.json to enrich")
-    parser.add_argument("--cleaned", required=True, help="Path to person_a_cleaned.json")
+    parser.add_argument("--checks", help="Path to an existing sheet_checks.json to enrich")
+    parser.add_argument("--cleaned", required=True, help="Path to html_cleaned.json")
     parser.add_argument("--rendered", help="Path to rendered_ui_extraction.json. When provided, checks are generated before enrichment.")
     parser.add_argument("--results", help="Optional path to audit-results_*.json used by runtime-oriented partner checks.")
     parser.add_argument("--output", required=True, help="Path to enriched checks output json")

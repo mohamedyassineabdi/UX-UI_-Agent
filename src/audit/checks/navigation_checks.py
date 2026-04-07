@@ -29,7 +29,7 @@ def run(context: AuditContext) -> List[CheckResult]:
     nav_components = context.nav_components()
     nav_labels = context.meaningful_navigation_labels()
     active_labels = context.active_navigation_labels()
-    breadcrumb_total = sum(len(page.person_a.get("navigation", {}).get("data", {}).get("breadcrumbs", [])) for page in context.pages)
+    breadcrumb_total = sum(len(page.html.get("navigation", {}).get("data", {}).get("breadcrumbs", [])) for page in context.pages)
     search_all_pages = context.has_search_on_every_page()
     search_widths = context.search_input_widths()
 
@@ -69,7 +69,7 @@ def run(context: AuditContext) -> List[CheckResult]:
     page_nav_sets = []
     for page in context.pages:
         labels = []
-        nav = page.person_a.get("navigation", {}).get("data", {})
+        nav = page.html.get("navigation", {}).get("data", {})
         for key in ("primaryNav", "utilityNav", "footerNavUseful"):
             for item in nav.get(key, []):
                 text = clean_text(item.get("text") or item.get("label"))
@@ -296,8 +296,8 @@ def run(context: AuditContext) -> List[CheckResult]:
     title_goal_matches = 0
     page_titles = context.page_titles()
     for page in context.pages:
-        name = normalize_text(page.person_a.get("name"))
-        core = page_title_core(page.person_a.get("pageMeta", {}).get("data", {}).get("title", ""))
+        name = normalize_text(page.html.get("name"))
+        core = page_title_core(page.html.get("pageMeta", {}).get("data", {}).get("title", ""))
         if name and (name in core or core in name):
             title_goal_matches += 1
     results.append(make_result(

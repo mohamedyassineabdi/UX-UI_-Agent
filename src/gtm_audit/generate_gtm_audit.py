@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
@@ -27,14 +28,30 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 GENERATED_DIR = ROOT_DIR / "shared" / "generated"
 RESULTS_DIR = ROOT_DIR / "shared" / "output" / "results"
 DEFAULT_WEBSITE_MENU = GENERATED_DIR / "website_menu.json"
-DEFAULT_CLEANED = GENERATED_DIR / "person_a_cleaned.json"
+DEFAULT_CLEANED = GENERATED_DIR / "html_cleaned.json"
 DEFAULT_RENDERED = GENERATED_DIR / "rendered_ui_extraction.json"
-DEFAULT_CHECKS = GENERATED_DIR / "person_a_sheet_checks_v2.json"
+DEFAULT_CHECKS = GENERATED_DIR / "sheet_checks.json"
 DEFAULT_OUTPUT = GENERATED_DIR / "gtm_audit.json"
 
 ACTION_WORDS = {"contact", "demander", "demo", "discover", "en savoir plus", "learn", "planifier", "request", "start", "talk", "try"}
 AUDIENCE_WORDS = {"b2b", "e-commerce", "enterprise", "equipes", "fabricants", "grossistes", "professionnel", "teams"}
 TRUST_WORDS = {"bpi", "client", "clients", "french tech", "partner", "partenaire", "partners", "testimonial", "vision"}
+VISION_TRUST_PAGE_WORDS = {
+    "about",
+    "apropos",
+    "a-propos",
+    "equipe",
+    "équipe",
+    "founder",
+    "founders",
+    "leader",
+    "leadership",
+    "notre equipe",
+    "qui sommes nous",
+    "team",
+    "trust",
+    "vision",
+}
 PROOF_PATTERNS = [r"\b\d+\s*%\b", r"\b\d+\s*(minutes|min|jours|days|hours|heures)\b", r"\b-\d+\s*%\b"]
 LOCALE_NOISE = {"deutsch", "english", "espanol", "español", "francais", "français", "français▼", "italiano", "nederlands", "portugues", "português"}
 AXIS_IMPACT = {
@@ -277,6 +294,41 @@ def select_scanned_pages(cleaned_data: Dict[str, Any]) -> List[Dict[str, Any]]:
     return pages
 
 
+def select_vision_screenshots(scanned_pages: List[Dict[str, Any]], focus_screenshots: List[Dict[str, Any]], limit: int = 12) -> List[Dict[str, Any]]:
+    candidates: List[tuple[int, int, Dict[str, Any]]] = []
+    seen: set[str] = set()
+    combined = list(scanned_pages or []) + list(focus_screenshots or [])
+    for order, item in enumerate(combined):
+        shot = clean_text(item.get("screenshot_path"))
+        if not shot:
+            continue
+        key = clean_text(item.get("page_url")) or clean_text(item.get("page_name")) or shot
+        if key in seen:
+            continue
+        seen.add(key)
+        text = " ".join(
+            [
+                clean_text(item.get("page_name")),
+                clean_text(item.get("page_url")),
+                clean_text(item.get("title")),
+                clean_text(item.get("source_type")),
+                clean_text(item.get("reason")),
+            ]
+        ).lower()
+        score = 0
+        if order == 0 or "homepage" in text or "accueil" in text or "home" in text:
+            score += 100
+        if any(word in text for word in VISION_TRUST_PAGE_WORDS):
+            score += 90
+        if "contact" in text:
+            score += 35
+        if any(word in text for word in ("solution", "product", "produit", "fashion", "pro")):
+            score += 30
+        candidates.append((score, -order, item))
+    candidates.sort(key=lambda value: (value[0], value[1]), reverse=True)
+    return [item for _, _, item in candidates[: max(1, limit)]]
+
+
 def row_weight(row: Dict[str, Any]) -> float:
     basis = row.get("decision_basis") or ""
     return 1.0 if basis == "direct" else 0.75 if basis == "proxy" else 0.55 if basis == "interactive_required" else 0.7
@@ -441,6 +493,97 @@ def finding_from_row(row: Dict[str, Any], axis: Dict[str, Any]) -> Dict[str, Any
     }
 
 
+def ai_discovered_findings(vision: Dict[str, Any], screenshots: List[Dict[str, Any]], axes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    result = (vision or {}).get("result")
+    if not isinstance(result, dict):
+        return []
+
+    axis_by_id = {axis["id"]: axis for axis in axes}
+    raw_items = []
+    for key in ("visual_trust_findings", "criteria_discoveries", "priority_issues"):
+        items = result.get(key)
+        if isinstance(items, list):
+            raw_items.extend(item for item in items if isinstance(item, dict))
+
+    findings: List[Dict[str, Any]] = []
+    seen = set()
+    for item in raw_items:
+        axis_id = clean_text(item.get("axis_id"))
+        axis = axis_by_id.get(axis_id)
+        if not axis:
+            continue
+        title = clean_text(item.get("criterion") or item.get("title"))
+        if not title:
+            continue
+        key = (axis_id, title.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+
+        screenshot = {}
+        if item.get("screenshot_index") not in (None, ""):
+            screenshot_index = safe_int(item.get("screenshot_index"))
+            if 0 <= screenshot_index < len(screenshots):
+                screenshot = screenshots[screenshot_index]
+        if not screenshot:
+            page_name = clean_text(item.get("page_name"))
+            page_url = clean_text(item.get("page_url"))
+            for candidate in screenshots:
+                if page_url and page_url == clean_text(candidate.get("page_url")):
+                    screenshot = candidate
+                    break
+                if page_name and page_name.lower() == clean_text(candidate.get("page_name")).lower():
+                    screenshot = candidate
+                    break
+
+        page_name = clean_text(item.get("page_name")) or clean_text(screenshot.get("page_name")) or "AI-reviewed screen"
+        page_url = clean_text(item.get("page_url")) or clean_text(screenshot.get("page_url"))
+        evidence = _detail_sentence(clean_text(item.get("evidence") or item.get("reason"))) or "The AI review identified this issue from the reviewed screenshots."
+        explanation = f"On {page_name}, the AI review identified a GTM issue that is not necessarily covered by the workbook criteria: {evidence}"
+        why_it_matters = _detail_sentence(clean_text(item.get("why_it_matters"))) or (
+            f"This matters because {AXIS_USER_IMPACT[axis_id]}. In a GTM context, it can reduce clarity, trust, or sales readiness during a first review."
+        )
+        recommendation = _detail_sentence(clean_text(item.get("recommendation"))) or "Review this screen manually and prioritize the change if it affects a primary commercial journey."
+        findings.append(
+            {
+                "title": title,
+                "axisId": axis_id,
+                "axisName": axis["short_name"],
+                "pageName": page_name,
+                "pageUrl": page_url,
+                "sourceSheet": "AI Discovery",
+                "severity": clean_text(item.get("severity")).lower() or "medium",
+                "confidence": clamp(safe_float(item.get("confidence"), 0.65), 0.0, 1.0),
+                "evidence": evidence[:240],
+                "explanation": explanation,
+                "whyItMatters": why_it_matters,
+                "recommendation": recommendation,
+                "screenshotPath": clean_text(screenshot.get("screenshot_path")),
+                "evidenceBundle": None,
+                "aiDiscovered": True,
+            }
+        )
+    return findings[:6]
+
+
+def attach_ai_findings_to_axes(axes: List[Dict[str, Any]], findings: List[Dict[str, Any]]) -> None:
+    if not findings:
+        return
+    axes_by_id = {axis["id"]: axis for axis in axes}
+    for finding in findings:
+        axis_id = clean_text(finding.get("axisId"))
+        axis = axes_by_id.get(axis_id)
+        if not axis:
+            continue
+        current = axis.get("painPoints") or []
+        duplicate = any(clean_text(item.get("title")).lower() == clean_text(finding.get("title")).lower() for item in current)
+        if duplicate:
+            continue
+        axis["painPoints"] = [finding, *current][:4]
+        axis["evidence"] = dedupe_strings([finding.get("evidence")] + (axis.get("evidence") or []), limit=6)
+        axis["signals"]["aiDiscoveredFindings"] = safe_int(axis["signals"].get("aiDiscoveredFindings")) + 1
+
+
 def build_axis(axis: Dict[str, Any], flat_rows: List[Dict[str, Any]], profile: Dict[str, Any], vision_axes: Dict[str, Any]) -> Dict[str, Any]:
     rows = axis_rows(flat_rows, axis)
     rows_scored = axis_row_score(rows)
@@ -456,7 +599,7 @@ def build_axis(axis: Dict[str, Any], flat_rows: List[Dict[str, Any]], profile: D
     summary = f"{axis['short_name']} scores {int(round(score))}/100 in this GTM view. Structured evidence surfaced {len(failed)} pain point(s) and {len(passed)} positive signal(s)." + (f" Vision review: {vision_observation}" if vision_observation else "")
     return {
         "id": axis["id"],
-        "name": axis["name"],
+        "name": axis["short_name"],
         "shortName": axis["short_name"],
         "description": axis["description"],
         "score": int(round(score)),
@@ -530,11 +673,29 @@ def build_payload(website_menu: Dict[str, Any], cleaned_data: Dict[str, Any], re
     profile = build_profile(website_menu, cleaned_data, rendered_data, checks_data, results_data)
     focus_screenshots = select_focus_screenshots(cleaned_data)
     scanned_pages = select_scanned_pages(cleaned_data)
+    vision_limit = max(1, safe_int(os.getenv("GTM_VISION_MAX_SCREENSHOTS"), 12))
+    vision_screenshots = select_vision_screenshots(scanned_pages, focus_screenshots, limit=vision_limit)
     vision = {"enabled": False, "model": "", "used_images": 0, "error": "Vision review disabled for this run.", "result": None}
     if include_vision:
-        vision = run_gtm_vision_review(site_context={"site": profile["site"], "hero_headings": profile["messaging"]["heroHeadings"][:3], "hero_ctas": profile["messaging"]["heroCtas"][:4], "metrics": profile["metrics"], "sheet_scores": profile["sheetScores"]}, screenshots=focus_screenshots)
+        vision = run_gtm_vision_review(
+            site_context={
+                "site": profile["site"],
+                "hero_headings": profile["messaging"]["heroHeadings"][:3],
+                "hero_ctas": profile["messaging"]["heroCtas"][:4],
+                "metrics": profile["metrics"],
+                "sheet_scores": profile["sheetScores"],
+                "visual_trust_review": {
+                    "enabled": True,
+                    "goal": "Detect GTM trust risks visible in screenshots, including AI-enhanced-looking team imagery, generic stock visuals, broken images, clipping, rendering artifacts, and credibility gaps.",
+                    "preferred_axes": ["trust_accessibility", "visual_brand", "market_alignment"],
+                },
+            },
+            screenshots=vision_screenshots,
+        )
     vision_axes = ((vision.get("result") or {}).get("axes") or {}) if isinstance(vision, dict) else {}
     axes = [build_axis(axis, flat_rows, profile, vision_axes) for axis in AXIS_DEFINITIONS]
+    ai_findings = ai_discovered_findings(vision, vision_screenshots, AXIS_DEFINITIONS)
+    attach_ai_findings_to_axes(axes, ai_findings)
     overall_score = int(round(mean([axis["score"] for axis in axes], default=0.0)))
     strongest = max(axes, key=lambda axis: axis["score"], default=None)
     weakest = min(axes, key=lambda axis: axis["score"], default=None)
@@ -581,6 +742,7 @@ def build_payload(website_menu: Dict[str, Any], cleaned_data: Dict[str, Any], re
         "focusScreenshots": focus_screenshots,
         "scannedPages": scanned_pages,
         "visionReview": vision,
+        "aiDiscoveredFindings": ai_findings,
         "axes": axes,
         "executiveSummary": {"overallScore": overall_score, "strongestAxis": strongest, "weakestAxis": weakest, "summary": summary, "positioningHook": position, "topPriorities": priorities},
         "recommendations": build_recommendations(priorities),

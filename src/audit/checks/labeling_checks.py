@@ -120,7 +120,7 @@ def run(context: AuditContext) -> List[CheckResult]:
         decision_basis="direct" if exact_title_matches >= max(1, len(page_titles) - 1) else "proxy",
     ))
 
-    breadcrumb_total = sum(len(page.person_a.get("navigation", {}).get("data", {}).get("breadcrumbs", [])) for page in context.pages)
+    breadcrumb_total = sum(len(page.html.get("navigation", {}).get("data", {}).get("breadcrumbs", [])) for page in context.pages)
     results.append(make_result(
         SHEET, 11,
         "Each page title exactly matches the wording of the related breadcrumb link.",

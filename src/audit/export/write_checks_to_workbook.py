@@ -279,7 +279,7 @@ def save_workbook_safe(wb, output_path: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--template", required=True, help="Path to the template workbook")
-    parser.add_argument("--checks", required=True, help="Path to enriched person_a_sheet_checks.json")
+    parser.add_argument("--checks", required=True, help="Path to enriched sheet_checks.json")
     parser.add_argument("--output", required=True, help="Path to output workbook")
     args = parser.parse_args()
 

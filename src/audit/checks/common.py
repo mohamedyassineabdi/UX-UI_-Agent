@@ -623,24 +623,24 @@ class CheckResult:
 
 @dataclass
 class PageBundle:
-    person_a: Dict[str, Any]
+    html: Dict[str, Any]
     rendered: Dict[str, Any]
 
 
 class AuditContext:
-    def __init__(self, person_a_data: Dict[str, Any], rendered_data: Dict[str, Any]) -> None:
-        self.person_a_data = person_a_data
+    def __init__(self, html_data: Dict[str, Any], rendered_data: Dict[str, Any]) -> None:
+        self.html_data = html_data
         self.rendered_data = rendered_data
         self.pages: List[PageBundle] = []
         self._build_page_pairs()
 
     @classmethod
-    def from_files(cls, person_a_path: str | Path, rendered_path: str | Path) -> "AuditContext":
-        with open(person_a_path, "r", encoding="utf-8") as file:
-            person_a_data = json.load(file)
+    def from_files(cls, html_path: str | Path, rendered_path: str | Path) -> "AuditContext":
+        with open(html_path, "r", encoding="utf-8") as file:
+            html_data = json.load(file)
         with open(rendered_path, "r", encoding="utf-8") as file:
             rendered_data = json.load(file)
-        return cls(person_a_data, rendered_data)
+        return cls(html_data, rendered_data)
 
     @staticmethod
     def _page_key(page: Dict[str, Any]) -> str:
@@ -652,26 +652,26 @@ class AuditContext:
         rendered_by_key: Dict[str, Dict[str, Any]] = {}
         for page in self.rendered_data.get("pages", []):
             rendered_by_key[self._page_key(page)] = page
-        for page in self.person_a_data.get("pages", []):
+        for page in self.html_data.get("pages", []):
             key = self._page_key(page)
             rendered = rendered_by_key.get(key)
             if rendered is not None:
-                self.pages.append(PageBundle(person_a=page, rendered=rendered))
+                self.pages.append(PageBundle(html=page, rendered=rendered))
 
     def page_names(self) -> List[str]:
-        return [clean_text(page.person_a.get("name")) for page in self.pages]
+        return [clean_text(page.html.get("name")) for page in self.pages]
 
     def page_titles(self) -> List[str]:
-        return [clean_text(page.person_a.get("pageMeta", {}).get("data", {}).get("title")) for page in self.pages]
+        return [clean_text(page.html.get("pageMeta", {}).get("data", {}).get("title")) for page in self.pages]
 
     @staticmethod
     def _page_provenance(page: PageBundle) -> Dict[str, str]:
-        page_meta = page.person_a.get("pageMeta", {}).get("data", {})
+        page_meta = page.html.get("pageMeta", {}).get("data", {})
         screenshot_paths = page_meta.get("screenshotPaths", {}) or {}
         return {
-            "_pageName": clean_text(page.person_a.get("name") or page_meta.get("name")),
-            "_pageUrl": clean_text(page.person_a.get("url") or page_meta.get("url")),
-            "_finalUrl": clean_text(page.person_a.get("finalUrl") or page_meta.get("finalUrl") or page.person_a.get("url") or page_meta.get("url")),
+            "_pageName": clean_text(page.html.get("name") or page_meta.get("name")),
+            "_pageUrl": clean_text(page.html.get("url") or page_meta.get("url")),
+            "_finalUrl": clean_text(page.html.get("finalUrl") or page_meta.get("finalUrl") or page.html.get("url") or page_meta.get("url")),
             "_screenshotPath": clean_text(screenshot_paths.get("page") or ""),
         }
 
@@ -684,7 +684,7 @@ class AuditContext:
     def page_languages(self) -> List[str]:
         langs: List[str] = []
         for page in self.pages:
-            lang = page.person_a.get("pageMeta", {}).get("data", {}).get("language")
+            lang = page.html.get("pageMeta", {}).get("data", {}).get("language")
             if lang:
                 langs.append(str(lang).lower())
         return langs
@@ -692,7 +692,7 @@ class AuditContext:
     def all_paragraphs(self) -> List[str]:
         out: List[str] = []
         for page in self.pages:
-            for item in page.person_a.get("textContent", {}).get("data", {}).get("paragraphs", []):
+            for item in page.html.get("textContent", {}).get("data", {}).get("paragraphs", []):
                 txt = clean_text(item.get("text"))
                 if txt:
                     out.append(txt)
@@ -711,7 +711,7 @@ class AuditContext:
     def all_list_items(self) -> List[str]:
         out: List[str] = []
         for page in self.pages:
-            for item in page.person_a.get("textContent", {}).get("data", {}).get("listItems", []):
+            for item in page.html.get("textContent", {}).get("data", {}).get("listItems", []):
                 txt = clean_text(item.get("text"))
                 if txt:
                     out.append(txt)
@@ -742,7 +742,7 @@ class AuditContext:
             "allNavItems",
         ]
         for page in self.pages:
-            nav = page.person_a.get("navigation", {}).get("data", {})
+            nav = page.html.get("navigation", {}).get("data", {})
             for key in nav_keys:
                 for item in nav.get(key, []):
                     txt = clean_text(item.get("text") or item.get("label"))
@@ -756,7 +756,7 @@ class AuditContext:
     def active_navigation_labels(self) -> List[str]:
         out: List[str] = []
         for page in self.pages:
-            for item in page.person_a.get("navigation", {}).get("data", {}).get("activeItems", []):
+            for item in page.html.get("navigation", {}).get("data", {}).get("activeItems", []):
                 txt = clean_text(item.get("text") or item.get("label"))
                 if txt and is_probably_real_nav_label(txt):
                     out.append(txt)
@@ -765,8 +765,8 @@ class AuditContext:
     def all_forms(self) -> List[Dict[str, Any]]:
         forms: List[Dict[str, Any]] = []
         for page in self.pages:
-            page_name = clean_text(page.person_a.get("name"))
-            page_url = clean_text(page.person_a.get("finalUrl") or page.person_a.get("url"))
+            page_name = clean_text(page.html.get("name"))
+            page_url = clean_text(page.html.get("finalUrl") or page.html.get("url"))
             rendered_forms = page.rendered.get("renderedUi", {}).get("forms", [])
 
             if rendered_forms:
@@ -781,8 +781,8 @@ class AuditContext:
                     forms.append(copied)
                 continue
 
-            person_a_forms = page.person_a.get("forms", {}).get("data", {}).get("items", [])
-            for form in person_a_forms:
+            html_forms = page.html.get("forms", {}).get("data", {}).get("items", [])
+            for form in html_forms:
                 fields = []
                 for field in form.get("visibleFields", []) or form.get("userInputFields", []) or form.get("fields", []):
                     fields.append(dict(field))
@@ -910,13 +910,13 @@ class AuditContext:
     def all_media_images(self) -> List[Dict[str, Any]]:
         out: List[Dict[str, Any]] = []
         for page in self.pages:
-            out.extend(page.person_a.get("media", {}).get("data", {}).get("images", []))
+            out.extend(page.html.get("media", {}).get("data", {}).get("images", []))
         return out
 
     def all_quality_flags(self) -> List[str]:
         out: List[str] = []
         for page in self.pages:
-            out.extend(page.person_a.get("qualitySignals", {}).get("flags", []))
+            out.extend(page.html.get("qualitySignals", {}).get("flags", []))
         return out
 
     def all_buttons(self) -> List[Dict[str, Any]]:
@@ -995,7 +995,7 @@ class AuditContext:
     def content_headings(self) -> List[str]:
         out: List[str] = []
         for page in self.pages:
-            data = page.person_a.get("titlesAndHeadings", {}).get("data", {})
+            data = page.html.get("titlesAndHeadings", {}).get("data", {})
             for txt in _iter_heading_texts(data):
                 if is_meaningful_heading(txt):
                     out.append(txt)
@@ -1074,7 +1074,7 @@ class AuditContext:
     def all_feedback_headings(self) -> List[str]:
         out: List[str] = []
         for page in self.pages:
-            data = page.person_a.get("titlesAndHeadings", {}).get("data", {})
+            data = page.html.get("titlesAndHeadings", {}).get("data", {})
             for txt in _iter_heading_texts(data):
                 if txt:
                     out.append(txt)

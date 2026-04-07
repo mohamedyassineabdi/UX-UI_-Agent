@@ -1,0 +1,843 @@
+{
+  "version": 1,
+  "mode": "screenshot",
+  "generator": "src.gtm_audit.generate_screenshot_gtm_audit",
+  "site": {
+    "homepage": "",
+    "domain": "uploaded-screenshots",
+    "display_name": "Screenshot Audit",
+    "language": ""
+  },
+  "context": {
+    "siteType": "Screenshot audit",
+    "pagesAudited": 2,
+    "topLevelNavigation": "N/A",
+    "auditAxes": 7,
+    "approach": "User-uploaded screenshots reviewed by the multimodal GTM synthesis layer against the same seven UX/UI audit axes."
+  },
+  "methodology": [
+    {
+      "step": "Upload",
+      "description": "Screenshots are uploaded directly by the user and preserved as report evidence."
+    },
+    {
+      "step": "Vision Review",
+      "description": "A multimodal model reviews visible UI evidence against seven GTM UX/UI axes."
+    },
+    {
+      "step": "Prioritization",
+      "description": "The highest-impact issues are translated into sales-facing recommendations and a static report."
+    }
+  ],
+  "profile": {
+    "site": {
+      "homepage": "",
+      "domain": "uploaded-screenshots",
+      "display_name": "Screenshot Audit",
+      "language": ""
+    },
+    "counts": {
+      "pages": 2,
+      "topLevelNavigation": 0,
+      "navigationItems": 0
+    },
+    "source": "uploaded screenshots",
+    "visual_review_goal": "Evaluate uploaded UI screenshots against the same seven GTM UX/UI audit axes used by the website audit mode."
+  },
+  "focusScreenshots": [
+    {
+      "page_name": "Screenshot 1",
+      "page_url": "",
+      "title": "001 016 c041 mentions legales",
+      "source_type": "uploaded_screenshot",
+      "reason": "User-uploaded screenshot for GTM UX/UI review",
+      "screenshot_path": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\001-016_c041_mentions_legales.png"
+    },
+    {
+      "page_name": "Screenshot 2",
+      "page_url": "",
+      "title": "002 017 c042 contact",
+      "source_type": "uploaded_screenshot",
+      "reason": "User-uploaded screenshot for GTM UX/UI review",
+      "screenshot_path": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\002-017_c042_contact.png"
+    }
+  ],
+  "scannedPages": [
+    {
+      "page_name": "Screenshot 1",
+      "page_url": "",
+      "title": "001 016 c041 mentions legales",
+      "source_type": "uploaded_screenshot",
+      "reason": "User-uploaded screenshot for GTM UX/UI review",
+      "screenshot_path": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\001-016_c041_mentions_legales.png"
+    },
+    {
+      "page_name": "Screenshot 2",
+      "page_url": "",
+      "title": "002 017 c042 contact",
+      "source_type": "uploaded_screenshot",
+      "reason": "User-uploaded screenshot for GTM UX/UI review",
+      "screenshot_path": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\002-017_c042_contact.png"
+    }
+  ],
+  "visionReview": {
+    "enabled": true,
+    "model": "qwen3-vl:235b-cloud",
+    "used_images": 2,
+    "error": "",
+    "result": {
+      "site_summary": "The site delivers essential legal and contact information with consistent branding but lacks authentic visual elements and social proof critical for B2B trust-building. Navigation is clear but key GTM elements like client validation are missing.",
+      "axes": {
+        "task_execution": {
+          "observation": "Contact page clearly presents multiple contact methods (address, email, phone, calendar) with minimal friction; legal page is purely informational with no actionable tasks.",
+          "severity": "low",
+          "confidence": 0.9
+        },
+        "flow_architecture": {
+          "observation": "Navigation is consistent across pages with logical footer access to legal page; contact page is directly accessible via main navigation without confusing flows.",
+          "severity": "low",
+          "confidence": 0.95
+        },
+        "trust_accessibility": {
+          "observation": "Legal page provides comprehensive company details (RCS, SIRET, address) building regulatory trust; contact page offers verified channels but lacks social proof elements that would enhance credibility for B2B buyers.",
+          "severity": "medium",
+          "confidence": 0.85
+        },
+        "ui_consistency": {
+          "observation": "Header/footer and color scheme are consistent; content card layouts differ slightly between pages (2x2 grid vs 3-column) but maintain cohesive styling and spacing.",
+          "severity": "low",
+          "confidence": 0.9
+        },
+        "visual_brand": {
+          "observation": "Dark green brand color is consistently applied, but contact page uses generic blurred office background imagery that fails to convey company authenticity or unique value.",
+          "severity": "medium",
+          "confidence": 0.8
+        },
+        "content_microcopy": {
+          "observation": "Contact page labels are clear but contains informal microcopy error ('Calendar google' instead of 'Calendrier Google'); legal page uses precise regulatory terminology.",
+          "severity": "low",
+          "confidence": 0.9
+        },
+        "market_alignment": {
+          "observation": "Contact page effectively drives engagement with clear CTAs but misses critical B2B trust elements like client logos or testimonials; legal page serves compliance but doesn't support GTM storytelling.",
+          "severity": "high",
+          "confidence": 0.85
+        }
+      },
+      "priority_issues": [
+        {
+          "axis_id": "market_alignment",
+          "title": "Contact page lacks B2B social proof elements",
+          "severity": "high",
+          "confidence": 0.85,
+          "page_name": "Contact",
+          "page_url": "",
+          "screenshot_index": 1,
+          "reason": "B2B buyers require validation through client logos/testimonials to reduce perceived risk; absence on primary conversion page weakens credibility and conversion potential.",
+          "evidence": "Contact page (Screenshot 2) presents only contact methods without any proof of credibility (e.g., client logos, case studies, or testimonials).",
+          "recommendation": "Add a section with 3-4 client logos or a short testimonial quote above contact methods to build trust before engagement.",
+          "outside_workbook": true
+        },
+        {
+          "axis_id": "visual_brand",
+          "title": "Generic stock imagery reduces authenticity perception",
+          "severity": "medium",
+          "confidence": 0.8,
+          "page_name": "Contact",
+          "page_url": "",
+          "screenshot_index": 1,
+          "reason": "B2B buyers expect authentic company representation; generic office background appears impersonal and fails to differentiate the brand.",
+          "evidence": "Contact page (Screenshot 2) uses blurred, non-unique office background that lacks company-specific elements or human presence.",
+          "recommendation": "Replace with custom photo of actual office space or team members (with consent) to enhance authenticity and trust.",
+          "outside_workbook": true
+        }
+      ],
+      "criteria_discoveries": [
+        {
+          "axis_id": "content_microcopy",
+          "criterion": "Inconsistent language in calendar link",
+          "severity": "low",
+          "confidence": 0.9,
+          "page_name": "Contact",
+          "page_url": "",
+          "screenshot_index": 1,
+          "evidence": "Link labeled 'Calendar google' instead of standard French term 'Calendrier Google'",
+          "why_it_matters": "Undermines brand professionalism in French market; inconsistent terminology creates subtle credibility gaps for local buyers.",
+          "recommendation": "Use 'Calendrier Google' to align with French language standards and maintain brand polish."
+        }
+      ],
+      "visual_trust_findings": [
+        {
+          "axis_id": "visual_brand",
+          "title": "Generic stock office background on contact page",
+          "severity": "medium",
+          "confidence": 0.8,
+          "visual_signal_type": "generic_stock_imagery",
+          "page_name": "Contact",
+          "page_url": "",
+          "screenshot_index": 1,
+          "evidence": "Blurred office background image (Screenshot 2) shows generic shelves/desk without unique company elements or human presence",
+          "why_it_matters": "B2B buyers seek authentic company representation; generic imagery reduces perceived credibility and fails to differentiate from competitors using similar stock assets",
+          "recommendation": "Replace with custom photography showing actual workspace or team to build genuine connection",
+          "outside_workbook": true
+        }
+      ],
+      "strengths": [
+        "Consistent navigation and branding across all pages",
+        "Comprehensive legal information with clear regulatory details",
+        "Multiple verified contact channels presented with minimal friction"
+      ],
+      "market_positioning": "Positions as a professional B2B service provider through clear contact pathways and regulatory compliance, but fails to establish competitive differentiation or social proof needed to convert skeptical enterprise buyers."
+    }
+  },
+  "aiDiscoveredFindings": [
+    {
+      "title": "Contact page lacks B2B social proof elements",
+      "axisId": "market_alignment",
+      "axisName": "Market Alignment",
+      "pageName": "Contact",
+      "pageUrl": "",
+      "sourceSheet": "Screenshot AI Review",
+      "severity": "high",
+      "confidence": 0.85,
+      "evidence": "Contact page (Screenshot 2) presents only contact methods without any proof of credibility (e.g., client logos, case studies, or testimonials).",
+      "explanation": "On Contact, the review found that 'Contact page lacks B2B social proof elements' may not be fully supported. B2B buyers require validation through client logos/testimonials to reduce perceived risk; absence on primary conversion page weakens credibility and conversion potential.",
+      "whyItMatters": "This matters because prospects may not immediately understand why this product is relevant for their context or market. In a GTM context, visible friction in Contact can reduce clarity, trust, or conversion readiness.",
+      "recommendation": "Add a section with 3-4 client logos or a short testimonial quote above contact methods to build trust before engagement.",
+      "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\002-017_c042_contact.png",
+      "evidenceBundle": null,
+      "aiDiscovered": true,
+      "axisScore": 40
+    },
+    {
+      "title": "Generic stock imagery reduces authenticity perception",
+      "axisId": "visual_brand",
+      "axisName": "Visual Brand",
+      "pageName": "Contact",
+      "pageUrl": "",
+      "sourceSheet": "Screenshot AI Review",
+      "severity": "medium",
+      "confidence": 0.8,
+      "evidence": "Contact page (Screenshot 2) uses blurred, non-unique office background that lacks company-specific elements or human presence.",
+      "explanation": "On Contact, the review found that 'Generic stock imagery reduces authenticity perception' may not be fully supported. B2B buyers expect authentic company representation; generic office background appears impersonal and fails to differentiate the brand.",
+      "whyItMatters": "This matters because the interface does not project enough confidence, polish, or brand distinctiveness at first glance. In a GTM context, visible friction in Contact can reduce clarity, trust, or conversion readiness.",
+      "recommendation": "Replace with custom photo of actual office space or team members (with consent) to enhance authenticity and trust.",
+      "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\002-017_c042_contact.png",
+      "evidenceBundle": null,
+      "aiDiscovered": true,
+      "axisScore": 62
+    },
+    {
+      "title": "Generic stock office background on contact page",
+      "axisId": "visual_brand",
+      "axisName": "Visual Brand",
+      "pageName": "Contact",
+      "pageUrl": "",
+      "sourceSheet": "Screenshot AI Review",
+      "severity": "medium",
+      "confidence": 0.8,
+      "evidence": "Blurred office background image (Screenshot 2) shows generic shelves/desk without unique company elements or human presence",
+      "explanation": "On Contact, the review found that 'Generic stock office background on contact page' may not be fully supported. Blurred office background image (Screenshot 2) shows generic shelves/desk without unique company elements or human presence",
+      "whyItMatters": "B2B buyers seek authentic company representation; generic imagery reduces perceived credibility and fails to differentiate from competitors using similar stock assets",
+      "recommendation": "Replace with custom photography showing actual workspace or team to build genuine connection",
+      "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\002-017_c042_contact.png",
+      "evidenceBundle": null,
+      "aiDiscovered": true,
+      "axisScore": 62
+    },
+    {
+      "title": "Inconsistent language in calendar link",
+      "axisId": "content_microcopy",
+      "axisName": "Content & Microcopy",
+      "pageName": "Contact",
+      "pageUrl": "",
+      "sourceSheet": "Screenshot AI Review",
+      "severity": "low",
+      "confidence": 0.9,
+      "evidence": "Link labeled 'Calendar google' instead of standard French term 'Calendrier Google'",
+      "explanation": "On Contact, the review found that 'Inconsistent language in calendar link' may not be fully supported. Link labeled 'Calendar google' instead of standard French term 'Calendrier Google'",
+      "whyItMatters": "Undermines brand professionalism in French market; inconsistent terminology creates subtle credibility gaps for local buyers.",
+      "recommendation": "Use 'Calendrier Google' to align with French language standards and maintain brand polish.",
+      "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\002-017_c042_contact.png",
+      "evidenceBundle": null,
+      "aiDiscovered": true,
+      "axisScore": 85
+    }
+  ],
+  "axes": [
+    {
+      "id": "task_execution",
+      "name": "Task Execution",
+      "shortName": "Task Execution",
+      "description": "How clearly the product helps users complete key actions without friction.",
+      "score": 85,
+      "severity": "low",
+      "confidence": 0.9,
+      "summary": "Contact page clearly presents multiple contact methods (address, email, phone, calendar) with minimal friction; legal page is purely informational with no actionable tasks.",
+      "businessImpact": "Friction in key tasks increases drop-off and weakens the product story in a live sales context.",
+      "painPoints": [],
+      "strengths": [
+        {
+          "title": "Consistent navigation and branding across all pages",
+          "pageName": "Screenshot 1",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.6,
+          "evidence": "Consistent navigation and branding across all pages",
+          "explanation": "Consistent navigation and branding across all pages",
+          "whyItMatters": "This helps because core tasks demand more effort than they should.",
+          "recommendation": "Preserve this strength while addressing higher-priority friction.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\001-016_c041_mentions_legales.png",
+          "evidenceBundle": null
+        }
+      ],
+      "opportunities": [
+        "Use the screenshot evidence to refine task execution before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 84.8,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": "Contact page clearly presents multiple contact methods (address, email, phone, calendar) with minimal friction; legal page is purely informational with no actionable tasks."
+    },
+    {
+      "id": "flow_architecture",
+      "name": "Flow & Architecture",
+      "shortName": "Flow & Architecture",
+      "description": "How understandable the information architecture and navigation model feel.",
+      "score": 85,
+      "severity": "low",
+      "confidence": 0.95,
+      "summary": "Navigation is consistent across pages with logical footer access to legal page; contact page is directly accessible via main navigation without confusing flows.",
+      "businessImpact": "Weak architecture slows comprehension and makes the offer feel less mature.",
+      "painPoints": [],
+      "strengths": [
+        {
+          "title": "Consistent navigation and branding across all pages",
+          "pageName": "Screenshot 1",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.6,
+          "evidence": "Consistent navigation and branding across all pages",
+          "explanation": "Consistent navigation and branding across all pages",
+          "whyItMatters": "This helps because people struggle to understand where they are, what comes next, or how the product is organized.",
+          "recommendation": "Preserve this strength while addressing higher-priority friction.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\001-016_c041_mentions_legales.png",
+          "evidenceBundle": null
+        }
+      ],
+      "opportunities": [
+        "Use the screenshot evidence to refine flow & architecture before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 85.4,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": "Navigation is consistent across pages with logical footer access to legal page; contact page is directly accessible via main navigation without confusing flows."
+    },
+    {
+      "id": "trust_accessibility",
+      "name": "Trust & Accessibility",
+      "shortName": "Trust & Accessibility",
+      "description": "How credible, safe, and accessible the experience appears for real-world usage.",
+      "score": 62,
+      "severity": "medium",
+      "confidence": 0.85,
+      "summary": "Legal page provides comprehensive company details (RCS, SIRET, address) building regulatory trust; contact page offers verified channels but lacks social proof elements that would enhance credibility for B2B buyers.",
+      "businessImpact": "Trust and accessibility gaps create perceived risk and narrow the reachable audience.",
+      "painPoints": [],
+      "strengths": [
+        {
+          "title": "Consistent navigation and branding across all pages",
+          "pageName": "Screenshot 1",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.6,
+          "evidence": "Consistent navigation and branding across all pages",
+          "explanation": "Consistent navigation and branding across all pages",
+          "whyItMatters": "This helps because parts of the experience may not feel safe, inclusive, or reliable enough.",
+          "recommendation": "Preserve this strength while addressing higher-priority friction.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\001-016_c041_mentions_legales.png",
+          "evidenceBundle": null
+        }
+      ],
+      "opportunities": [
+        "Use the screenshot evidence to refine trust & accessibility before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 62.2,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": "Legal page provides comprehensive company details (RCS, SIRET, address) building regulatory trust; contact page offers verified channels but lacks social proof elements that would enhance credibility for B2B buyers."
+    },
+    {
+      "id": "ui_consistency",
+      "name": "UI Consistency",
+      "shortName": "UI Consistency",
+      "description": "How consistently components, styles, spacing, and interaction patterns are applied.",
+      "score": 85,
+      "severity": "low",
+      "confidence": 0.9,
+      "summary": "Header/footer and color scheme are consistent; content card layouts differ slightly between pages (2x2 grid vs 3-column) but maintain cohesive styling and spacing.",
+      "businessImpact": "Inconsistent UI signals reduce perceived product maturity and scalability.",
+      "painPoints": [],
+      "strengths": [
+        {
+          "title": "Consistent navigation and branding across all pages",
+          "pageName": "Screenshot 1",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.6,
+          "evidence": "Consistent navigation and branding across all pages",
+          "explanation": "Consistent navigation and branding across all pages",
+          "whyItMatters": "This helps because recurring patterns do not behave or look consistently, which makes the product feel less mature.",
+          "recommendation": "Preserve this strength while addressing higher-priority friction.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\001-016_c041_mentions_legales.png",
+          "evidenceBundle": null
+        }
+      ],
+      "opportunities": [
+        "Use the screenshot evidence to refine ui consistency before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 84.8,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": "Header/footer and color scheme are consistent; content card layouts differ slightly between pages (2x2 grid vs 3-column) but maintain cohesive styling and spacing."
+    },
+    {
+      "id": "visual_brand",
+      "name": "Visual Brand",
+      "shortName": "Visual Brand",
+      "description": "How the visual direction expresses the brand and supports persuasive storytelling.",
+      "score": 62,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "Dark green brand color is consistently applied, but contact page uses generic blurred office background imagery that fails to convey company authenticity or unique value.",
+      "businessImpact": "A weak visual narrative lowers memorability and product differentiation.",
+      "painPoints": [
+        {
+          "title": "Generic stock imagery reduces authenticity perception",
+          "axisId": "visual_brand",
+          "axisName": "Visual Brand",
+          "pageName": "Contact",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "medium",
+          "confidence": 0.8,
+          "evidence": "Contact page (Screenshot 2) uses blurred, non-unique office background that lacks company-specific elements or human presence.",
+          "explanation": "On Contact, the review found that 'Generic stock imagery reduces authenticity perception' may not be fully supported. B2B buyers expect authentic company representation; generic office background appears impersonal and fails to differentiate the brand.",
+          "whyItMatters": "This matters because the interface does not project enough confidence, polish, or brand distinctiveness at first glance. In a GTM context, visible friction in Contact can reduce clarity, trust, or conversion readiness.",
+          "recommendation": "Replace with custom photo of actual office space or team members (with consent) to enhance authenticity and trust.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\002-017_c042_contact.png",
+          "evidenceBundle": null,
+          "aiDiscovered": true
+        },
+        {
+          "title": "Generic stock office background on contact page",
+          "axisId": "visual_brand",
+          "axisName": "Visual Brand",
+          "pageName": "Contact",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "medium",
+          "confidence": 0.8,
+          "evidence": "Blurred office background image (Screenshot 2) shows generic shelves/desk without unique company elements or human presence",
+          "explanation": "On Contact, the review found that 'Generic stock office background on contact page' may not be fully supported. Blurred office background image (Screenshot 2) shows generic shelves/desk without unique company elements or human presence",
+          "whyItMatters": "B2B buyers seek authentic company representation; generic imagery reduces perceived credibility and fails to differentiate from competitors using similar stock assets",
+          "recommendation": "Replace with custom photography showing actual workspace or team to build genuine connection",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\002-017_c042_contact.png",
+          "evidenceBundle": null,
+          "aiDiscovered": true
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Consistent navigation and branding across all pages",
+          "pageName": "Screenshot 1",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.6,
+          "evidence": "Consistent navigation and branding across all pages",
+          "explanation": "Consistent navigation and branding across all pages",
+          "whyItMatters": "This helps because the interface does not project enough confidence, polish, or brand distinctiveness at first glance.",
+          "recommendation": "Preserve this strength while addressing higher-priority friction.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\001-016_c041_mentions_legales.png",
+          "evidenceBundle": null
+        }
+      ],
+      "opportunities": [
+        "Replace with custom photo of actual office space or team members (with consent) to enhance authenticity and trust.",
+        "Replace with custom photography showing actual workspace or team to build genuine connection"
+      ],
+      "evidence": [
+        "Contact page (Screenshot 2) uses blurred, non-unique office background that lacks company-specific elements or human presence.",
+        "Blurred office background image (Screenshot 2) shows generic shelves/desk without unique company elements or human presence"
+      ],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 61.6,
+        "relevantChecks": 2,
+        "aiDiscoveredFindings": 2
+      },
+      "visionObservation": "Dark green brand color is consistently applied, but contact page uses generic blurred office background imagery that fails to convey company authenticity or unique value."
+    },
+    {
+      "id": "content_microcopy",
+      "name": "Content & Microcopy",
+      "shortName": "Content & Microcopy",
+      "description": "How clearly messaging, labels, and calls to action communicate value and next steps.",
+      "score": 85,
+      "severity": "low",
+      "confidence": 0.9,
+      "summary": "Contact page labels are clear but contains informal microcopy error ('Calendar google' instead of 'Calendrier Google'); legal page uses precise regulatory terminology.",
+      "businessImpact": "Unclear messaging makes the value proposition harder to understand and repeat.",
+      "painPoints": [
+        {
+          "title": "Inconsistent language in calendar link",
+          "axisId": "content_microcopy",
+          "axisName": "Content & Microcopy",
+          "pageName": "Contact",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.9,
+          "evidence": "Link labeled 'Calendar google' instead of standard French term 'Calendrier Google'",
+          "explanation": "On Contact, the review found that 'Inconsistent language in calendar link' may not be fully supported. Link labeled 'Calendar google' instead of standard French term 'Calendrier Google'",
+          "whyItMatters": "Undermines brand professionalism in French market; inconsistent terminology creates subtle credibility gaps for local buyers.",
+          "recommendation": "Use 'Calendrier Google' to align with French language standards and maintain brand polish.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\002-017_c042_contact.png",
+          "evidenceBundle": null,
+          "aiDiscovered": true
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Consistent navigation and branding across all pages",
+          "pageName": "Screenshot 1",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.6,
+          "evidence": "Consistent navigation and branding across all pages",
+          "explanation": "Consistent navigation and branding across all pages",
+          "whyItMatters": "This helps because the value proposition and interaction cues are harder to understand than they should be.",
+          "recommendation": "Preserve this strength while addressing higher-priority friction.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\001-016_c041_mentions_legales.png",
+          "evidenceBundle": null
+        }
+      ],
+      "opportunities": [
+        "Use 'Calendrier Google' to align with French language standards and maintain brand polish."
+      ],
+      "evidence": [
+        "Link labeled 'Calendar google' instead of standard French term 'Calendrier Google'"
+      ],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 84.8,
+        "relevantChecks": 1,
+        "aiDiscoveredFindings": 1
+      },
+      "visionObservation": "Contact page labels are clear but contains informal microcopy error ('Calendar google' instead of 'Calendrier Google'); legal page uses precise regulatory terminology."
+    },
+    {
+      "id": "market_alignment",
+      "name": "Market Alignment",
+      "shortName": "Market Alignment",
+      "description": "How well the offer, audience cues, proof points, and CTA strategy support a GTM story.",
+      "score": 40,
+      "severity": "high",
+      "confidence": 0.85,
+      "summary": "Contact page effectively drives engagement with clear CTAs but misses critical B2B trust elements like client logos or testimonials; legal page serves compliance but doesn't support GTM storytelling.",
+      "businessImpact": "Weak GTM alignment makes it harder for prospects to see why this product fits them now.",
+      "painPoints": [
+        {
+          "title": "Contact page lacks B2B social proof elements",
+          "axisId": "market_alignment",
+          "axisName": "Market Alignment",
+          "pageName": "Contact",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "high",
+          "confidence": 0.85,
+          "evidence": "Contact page (Screenshot 2) presents only contact methods without any proof of credibility (e.g., client logos, case studies, or testimonials).",
+          "explanation": "On Contact, the review found that 'Contact page lacks B2B social proof elements' may not be fully supported. B2B buyers require validation through client logos/testimonials to reduce perceived risk; absence on primary conversion page weakens credibility and conversion potential.",
+          "whyItMatters": "This matters because prospects may not immediately understand why this product is relevant for their context or market. In a GTM context, visible friction in Contact can reduce clarity, trust, or conversion readiness.",
+          "recommendation": "Add a section with 3-4 client logos or a short testimonial quote above contact methods to build trust before engagement.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\002-017_c042_contact.png",
+          "evidenceBundle": null,
+          "aiDiscovered": true
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Consistent navigation and branding across all pages",
+          "pageName": "Screenshot 1",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.6,
+          "evidence": "Consistent navigation and branding across all pages",
+          "explanation": "Consistent navigation and branding across all pages",
+          "whyItMatters": "This helps because prospects may not immediately understand why this product is relevant for their context or market.",
+          "recommendation": "Preserve this strength while addressing higher-priority friction.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\001-016_c041_mentions_legales.png",
+          "evidenceBundle": null
+        }
+      ],
+      "opportunities": [
+        "Add a section with 3-4 client logos or a short testimonial quote above contact methods to build trust before engagement."
+      ],
+      "evidence": [
+        "Contact page (Screenshot 2) presents only contact methods without any proof of credibility (e.g., client logos, case studies, or testimonials)."
+      ],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 40.2,
+        "relevantChecks": 1,
+        "aiDiscoveredFindings": 1
+      },
+      "visionObservation": "Contact page effectively drives engagement with clear CTAs but misses critical B2B trust elements like client logos or testimonials; legal page serves compliance but doesn't support GTM storytelling."
+    }
+  ],
+  "executiveSummary": {
+    "overallScore": 72,
+    "strongestAxis": {
+      "id": "task_execution",
+      "name": "Task Execution",
+      "shortName": "Task Execution",
+      "description": "How clearly the product helps users complete key actions without friction.",
+      "score": 85,
+      "severity": "low",
+      "confidence": 0.9,
+      "summary": "Contact page clearly presents multiple contact methods (address, email, phone, calendar) with minimal friction; legal page is purely informational with no actionable tasks.",
+      "businessImpact": "Friction in key tasks increases drop-off and weakens the product story in a live sales context.",
+      "painPoints": [],
+      "strengths": [
+        {
+          "title": "Consistent navigation and branding across all pages",
+          "pageName": "Screenshot 1",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.6,
+          "evidence": "Consistent navigation and branding across all pages",
+          "explanation": "Consistent navigation and branding across all pages",
+          "whyItMatters": "This helps because core tasks demand more effort than they should.",
+          "recommendation": "Preserve this strength while addressing higher-priority friction.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\001-016_c041_mentions_legales.png",
+          "evidenceBundle": null
+        }
+      ],
+      "opportunities": [
+        "Use the screenshot evidence to refine task execution before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 84.8,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": "Contact page clearly presents multiple contact methods (address, email, phone, calendar) with minimal friction; legal page is purely informational with no actionable tasks."
+    },
+    "weakestAxis": {
+      "id": "market_alignment",
+      "name": "Market Alignment",
+      "shortName": "Market Alignment",
+      "description": "How well the offer, audience cues, proof points, and CTA strategy support a GTM story.",
+      "score": 40,
+      "severity": "high",
+      "confidence": 0.85,
+      "summary": "Contact page effectively drives engagement with clear CTAs but misses critical B2B trust elements like client logos or testimonials; legal page serves compliance but doesn't support GTM storytelling.",
+      "businessImpact": "Weak GTM alignment makes it harder for prospects to see why this product fits them now.",
+      "painPoints": [
+        {
+          "title": "Contact page lacks B2B social proof elements",
+          "axisId": "market_alignment",
+          "axisName": "Market Alignment",
+          "pageName": "Contact",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "high",
+          "confidence": 0.85,
+          "evidence": "Contact page (Screenshot 2) presents only contact methods without any proof of credibility (e.g., client logos, case studies, or testimonials).",
+          "explanation": "On Contact, the review found that 'Contact page lacks B2B social proof elements' may not be fully supported. B2B buyers require validation through client logos/testimonials to reduce perceived risk; absence on primary conversion page weakens credibility and conversion potential.",
+          "whyItMatters": "This matters because prospects may not immediately understand why this product is relevant for their context or market. In a GTM context, visible friction in Contact can reduce clarity, trust, or conversion readiness.",
+          "recommendation": "Add a section with 3-4 client logos or a short testimonial quote above contact methods to build trust before engagement.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\002-017_c042_contact.png",
+          "evidenceBundle": null,
+          "aiDiscovered": true
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Consistent navigation and branding across all pages",
+          "pageName": "Screenshot 1",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.6,
+          "evidence": "Consistent navigation and branding across all pages",
+          "explanation": "Consistent navigation and branding across all pages",
+          "whyItMatters": "This helps because prospects may not immediately understand why this product is relevant for their context or market.",
+          "recommendation": "Preserve this strength while addressing higher-priority friction.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\001-016_c041_mentions_legales.png",
+          "evidenceBundle": null
+        }
+      ],
+      "opportunities": [
+        "Add a section with 3-4 client logos or a short testimonial quote above contact methods to build trust before engagement."
+      ],
+      "evidence": [
+        "Contact page (Screenshot 2) presents only contact methods without any proof of credibility (e.g., client logos, case studies, or testimonials)."
+      ],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 40.2,
+        "relevantChecks": 1,
+        "aiDiscoveredFindings": 1
+      },
+      "visionObservation": "Contact page effectively drives engagement with clear CTAs but misses critical B2B trust elements like client logos or testimonials; legal page serves compliance but doesn't support GTM storytelling."
+    },
+    "summary": "Screenshot Audit scores 72/100 on the screenshot-based GTM UX/UI audit pass. The biggest commercial risk sits in market alignment (40/100).",
+    "positioningHook": "Positions as a professional B2B service provider through clear contact pathways and regulatory compliance, but fails to establish competitive differentiation or social proof needed to convert skeptical enterprise buyers.",
+    "topPriorities": [
+      {
+        "title": "Contact page lacks B2B social proof elements",
+        "axisId": "market_alignment",
+        "axisName": "Market Alignment",
+        "pageName": "Contact",
+        "pageUrl": "",
+        "sourceSheet": "Screenshot AI Review",
+        "severity": "high",
+        "confidence": 0.85,
+        "evidence": "Contact page (Screenshot 2) presents only contact methods without any proof of credibility (e.g., client logos, case studies, or testimonials).",
+        "explanation": "On Contact, the review found that 'Contact page lacks B2B social proof elements' may not be fully supported. B2B buyers require validation through client logos/testimonials to reduce perceived risk; absence on primary conversion page weakens credibility and conversion potential.",
+        "whyItMatters": "This matters because prospects may not immediately understand why this product is relevant for their context or market. In a GTM context, visible friction in Contact can reduce clarity, trust, or conversion readiness.",
+        "recommendation": "Add a section with 3-4 client logos or a short testimonial quote above contact methods to build trust before engagement.",
+        "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\002-017_c042_contact.png",
+        "evidenceBundle": null,
+        "aiDiscovered": true,
+        "axisScore": 40
+      },
+      {
+        "title": "Generic stock imagery reduces authenticity perception",
+        "axisId": "visual_brand",
+        "axisName": "Visual Brand",
+        "pageName": "Contact",
+        "pageUrl": "",
+        "sourceSheet": "Screenshot AI Review",
+        "severity": "medium",
+        "confidence": 0.8,
+        "evidence": "Contact page (Screenshot 2) uses blurred, non-unique office background that lacks company-specific elements or human presence.",
+        "explanation": "On Contact, the review found that 'Generic stock imagery reduces authenticity perception' may not be fully supported. B2B buyers expect authentic company representation; generic office background appears impersonal and fails to differentiate the brand.",
+        "whyItMatters": "This matters because the interface does not project enough confidence, polish, or brand distinctiveness at first glance. In a GTM context, visible friction in Contact can reduce clarity, trust, or conversion readiness.",
+        "recommendation": "Replace with custom photo of actual office space or team members (with consent) to enhance authenticity and trust.",
+        "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\002-017_c042_contact.png",
+        "evidenceBundle": null,
+        "aiDiscovered": true,
+        "axisScore": 62
+      },
+      {
+        "title": "Generic stock office background on contact page",
+        "axisId": "visual_brand",
+        "axisName": "Visual Brand",
+        "pageName": "Contact",
+        "pageUrl": "",
+        "sourceSheet": "Screenshot AI Review",
+        "severity": "medium",
+        "confidence": 0.8,
+        "evidence": "Blurred office background image (Screenshot 2) shows generic shelves/desk without unique company elements or human presence",
+        "explanation": "On Contact, the review found that 'Generic stock office background on contact page' may not be fully supported. Blurred office background image (Screenshot 2) shows generic shelves/desk without unique company elements or human presence",
+        "whyItMatters": "B2B buyers seek authentic company representation; generic imagery reduces perceived credibility and fails to differentiate from competitors using similar stock assets",
+        "recommendation": "Replace with custom photography showing actual workspace or team to build genuine connection",
+        "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\002-017_c042_contact.png",
+        "evidenceBundle": null,
+        "aiDiscovered": true,
+        "axisScore": 62
+      },
+      {
+        "title": "Inconsistent language in calendar link",
+        "axisId": "content_microcopy",
+        "axisName": "Content & Microcopy",
+        "pageName": "Contact",
+        "pageUrl": "",
+        "sourceSheet": "Screenshot AI Review",
+        "severity": "low",
+        "confidence": 0.9,
+        "evidence": "Link labeled 'Calendar google' instead of standard French term 'Calendrier Google'",
+        "explanation": "On Contact, the review found that 'Inconsistent language in calendar link' may not be fully supported. Link labeled 'Calendar google' instead of standard French term 'Calendrier Google'",
+        "whyItMatters": "Undermines brand professionalism in French market; inconsistent terminology creates subtle credibility gaps for local buyers.",
+        "recommendation": "Use 'Calendrier Google' to align with French language standards and maintain brand polish.",
+        "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\8b8e83d27a74\\uploads\\002-017_c042_contact.png",
+        "evidenceBundle": null,
+        "aiDiscovered": true,
+        "axisScore": 85
+      }
+    ]
+  },
+  "recommendations": [
+    {
+      "priority": "Critical",
+      "title": "Contact page lacks B2B social proof elements",
+      "description": "Add a section with 3-4 client logos or a short testimonial quote above contact methods to build trust before engagement.",
+      "impact": "Screen or area: Contact",
+      "axis": "Market Alignment"
+    },
+    {
+      "priority": "High",
+      "title": "Generic stock imagery reduces authenticity perception",
+      "description": "Replace with custom photo of actual office space or team members (with consent) to enhance authenticity and trust.",
+      "impact": "Screen or area: Contact",
+      "axis": "Visual Brand"
+    },
+    {
+      "priority": "High",
+      "title": "Generic stock office background on contact page",
+      "description": "Replace with custom photography showing actual workspace or team to build genuine connection",
+      "impact": "Screen or area: Contact",
+      "axis": "Visual Brand"
+    },
+    {
+      "priority": "Medium",
+      "title": "Inconsistent language in calendar link",
+      "description": "Use 'Calendrier Google' to align with French language standards and maintain brand polish.",
+      "impact": "Screen or area: Contact",
+      "axis": "Content & Microcopy"
+    }
+  ],
+  "artifacts": {
+    "websiteMenu": "",
+    "cleanedPath": "",
+    "renderedPath": "",
+    "checksPath": ""
+  }
+}

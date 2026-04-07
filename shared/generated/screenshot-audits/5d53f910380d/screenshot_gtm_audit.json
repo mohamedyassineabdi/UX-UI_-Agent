@@ -1,0 +1,736 @@
+{
+  "version": 1,
+  "mode": "screenshot",
+  "generator": "src.gtm_audit.generate_screenshot_gtm_audit",
+  "site": {
+    "homepage": "",
+    "domain": "uploaded-screenshots",
+    "display_name": "Screenshot Audit",
+    "language": ""
+  },
+  "context": {
+    "siteType": "Screenshot audit",
+    "pagesAudited": 2,
+    "topLevelNavigation": "N/A",
+    "auditAxes": 7,
+    "approach": "User-uploaded screenshots reviewed by the multimodal GTM synthesis layer against the same seven UX/UI audit axes."
+  },
+  "methodology": [
+    {
+      "step": "Upload",
+      "description": "Screenshots are uploaded directly by the user and preserved as report evidence."
+    },
+    {
+      "step": "Vision Review",
+      "description": "A multimodal model reviews visible UI evidence against seven GTM UX/UI axes."
+    },
+    {
+      "step": "Prioritization",
+      "description": "The highest-impact issues are translated into sales-facing recommendations and a static report."
+    }
+  ],
+  "profile": {
+    "site": {
+      "homepage": "",
+      "domain": "uploaded-screenshots",
+      "display_name": "Screenshot Audit",
+      "language": ""
+    },
+    "counts": {
+      "pages": 2,
+      "topLevelNavigation": 0,
+      "navigationItems": 0
+    },
+    "source": "uploaded screenshots",
+    "visual_review_goal": "Evaluate uploaded UI screenshots against the same seven GTM UX/UI audit axes used by the website audit mode."
+  },
+  "focusScreenshots": [
+    {
+      "page_name": "Screenshot 1",
+      "page_url": "",
+      "title": "001 016 c041 mentions legales",
+      "source_type": "uploaded_screenshot",
+      "reason": "User-uploaded screenshot for GTM UX/UI review",
+      "screenshot_path": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\001-016_c041_mentions_legales.png"
+    },
+    {
+      "page_name": "Screenshot 2",
+      "page_url": "",
+      "title": "002 017 c042 contact",
+      "source_type": "uploaded_screenshot",
+      "reason": "User-uploaded screenshot for GTM UX/UI review",
+      "screenshot_path": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\002-017_c042_contact.png"
+    }
+  ],
+  "scannedPages": [
+    {
+      "page_name": "Screenshot 1",
+      "page_url": "",
+      "title": "001 016 c041 mentions legales",
+      "source_type": "uploaded_screenshot",
+      "reason": "User-uploaded screenshot for GTM UX/UI review",
+      "screenshot_path": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\001-016_c041_mentions_legales.png"
+    },
+    {
+      "page_name": "Screenshot 2",
+      "page_url": "",
+      "title": "002 017 c042 contact",
+      "source_type": "uploaded_screenshot",
+      "reason": "User-uploaded screenshot for GTM UX/UI review",
+      "screenshot_path": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\002-017_c042_contact.png"
+    }
+  ],
+  "visionReview": {
+    "enabled": true,
+    "model": "qwen3-vl:235b-cloud",
+    "used_images": 2,
+    "error": "",
+    "result": {
+      "site_summary": "Two-page review of WeeFizz legal and contact pages showing consistent branding but with trust and microcopy issues in B2B context",
+      "axes": {
+        "task_execution": {
+          "observation": "Contact page clearly presents three contact methods but lacks actionable next steps beyond basic information; legal page is purely informational with no user tasks",
+          "severity": "low",
+          "confidence": 0.8
+        },
+        "flow_architecture": {
+          "observation": "Navigation is consistent across pages with logical footer placement for legal page, but contact page lacks contextual breadcrumbs for user journey",
+          "severity": "low",
+          "confidence": 0.9
+        },
+        "trust_accessibility": {
+          "observation": "Legal page provides comprehensive company details (RCS, SIRET, address) which builds credibility, but contact page misses social proof elements expected in B2B",
+          "severity": "medium",
+          "confidence": 0.85
+        },
+        "ui_consistency": {
+          "observation": "Header/footer consistent across pages with uniform green color scheme and spacing; contact page uses consistent iconography for contact methods",
+          "severity": "low",
+          "confidence": 0.95
+        },
+        "visual_brand": {
+          "observation": "Green color scheme aligns with brand but contact page background image is generic office scene that doesn't reinforce B2B value proposition",
+          "severity": "medium",
+          "confidence": 0.7
+        },
+        "content_microcopy": {
+          "observation": "Contact page labels are clear but booking link text 'Calendar google' is non-standard and may confuse international users; legal page uses precise regulatory language",
+          "severity": "medium",
+          "confidence": 0.8
+        },
+        "market_alignment": {
+          "observation": "Contact page fails to leverage B2B trust signals (client logos, case studies); legal page overemphasizes compliance over commercial value",
+          "severity": "high",
+          "confidence": 0.75
+        }
+      },
+      "priority_issues": [
+        {
+          "axis_id": "content_microcopy",
+          "title": "Non-standard booking link terminology",
+          "severity": "medium",
+          "confidence": 0.8,
+          "page_name": "Screenshot 2",
+          "page_url": "",
+          "screenshot_index": 1,
+          "reason": "Confusing terminology reduces conversion potential in international B2B context",
+          "evidence": "Booking link under 'Prendre rendez-vous' reads 'Calendar google' instead of standard 'Google Calendar'",
+          "recommendation": "Use standardized terminology 'Google Calendar' with proper capitalization",
+          "visual_region": {
+            "x": 0.76,
+            "y": 0.43,
+            "width": 0.12,
+            "height": 0.02,
+            "coordinate_system": "normalized_0_1",
+            "description": "Link text 'Calendar google' in booking section"
+          },
+          "outside_workbook": false
+        }
+      ],
+      "criteria_discoveries": [],
+      "visual_trust_findings": [
+        {
+          "axis_id": "visual_brand",
+          "title": "Generic background imagery on contact page",
+          "severity": "medium",
+          "confidence": 0.7,
+          "visual_signal_type": "generic_stock_imagery",
+          "page_name": "Screenshot 2",
+          "page_url": "",
+          "screenshot_index": 1,
+          "evidence": "Blurred office background with green overlay appears as generic stock imagery lacking authentic workplace context",
+          "why_it_matters": "In B2B, generic stock imagery undermines credibility and fails to demonstrate real-world client environment",
+          "recommendation": "Replace with custom imagery showing actual team/workspace or client-specific scenarios",
+          "visual_region": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 1.0,
+            "height": 0.25,
+            "coordinate_system": "normalized_0_1",
+            "description": "Full hero section background image"
+          },
+          "outside_workbook": true
+        }
+      ],
+      "strengths": [
+        "Comprehensive legal information with verified company details (RCS/SIRET)",
+        "Consistent navigation and color scheme across pages",
+        "Clear contact information with multiple verified channels"
+      ],
+      "market_positioning": "Positioned as a compliant B2B service provider but lacks persuasive trust elements and value-driven storytelling needed for enterprise sales cycles"
+    }
+  },
+  "aiDiscoveredFindings": [
+    {
+      "title": "Generic background imagery on contact page",
+      "axisId": "visual_brand",
+      "axisName": "Visual Brand",
+      "pageName": "Screenshot 2",
+      "pageUrl": "",
+      "sourceSheet": "Screenshot AI Review",
+      "severity": "medium",
+      "confidence": 0.7,
+      "evidence": "Blurred office background with green overlay appears as generic stock imagery lacking authentic workplace context",
+      "explanation": "On Screenshot 2, the review found that 'Generic background imagery on contact page' may not be fully supported. Blurred office background with green overlay appears as generic stock imagery lacking authentic workplace context",
+      "whyItMatters": "In B2B, generic stock imagery undermines credibility and fails to demonstrate real-world client environment",
+      "recommendation": "Replace with custom imagery showing actual team/workspace or client-specific scenarios",
+      "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\002-017_c042_contact.png",
+      "visualRegion": {
+        "x": 0.0,
+        "y": 0.0,
+        "width": 1.0,
+        "height": 0.25,
+        "coordinate_system": "normalized_0_1",
+        "description": "Full hero section background image"
+      },
+      "evidenceBundle": null,
+      "aiDiscovered": true,
+      "axisScore": 60
+    },
+    {
+      "title": "Non-standard booking link terminology",
+      "axisId": "content_microcopy",
+      "axisName": "Content & Microcopy",
+      "pageName": "Screenshot 2",
+      "pageUrl": "",
+      "sourceSheet": "Screenshot AI Review",
+      "severity": "medium",
+      "confidence": 0.8,
+      "evidence": "Booking link under 'Prendre rendez-vous' reads 'Calendar google' instead of standard 'Google Calendar'",
+      "explanation": "On Screenshot 2, the review found that 'Non-standard booking link terminology' may not be fully supported. Confusing terminology reduces conversion potential in international B2B context",
+      "whyItMatters": "This matters because the value proposition and interaction cues are harder to understand than they should be. In a GTM context, visible friction in Screenshot 2 can reduce clarity, trust, or conversion readiness.",
+      "recommendation": "Use standardized terminology 'Google Calendar' with proper capitalization",
+      "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\002-017_c042_contact.png",
+      "visualRegion": {
+        "x": 0.76,
+        "y": 0.43,
+        "width": 0.12,
+        "height": 0.02,
+        "coordinate_system": "normalized_0_1",
+        "description": "Link text 'Calendar google' in booking section"
+      },
+      "evidenceBundle": null,
+      "aiDiscovered": true,
+      "axisScore": 62
+    }
+  ],
+  "axes": [
+    {
+      "id": "task_execution",
+      "name": "Task Execution",
+      "shortName": "Task Execution",
+      "description": "How clearly the product helps users complete key actions without friction.",
+      "score": 84,
+      "severity": "low",
+      "confidence": 0.8,
+      "summary": "Contact page clearly presents three contact methods but lacks actionable next steps beyond basic information; legal page is purely informational with no user tasks",
+      "businessImpact": "Friction in key tasks increases drop-off and weakens the product story in a live sales context.",
+      "painPoints": [],
+      "strengths": [
+        {
+          "title": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "pageName": "Screenshot 1",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.6,
+          "evidence": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "explanation": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "whyItMatters": "This helps because core tasks demand more effort than they should.",
+          "recommendation": "Preserve this strength while addressing higher-priority friction.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\001-016_c041_mentions_legales.png",
+          "evidenceBundle": null
+        }
+      ],
+      "opportunities": [
+        "Use the screenshot evidence to refine task execution before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 83.6,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": "Contact page clearly presents three contact methods but lacks actionable next steps beyond basic information; legal page is purely informational with no user tasks"
+    },
+    {
+      "id": "flow_architecture",
+      "name": "Flow & Architecture",
+      "shortName": "Flow & Architecture",
+      "description": "How understandable the information architecture and navigation model feel.",
+      "score": 85,
+      "severity": "low",
+      "confidence": 0.9,
+      "summary": "Navigation is consistent across pages with logical footer placement for legal page, but contact page lacks contextual breadcrumbs for user journey",
+      "businessImpact": "Weak architecture slows comprehension and makes the offer feel less mature.",
+      "painPoints": [],
+      "strengths": [
+        {
+          "title": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "pageName": "Screenshot 1",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.6,
+          "evidence": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "explanation": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "whyItMatters": "This helps because people struggle to understand where they are, what comes next, or how the product is organized.",
+          "recommendation": "Preserve this strength while addressing higher-priority friction.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\001-016_c041_mentions_legales.png",
+          "evidenceBundle": null
+        }
+      ],
+      "opportunities": [
+        "Use the screenshot evidence to refine flow & architecture before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 84.8,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": "Navigation is consistent across pages with logical footer placement for legal page, but contact page lacks contextual breadcrumbs for user journey"
+    },
+    {
+      "id": "trust_accessibility",
+      "name": "Trust & Accessibility",
+      "shortName": "Trust & Accessibility",
+      "description": "How credible, safe, and accessible the experience appears for real-world usage.",
+      "score": 62,
+      "severity": "medium",
+      "confidence": 0.85,
+      "summary": "Legal page provides comprehensive company details (RCS, SIRET, address) which builds credibility, but contact page misses social proof elements expected in B2B",
+      "businessImpact": "Trust and accessibility gaps create perceived risk and narrow the reachable audience.",
+      "painPoints": [],
+      "strengths": [
+        {
+          "title": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "pageName": "Screenshot 1",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.6,
+          "evidence": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "explanation": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "whyItMatters": "This helps because parts of the experience may not feel safe, inclusive, or reliable enough.",
+          "recommendation": "Preserve this strength while addressing higher-priority friction.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\001-016_c041_mentions_legales.png",
+          "evidenceBundle": null
+        }
+      ],
+      "opportunities": [
+        "Use the screenshot evidence to refine trust & accessibility before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 62.2,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": "Legal page provides comprehensive company details (RCS, SIRET, address) which builds credibility, but contact page misses social proof elements expected in B2B"
+    },
+    {
+      "id": "ui_consistency",
+      "name": "UI Consistency",
+      "shortName": "UI Consistency",
+      "description": "How consistently components, styles, spacing, and interaction patterns are applied.",
+      "score": 85,
+      "severity": "low",
+      "confidence": 0.95,
+      "summary": "Header/footer consistent across pages with uniform green color scheme and spacing; contact page uses consistent iconography for contact methods",
+      "businessImpact": "Inconsistent UI signals reduce perceived product maturity and scalability.",
+      "painPoints": [],
+      "strengths": [
+        {
+          "title": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "pageName": "Screenshot 1",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.6,
+          "evidence": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "explanation": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "whyItMatters": "This helps because recurring patterns do not behave or look consistently, which makes the product feel less mature.",
+          "recommendation": "Preserve this strength while addressing higher-priority friction.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\001-016_c041_mentions_legales.png",
+          "evidenceBundle": null
+        }
+      ],
+      "opportunities": [
+        "Use the screenshot evidence to refine ui consistency before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 85.4,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": "Header/footer consistent across pages with uniform green color scheme and spacing; contact page uses consistent iconography for contact methods"
+    },
+    {
+      "id": "visual_brand",
+      "name": "Visual Brand",
+      "shortName": "Visual Brand",
+      "description": "How the visual direction expresses the brand and supports persuasive storytelling.",
+      "score": 60,
+      "severity": "medium",
+      "confidence": 0.7,
+      "summary": "Green color scheme aligns with brand but contact page background image is generic office scene that doesn't reinforce B2B value proposition",
+      "businessImpact": "A weak visual narrative lowers memorability and product differentiation.",
+      "painPoints": [
+        {
+          "title": "Generic background imagery on contact page",
+          "axisId": "visual_brand",
+          "axisName": "Visual Brand",
+          "pageName": "Screenshot 2",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "medium",
+          "confidence": 0.7,
+          "evidence": "Blurred office background with green overlay appears as generic stock imagery lacking authentic workplace context",
+          "explanation": "On Screenshot 2, the review found that 'Generic background imagery on contact page' may not be fully supported. Blurred office background with green overlay appears as generic stock imagery lacking authentic workplace context",
+          "whyItMatters": "In B2B, generic stock imagery undermines credibility and fails to demonstrate real-world client environment",
+          "recommendation": "Replace with custom imagery showing actual team/workspace or client-specific scenarios",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\002-017_c042_contact.png",
+          "visualRegion": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 1.0,
+            "height": 0.25,
+            "coordinate_system": "normalized_0_1",
+            "description": "Full hero section background image"
+          },
+          "evidenceBundle": null,
+          "aiDiscovered": true
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "pageName": "Screenshot 1",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.6,
+          "evidence": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "explanation": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "whyItMatters": "This helps because the interface does not project enough confidence, polish, or brand distinctiveness at first glance.",
+          "recommendation": "Preserve this strength while addressing higher-priority friction.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\001-016_c041_mentions_legales.png",
+          "evidenceBundle": null
+        }
+      ],
+      "opportunities": [
+        "Replace with custom imagery showing actual team/workspace or client-specific scenarios"
+      ],
+      "evidence": [
+        "Blurred office background with green overlay appears as generic stock imagery lacking authentic workplace context"
+      ],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 60.4,
+        "relevantChecks": 1,
+        "aiDiscoveredFindings": 1
+      },
+      "visionObservation": "Green color scheme aligns with brand but contact page background image is generic office scene that doesn't reinforce B2B value proposition"
+    },
+    {
+      "id": "content_microcopy",
+      "name": "Content & Microcopy",
+      "shortName": "Content & Microcopy",
+      "description": "How clearly messaging, labels, and calls to action communicate value and next steps.",
+      "score": 62,
+      "severity": "medium",
+      "confidence": 0.8,
+      "summary": "Contact page labels are clear but booking link text 'Calendar google' is non-standard and may confuse international users; legal page uses precise regulatory language",
+      "businessImpact": "Unclear messaging makes the value proposition harder to understand and repeat.",
+      "painPoints": [
+        {
+          "title": "Non-standard booking link terminology",
+          "axisId": "content_microcopy",
+          "axisName": "Content & Microcopy",
+          "pageName": "Screenshot 2",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "medium",
+          "confidence": 0.8,
+          "evidence": "Booking link under 'Prendre rendez-vous' reads 'Calendar google' instead of standard 'Google Calendar'",
+          "explanation": "On Screenshot 2, the review found that 'Non-standard booking link terminology' may not be fully supported. Confusing terminology reduces conversion potential in international B2B context",
+          "whyItMatters": "This matters because the value proposition and interaction cues are harder to understand than they should be. In a GTM context, visible friction in Screenshot 2 can reduce clarity, trust, or conversion readiness.",
+          "recommendation": "Use standardized terminology 'Google Calendar' with proper capitalization",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\002-017_c042_contact.png",
+          "visualRegion": {
+            "x": 0.76,
+            "y": 0.43,
+            "width": 0.12,
+            "height": 0.02,
+            "coordinate_system": "normalized_0_1",
+            "description": "Link text 'Calendar google' in booking section"
+          },
+          "evidenceBundle": null,
+          "aiDiscovered": true
+        }
+      ],
+      "strengths": [
+        {
+          "title": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "pageName": "Screenshot 1",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.6,
+          "evidence": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "explanation": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "whyItMatters": "This helps because the value proposition and interaction cues are harder to understand than they should be.",
+          "recommendation": "Preserve this strength while addressing higher-priority friction.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\001-016_c041_mentions_legales.png",
+          "evidenceBundle": null
+        }
+      ],
+      "opportunities": [
+        "Use standardized terminology 'Google Calendar' with proper capitalization"
+      ],
+      "evidence": [
+        "Booking link under 'Prendre rendez-vous' reads 'Calendar google' instead of standard 'Google Calendar'"
+      ],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 61.6,
+        "relevantChecks": 1,
+        "aiDiscoveredFindings": 1
+      },
+      "visionObservation": "Contact page labels are clear but booking link text 'Calendar google' is non-standard and may confuse international users; legal page uses precise regulatory language"
+    },
+    {
+      "id": "market_alignment",
+      "name": "Market Alignment",
+      "shortName": "Market Alignment",
+      "description": "How well the offer, audience cues, proof points, and CTA strategy support a GTM story.",
+      "score": 39,
+      "severity": "high",
+      "confidence": 0.75,
+      "summary": "Contact page fails to leverage B2B trust signals (client logos, case studies); legal page overemphasizes compliance over commercial value",
+      "businessImpact": "Weak GTM alignment makes it harder for prospects to see why this product fits them now.",
+      "painPoints": [],
+      "strengths": [
+        {
+          "title": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "pageName": "Screenshot 1",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.6,
+          "evidence": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "explanation": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "whyItMatters": "This helps because prospects may not immediately understand why this product is relevant for their context or market.",
+          "recommendation": "Preserve this strength while addressing higher-priority friction.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\001-016_c041_mentions_legales.png",
+          "evidenceBundle": null
+        }
+      ],
+      "opportunities": [
+        "Use the screenshot evidence to refine market alignment before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 39.0,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": "Contact page fails to leverage B2B trust signals (client logos, case studies); legal page overemphasizes compliance over commercial value"
+    }
+  ],
+  "executiveSummary": {
+    "overallScore": 68,
+    "strongestAxis": {
+      "id": "flow_architecture",
+      "name": "Flow & Architecture",
+      "shortName": "Flow & Architecture",
+      "description": "How understandable the information architecture and navigation model feel.",
+      "score": 85,
+      "severity": "low",
+      "confidence": 0.9,
+      "summary": "Navigation is consistent across pages with logical footer placement for legal page, but contact page lacks contextual breadcrumbs for user journey",
+      "businessImpact": "Weak architecture slows comprehension and makes the offer feel less mature.",
+      "painPoints": [],
+      "strengths": [
+        {
+          "title": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "pageName": "Screenshot 1",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.6,
+          "evidence": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "explanation": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "whyItMatters": "This helps because people struggle to understand where they are, what comes next, or how the product is organized.",
+          "recommendation": "Preserve this strength while addressing higher-priority friction.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\001-016_c041_mentions_legales.png",
+          "evidenceBundle": null
+        }
+      ],
+      "opportunities": [
+        "Use the screenshot evidence to refine flow & architecture before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 84.8,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": "Navigation is consistent across pages with logical footer placement for legal page, but contact page lacks contextual breadcrumbs for user journey"
+    },
+    "weakestAxis": {
+      "id": "market_alignment",
+      "name": "Market Alignment",
+      "shortName": "Market Alignment",
+      "description": "How well the offer, audience cues, proof points, and CTA strategy support a GTM story.",
+      "score": 39,
+      "severity": "high",
+      "confidence": 0.75,
+      "summary": "Contact page fails to leverage B2B trust signals (client logos, case studies); legal page overemphasizes compliance over commercial value",
+      "businessImpact": "Weak GTM alignment makes it harder for prospects to see why this product fits them now.",
+      "painPoints": [],
+      "strengths": [
+        {
+          "title": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "pageName": "Screenshot 1",
+          "pageUrl": "",
+          "sourceSheet": "Screenshot AI Review",
+          "severity": "low",
+          "confidence": 0.6,
+          "evidence": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "explanation": "Comprehensive legal information with verified company details (RCS/SIRET)",
+          "whyItMatters": "This helps because prospects may not immediately understand why this product is relevant for their context or market.",
+          "recommendation": "Preserve this strength while addressing higher-priority friction.",
+          "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\001-016_c041_mentions_legales.png",
+          "evidenceBundle": null
+        }
+      ],
+      "opportunities": [
+        "Use the screenshot evidence to refine market alignment before launch."
+      ],
+      "evidence": [],
+      "signals": {
+        "rowScore": null,
+        "heuristicScore": null,
+        "visionScore": 39.0,
+        "relevantChecks": 0,
+        "aiDiscoveredFindings": 0
+      },
+      "visionObservation": "Contact page fails to leverage B2B trust signals (client logos, case studies); legal page overemphasizes compliance over commercial value"
+    },
+    "summary": "Screenshot Audit scores 68/100 on the screenshot-based GTM UX/UI audit pass. The biggest commercial risk sits in market alignment (39/100).",
+    "positioningHook": "Positioned as a compliant B2B service provider but lacks persuasive trust elements and value-driven storytelling needed for enterprise sales cycles",
+    "topPriorities": [
+      {
+        "title": "Generic background imagery on contact page",
+        "axisId": "visual_brand",
+        "axisName": "Visual Brand",
+        "pageName": "Screenshot 2",
+        "pageUrl": "",
+        "sourceSheet": "Screenshot AI Review",
+        "severity": "medium",
+        "confidence": 0.7,
+        "evidence": "Blurred office background with green overlay appears as generic stock imagery lacking authentic workplace context",
+        "explanation": "On Screenshot 2, the review found that 'Generic background imagery on contact page' may not be fully supported. Blurred office background with green overlay appears as generic stock imagery lacking authentic workplace context",
+        "whyItMatters": "In B2B, generic stock imagery undermines credibility and fails to demonstrate real-world client environment",
+        "recommendation": "Replace with custom imagery showing actual team/workspace or client-specific scenarios",
+        "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\002-017_c042_contact.png",
+        "visualRegion": {
+          "x": 0.0,
+          "y": 0.0,
+          "width": 1.0,
+          "height": 0.25,
+          "coordinate_system": "normalized_0_1",
+          "description": "Full hero section background image"
+        },
+        "evidenceBundle": null,
+        "aiDiscovered": true,
+        "axisScore": 60
+      },
+      {
+        "title": "Non-standard booking link terminology",
+        "axisId": "content_microcopy",
+        "axisName": "Content & Microcopy",
+        "pageName": "Screenshot 2",
+        "pageUrl": "",
+        "sourceSheet": "Screenshot AI Review",
+        "severity": "medium",
+        "confidence": 0.8,
+        "evidence": "Booking link under 'Prendre rendez-vous' reads 'Calendar google' instead of standard 'Google Calendar'",
+        "explanation": "On Screenshot 2, the review found that 'Non-standard booking link terminology' may not be fully supported. Confusing terminology reduces conversion potential in international B2B context",
+        "whyItMatters": "This matters because the value proposition and interaction cues are harder to understand than they should be. In a GTM context, visible friction in Screenshot 2 can reduce clarity, trust, or conversion readiness.",
+        "recommendation": "Use standardized terminology 'Google Calendar' with proper capitalization",
+        "screenshotPath": "C:\\dev\\UX-UI_-Agent\\shared\\generated\\screenshot-audits\\5d53f910380d\\uploads\\002-017_c042_contact.png",
+        "visualRegion": {
+          "x": 0.76,
+          "y": 0.43,
+          "width": 0.12,
+          "height": 0.02,
+          "coordinate_system": "normalized_0_1",
+          "description": "Link text 'Calendar google' in booking section"
+        },
+        "evidenceBundle": null,
+        "aiDiscovered": true,
+        "axisScore": 62
+      }
+    ]
+  },
+  "recommendations": [
+    {
+      "priority": "High",
+      "title": "Generic background imagery on contact page",
+      "description": "Replace with custom imagery showing actual team/workspace or client-specific scenarios",
+      "impact": "Screen or area: Screenshot 2",
+      "axis": "Visual Brand"
+    },
+    {
+      "priority": "High",
+      "title": "Non-standard booking link terminology",
+      "description": "Use standardized terminology 'Google Calendar' with proper capitalization",
+      "impact": "Screen or area: Screenshot 2",
+      "axis": "Content & Microcopy"
+    }
+  ],
+  "artifacts": {
+    "websiteMenu": "",
+    "cleanedPath": "",
+    "renderedPath": "",
+    "checksPath": ""
+  }
+}

@@ -373,18 +373,18 @@ def postprocess(data: Dict[str, Any]) -> Dict[str, Any]:
     out = deepcopy(data)
     pages = out.get("pages", [])
     out["pages"] = [refine_page(page) for page in pages]
-    out["source"] = "person_a_cleaned"
-    out["generatedFrom"] = "src.audit.person_a_postprocess"
+    out["source"] = "html_cleaned"
+    out["generatedFrom"] = "src.audit.html_postprecess"
     return out
 
 
-def clean_person_a_output(data: Dict[str, Any]) -> Dict[str, Any]:
+def clean_html_output(data: Dict[str, Any]) -> Dict[str, Any]:
     return postprocess(data)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", required=True, help="Path to person_a_extraction.json")
+    parser.add_argument("--input", required=True, help="Path to html_extraction.json")
     parser.add_argument("--output", required=True, help="Path to cleaned output json")
     args = parser.parse_args()
 

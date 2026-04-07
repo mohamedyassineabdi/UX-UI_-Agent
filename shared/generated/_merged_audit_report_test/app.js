@@ -1,4 +1,5 @@
 const reportData = JSON.parse(document.getElementById("report-data").textContent);
+const LIGHTBOX_RENDER_QUEUE = new WeakSet();
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -57,6 +58,36 @@ function renderSourceLinks(sourcePages) {
     .join("")}</div>`;
 }
 
+function renderHeader() {
+  const nameTarget = document.getElementById("client-brand-name");
+  const logoWrap = document.getElementById("client-brand-logo-wrap");
+  const logo = document.getElementById("client-brand-logo");
+
+  if (nameTarget) {
+    nameTarget.textContent = reportData.site.displayName || reportData.site.domain || reportData.site.title;
+  }
+
+  if (!logoWrap || !logo) return;
+
+  if (reportData.site.logo) {
+    logo.src = reportData.site.logo;
+    logo.alt = `${reportData.site.displayName || reportData.site.domain || "Client"} logo`;
+    logoWrap.classList.remove("is-empty");
+  } else {
+    logo.removeAttribute("src");
+    logo.alt = "";
+    logoWrap.classList.add("is-empty");
+  }
+}
+
+function safeRender(name, fn) {
+  try {
+    fn();
+  } catch (error) {
+    console.error(`Report render failed in ${name}`, error);
+  }
+}
+
 function screenshotFigure(item, compact = false) {
   const shot = item.evidenceShot || item.screenshot;
   const spotlight = item.spotlight;
@@ -80,11 +111,19 @@ function screenshotFigure(item, compact = false) {
     `;
   }
 
-  return `
-    <button class="shot-frame ${compact ? "compact" : ""}" data-shot="${escapeHtml(shot)}" data-alt="${escapeHtml(item.criterion || item.name || "Audit screenshot")}">
-      <img src="${escapeHtml(shot)}" alt="${escapeHtml(item.criterion || item.name || "Audit screenshot")}" loading="lazy">
-    </button>
-  `;
+  if (shot) {
+    const preview = JSON.stringify({
+      image: shot,
+      frame: { width: 1920, height: 1080 },
+    });
+    return `
+      <button class="shot-frame preview-frame ${compact ? "compact" : ""}" data-alt="${escapeHtml(item.criterion || item.name || "Audit screenshot")}">
+        <canvas class="preview-canvas" data-preview='${escapeHtml(preview)}' aria-label="${escapeHtml(item.criterion || item.name || "Audit screenshot")}"></canvas>
+      </button>
+    `;
+  }
+
+  return "";
 }
 
 function drawRoundedRect(ctx, x, y, width, height, radius) {
@@ -111,9 +150,48 @@ function setRenderedShot(canvas) {
   } catch {
     button.dataset.shot = "";
   }
+
+  canvas.dataset.rendered = "true";
+  canvas.dataset.rendering = "";
+
+  if (button.dataset.pendingOpen === "true" && button.dataset.shot) {
+    button.dataset.pendingOpen = "";
+    openLightboxWithTrigger(button);
+  }
+}
+
+function markRenderFailed(canvas) {
+  canvas.dataset.rendering = "";
+  canvas.dataset.renderFailed = "true";
+}
+
+function renderDimensionsForCanvas(canvas, frameWidth, frameHeight, minimumWidth) {
+  const ratio = frameWidth / frameHeight;
+  const cssWidth = Math.max(
+    minimumWidth,
+    Math.ceil(canvas.getBoundingClientRect().width || canvas.parentElement?.getBoundingClientRect().width || minimumWidth),
+  );
+  const renderWidth = Math.max(
+    minimumWidth,
+    Math.min(frameWidth, Math.ceil(cssWidth * Math.max(1, Math.min(window.devicePixelRatio || 1, 2)))),
+  );
+  const renderHeight = Math.max(1, Math.round(renderWidth / ratio));
+  return { width: renderWidth, height: renderHeight };
+}
+
+function openLightboxWithTrigger(trigger) {
+  const dialog = document.getElementById("lightbox");
+  const image = document.getElementById("lightbox-image");
+  image.src = trigger.dataset.shot;
+  image.alt = trigger.dataset.alt || "Audit screenshot";
+  if (typeof dialog.showModal === "function") {
+    dialog.showModal();
+  }
 }
 
 function renderSpotlightCanvas(canvas) {
+  if (!canvas || canvas.dataset.rendered === "true" || canvas.dataset.rendering === "true") return;
+
   const raw = canvas.dataset.spotlight;
   if (!raw) return;
 
@@ -123,6 +201,8 @@ function renderSpotlightCanvas(canvas) {
   } catch {
     return;
   }
+
+  canvas.dataset.rendering = "true";
 
   const image = new Image();
   image.loading = "lazy";
@@ -138,16 +218,17 @@ function renderSpotlightCanvas(canvas) {
 
     const frameWidth = Math.max(1, Number(spotlight.frame?.width) || 1920);
     const frameHeight = Math.max(1, Number(spotlight.frame?.height) || 1080);
-    const scaleX = frameWidth / cropWidth;
-    const scaleY = frameHeight / cropHeight;
+    const renderSize = renderDimensionsForCanvas(canvas, frameWidth, frameHeight, 640);
+    const scaleX = renderSize.width / cropWidth;
+    const scaleY = renderSize.height / cropHeight;
 
-    canvas.width = frameWidth;
-    canvas.height = frameHeight;
+    canvas.width = renderSize.width;
+    canvas.height = renderSize.height;
     canvas.style.aspectRatio = `${frameWidth} / ${frameHeight}`;
 
     const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, frameWidth, frameHeight);
-    ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, frameWidth, frameHeight);
+    ctx.clearRect(0, 0, renderSize.width, renderSize.height);
+    ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, renderSize.width, renderSize.height);
 
     const highlightX = ((spotlight.highlight?.x || 0) - cropX) * scaleX;
     const highlightY = ((spotlight.highlight?.y || 0) - cropY) * scaleY;
@@ -158,19 +239,19 @@ function renderSpotlightCanvas(canvas) {
       const inset = 1.5;
       const boundedX = Math.max(inset, highlightX);
       const boundedY = Math.max(inset, highlightY);
-      const boundedW = Math.max(8, Math.min(frameWidth - boundedX - inset, highlightW));
-      const boundedH = Math.max(8, Math.min(frameHeight - boundedY - inset, highlightH));
+      const boundedW = Math.max(8, Math.min(renderSize.width - boundedX - inset, highlightW));
+      const boundedH = Math.max(8, Math.min(renderSize.height - boundedY - inset, highlightH));
 
       ctx.save();
       ctx.strokeStyle = "#ef2b2d";
-      ctx.lineWidth = Math.max(3, frameWidth / 640);
+      ctx.lineWidth = Math.max(2.5, renderSize.width / 640);
       drawRoundedRect(
         ctx,
         boundedX,
         boundedY,
         boundedW,
         boundedH,
-        Math.max(14, frameWidth / 72),
+        Math.max(12, renderSize.width / 72),
       );
       ctx.stroke();
       ctx.restore();
@@ -178,10 +259,15 @@ function renderSpotlightCanvas(canvas) {
 
     setRenderedShot(canvas);
   };
+  image.onerror = () => {
+    markRenderFailed(canvas);
+  };
   image.src = spotlight.image;
 }
 
 function renderPreviewCanvas(canvas) {
+  if (!canvas || canvas.dataset.rendered === "true" || canvas.dataset.rendering === "true") return;
+
   const raw = canvas.dataset.preview;
   if (!raw) return;
 
@@ -191,6 +277,8 @@ function renderPreviewCanvas(canvas) {
   } catch {
     return;
   }
+
+  canvas.dataset.rendering = "true";
 
   const image = new Image();
   image.loading = "eager";
@@ -210,17 +298,80 @@ function renderPreviewCanvas(canvas) {
 
     const cropX = Math.max(0, Math.round((image.naturalWidth - cropWidth) / 2));
     const cropY = 0;
+    const renderSize = renderDimensionsForCanvas(canvas, frameWidth, frameHeight, 720);
 
-    canvas.width = frameWidth;
-    canvas.height = frameHeight;
+    canvas.width = renderSize.width;
+    canvas.height = renderSize.height;
     canvas.style.aspectRatio = `${frameWidth} / ${frameHeight}`;
 
     const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, frameWidth, frameHeight);
-    ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, frameWidth, frameHeight);
+    ctx.clearRect(0, 0, renderSize.width, renderSize.height);
+    ctx.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, renderSize.width, renderSize.height);
     setRenderedShot(canvas);
   };
+  image.onerror = () => {
+    markRenderFailed(canvas);
+  };
   image.src = preview.image;
+}
+
+function renderDeferredCanvases() {
+  const canvases = [...document.querySelectorAll(".spotlight-canvas, .preview-canvas")];
+  if (!canvases.length) return;
+
+  const renderCanvas = (canvas) => {
+    if (canvas.classList.contains("spotlight-canvas")) {
+      renderSpotlightCanvas(canvas);
+    } else if (canvas.classList.contains("preview-canvas")) {
+      renderPreviewCanvas(canvas);
+    }
+  };
+
+  if (!("IntersectionObserver" in window)) {
+    canvases.forEach(renderCanvas);
+    return;
+  }
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        renderCanvas(entry.target);
+        observer.unobserve(entry.target);
+      });
+    },
+    { rootMargin: "240px 0px" },
+  );
+
+  canvases.forEach((canvas) => observer.observe(canvas));
+}
+
+function setupRevealAnimations() {
+  const targets = document.querySelectorAll(
+    ".section-block, .stat-card, .sheet-card, .finding-card, .page-card, .method-card, .nav-node, .artifact-card",
+  );
+
+  if (!targets.length) return;
+
+  document.documentElement.classList.add("enhanced-reveal");
+
+  if (!("IntersectionObserver" in window)) {
+    targets.forEach((target) => target.classList.add("is-visible"));
+    return;
+  }
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("is-visible");
+        observer.unobserve(entry.target);
+      });
+    },
+    { threshold: 0.12, rootMargin: "0px 0px -8% 0px" },
+  );
+
+  targets.forEach((target) => observer.observe(target));
 }
 
 function findingCard(item, compact = false) {
@@ -249,6 +400,34 @@ function findingCard(item, compact = false) {
       </div>
       ${renderEvidence(item.evidence)}
       ${renderSourceLinks(item.sourcePages)}
+    </article>
+  `;
+}
+
+function deepDiveCard(item) {
+  const status = String(item.status || "N/A").toUpperCase();
+  const tone = status === "FALSE" ? item.severity : status === "TRUE" ? "positive" : "neutral";
+  return `
+    <article class="finding-card deep-dive-card ${tone}">
+      <div class="finding-head">
+        <div>
+          <p class="finding-sheet">${escapeHtml(item.sheet)}</p>
+          <h3>${escapeHtml(item.criterion)}</h3>
+        </div>
+        <div class="finding-badges">
+          <span class="status-pill ${status.toLowerCase()}">${statusLabel(status)}</span>
+          <span class="confidence-pill ${confidenceTone(item.confidencePercent)}">${escapeHtml(item.confidencePercent)}% confidence</span>
+        </div>
+      </div>
+      ${screenshotFigure(item, true)}
+      <p class="finding-rationale">${escapeHtml(item.rationale)}</p>
+      <div class="meta-row">
+        ${renderMetaPills([
+          item.pageName ? `Page: ${item.pageName}` : "",
+          item.decisionBasis ? `Basis: ${item.decisionBasis}` : "",
+        ])}
+      </div>
+      ${renderEvidence((item.evidence || []).slice(0, 3))}
     </article>
   `;
 }
@@ -360,32 +539,49 @@ function renderStrengths() {
 }
 
 function renderDeepDive() {
-  document.getElementById("sheet-sections").innerHTML = reportData.sheets
+  const container = document.getElementById("sheet-sections");
+  if (!container) return;
+
+  container.innerHTML = (reportData.sheets || [])
     .map((sheet) => {
-      const issueCards = sheet.findings.length
-        ? sheet.findings.map((item) => findingCard(item, true)).join("")
-        : `<p class="empty-note">No issues were flagged in ${escapeHtml(sheet.name.toLowerCase())}.</p>`;
-      const strengthCards = sheet.strengths.length
-        ? sheet.strengths.slice(0, 3).map((item) => findingCard(item, true)).join("")
-        : `<p class="empty-note">No high-confidence strengths were captured.</p>`;
+      const topIssue = (sheet.findings || [])[0];
+      const topStrength = (sheet.strengths || [])[0];
+      const issueMarkup = topIssue
+        ? deepDiveCard(topIssue)
+        : `
+            <article class="finding-card deep-dive-card neutral">
+              <p class="finding-sheet">Summary</p>
+              <h3>No issue was flagged in this dimension.</h3>
+              <p class="finding-rationale">${escapeHtml(`${sheet.failed || 0} issues were flagged across this dimension.`)}</p>
+            </article>
+          `;
+      const strengthMarkup = topStrength
+        ? deepDiveCard(topStrength)
+        : `
+            <article class="finding-card deep-dive-card neutral">
+              <p class="finding-sheet">Summary</p>
+              <h3>No high-confidence strength was captured in this dimension.</h3>
+              <p class="finding-rationale">${escapeHtml(`${sheet.passed || 0} checks passed in this dimension.`)}</p>
+            </article>
+          `;
 
       return `
         <section class="sheet-section">
           <div class="sheet-section-head">
             <div>
               <p class="eyebrow">Dimension</p>
-              <h3>${escapeHtml(sheet.name)}</h3>
+              <h3>${escapeHtml(sheet.name || "Untitled dimension")}</h3>
             </div>
-            <div class="sheet-section-score">${escapeHtml(sheet.score)}/100</div>
+            <div class="sheet-section-score">${escapeHtml(sheet.score ?? 0)}/100</div>
           </div>
           <div class="sheet-columns">
             <div>
               <h4 class="mini-title">Issues</h4>
-              <div class="mini-grid">${issueCards}</div>
+              <div class="mini-grid">${issueMarkup}</div>
             </div>
             <div>
               <h4 class="mini-title">Strengths</h4>
-              <div class="mini-grid">${strengthCards}</div>
+              <div class="mini-grid">${strengthMarkup}</div>
             </div>
           </div>
         </section>
@@ -461,43 +657,6 @@ function renderProcess() {
       </div>
     </div>
   `;
-
-  document.getElementById("methodology-list").innerHTML = (reportData.methodology || [])
-    .map(
-      (step, index) => `
-        <article class="method-card">
-          <div class="method-index">${index + 1}</div>
-          <div>
-            <h3>${escapeHtml(step.step)}</h3>
-            <p>${escapeHtml(step.description)}</p>
-            <span class="mini-pill">${escapeHtml(step.outputs)}</span>
-          </div>
-        </article>
-      `,
-    )
-    .join("");
-}
-
-function renderArtifacts() {
-  const labels = {
-    workbook: "Excel workbook",
-    checksJson: "Checks JSON",
-    websiteMenu: "Website menu",
-    cleanedJson: "Cleaned content JSON",
-    renderedJson: "Rendered UI JSON",
-  };
-
-  document.getElementById("artifact-links").innerHTML = Object.entries(labels)
-    .filter(([key]) => reportData.artifacts[key])
-    .map(
-      ([key, label]) => `
-        <a class="artifact-card" href="${escapeHtml(reportData.artifacts[key])}" target="_blank" rel="noreferrer">
-          <span class="artifact-label">${escapeHtml(label)}</span>
-          <span class="artifact-arrow">Open</span>
-        </a>
-      `,
-    )
-    .join("");
 }
 
 function setupLightbox() {
@@ -506,12 +665,23 @@ function setupLightbox() {
   const closeButton = document.getElementById("lightbox-close");
 
   document.addEventListener("click", (event) => {
-    const trigger = event.target.closest("[data-shot]");
-    if (!trigger || !trigger.dataset.shot) return;
-    image.src = trigger.dataset.shot;
-    image.alt = trigger.dataset.alt || "Audit screenshot";
-    if (typeof dialog.showModal === "function") {
-      dialog.showModal();
+    const trigger = event.target.closest(".shot-frame");
+    if (!trigger) return;
+
+    if (trigger.dataset.shot) {
+      openLightboxWithTrigger(trigger);
+      return;
+    }
+
+    const canvas = trigger.querySelector(".spotlight-canvas, .preview-canvas");
+    if (!canvas || LIGHTBOX_RENDER_QUEUE.has(canvas)) return;
+
+    LIGHTBOX_RENDER_QUEUE.add(canvas);
+    trigger.dataset.pendingOpen = "true";
+    if (canvas.classList.contains("spotlight-canvas")) {
+      renderSpotlightCanvas(canvas);
+    } else {
+      renderPreviewCanvas(canvas);
     }
   });
 
@@ -524,19 +694,19 @@ function setupLightbox() {
 }
 
 function init() {
-  renderHero();
-  renderStats();
-  renderSheetsOverview();
-  renderFindings();
-  renderStrengths();
-  renderDeepDive();
-  renderPages();
-  renderNavigation();
-  renderProcess();
-  renderArtifacts();
-  document.querySelectorAll(".spotlight-canvas").forEach(renderSpotlightCanvas);
-  document.querySelectorAll(".preview-canvas").forEach(renderPreviewCanvas);
-  setupLightbox();
+  safeRender("header", renderHeader);
+  safeRender("hero", renderHero);
+  safeRender("stats", renderStats);
+  safeRender("sheets overview", renderSheetsOverview);
+  safeRender("findings", renderFindings);
+  safeRender("strengths", renderStrengths);
+  safeRender("deep dive", renderDeepDive);
+  safeRender("pages", renderPages);
+  safeRender("navigation", renderNavigation);
+  safeRender("process", renderProcess);
+  safeRender("deferred canvases", renderDeferredCanvases);
+  safeRender("reveal animations", setupRevealAnimations);
+  safeRender("lightbox", setupLightbox);
 }
 
 init();

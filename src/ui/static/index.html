@@ -1,0 +1,1510 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UX/UI Audit Launcher</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <style>
+      :root {
+        --ey-yellow: #ffe600;
+        --ey-gold: #cda349;
+        --ink: #111827;
+        --muted: #667085;
+        --line: rgba(17, 24, 39, 0.12);
+        --panel: rgba(255, 255, 255, 0.78);
+        --cream: #f7f2e8;
+        --cream-2: #fffbf2;
+        --danger: #b54708;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: Aptos, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        background:
+          linear-gradient(rgba(17, 24, 39, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(17, 24, 39, 0.035) 1px, transparent 1px),
+          radial-gradient(circle at 80% 5%, rgba(255, 230, 0, 0.24), transparent 22rem),
+          linear-gradient(135deg, var(--cream-2), var(--cream));
+        background-size: 56px 56px, 56px 56px, auto, auto;
+        min-height: 100vh;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      input[type="file"] {
+        cursor: pointer;
+      }
+
+      .topbar {
+        align-items: center;
+        background: rgba(255, 255, 255, 0.86);
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        min-height: 72px;
+        padding: 0 8vw;
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        backdrop-filter: blur(16px);
+      }
+
+      .brand {
+        align-items: baseline;
+        display: flex;
+        gap: 0.42rem;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+      }
+
+      .ey-mark {
+        background: transparent;
+        color: #4a4a4a;
+        display: grid;
+        font-size: 2rem;
+        font-weight: 900;
+        height: 43px;
+        letter-spacing: -0.11em;
+        line-height: 0.95;
+        place-items: end start;
+        position: relative;
+        top: 1px;
+        width: 47px;
+      }
+
+      .ey-mark::before {
+        background: var(--ey-yellow);
+        clip-path: polygon(100% 0, 100% 100%, 0 100%);
+        content: "";
+        height: 13px;
+        left: 2px;
+        position: absolute;
+        top: 0;
+        width: 43px;
+      }
+
+      .brand-name {
+        align-items: baseline;
+        color: #4a4a4a;
+        display: inline-flex;
+        font-size: 1.15rem;
+        font-weight: 800;
+        gap: 0.12rem;
+        letter-spacing: -0.06em;
+        line-height: 1;
+        transform: translateY(1px);
+      }
+
+      .brand-name strong {
+        color: inherit;
+        font-weight: inherit;
+      }
+
+      .brand-plus {
+        display: inline-block;
+        font-size: 0;
+        height: 9px;
+        margin-left: 1px;
+        position: relative;
+        transform: translateY(1px);
+        width: 9px;
+      }
+
+      .brand-plus::before,
+      .brand-plus::after {
+        border-radius: 999px;
+        content: "";
+        position: absolute;
+      }
+
+      .brand-plus::before {
+        background: #f72585;
+        height: 2px;
+        left: 0;
+        top: 3.5px;
+        width: 9px;
+      }
+
+      .brand-plus::after {
+        background: #2563eb;
+        height: 9px;
+        left: 3.5px;
+        top: 0;
+        width: 2px;
+      }
+
+      .topbar nav {
+        align-items: center;
+        color: var(--muted);
+        display: flex;
+        font-size: 0.9rem;
+        font-weight: 700;
+        gap: 1.5rem;
+      }
+
+      .nav-button {
+        background: transparent;
+        border: 0;
+        color: inherit;
+        cursor: pointer;
+        font-weight: inherit;
+        padding: 0;
+      }
+
+      .nav-button:hover {
+        color: var(--ink);
+      }
+
+      .shell {
+        margin: 0 auto;
+        max-width: 1180px;
+        padding: 72px 28px 96px;
+      }
+
+      .hero {
+        display: grid;
+        gap: 44px;
+        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+        align-items: center;
+      }
+
+      .ey-pill {
+        align-items: center;
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        display: inline-flex;
+        font-size: 0.78rem;
+        font-weight: 900;
+        gap: 0.5rem;
+        letter-spacing: 0.16em;
+        padding: 0.6rem 0.9rem;
+        text-transform: uppercase;
+      }
+
+      .ey-dot {
+        background: var(--ey-yellow);
+        border-radius: 50%;
+        height: 0.62rem;
+        width: 0.62rem;
+      }
+
+      h1 {
+        font-size: clamp(3rem, 7vw, 6.6rem);
+        letter-spacing: -0.075em;
+        line-height: 0.9;
+        margin: 1.2rem 0 1rem;
+        max-width: 800px;
+      }
+
+      .hero-copy {
+        color: var(--muted);
+        font-size: clamp(1.1rem, 1.5vw, 1.35rem);
+        line-height: 1.7;
+        max-width: 660px;
+      }
+
+      .hero-panel {
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(17, 24, 39, 0.1);
+        border-radius: 34px;
+        box-shadow: 0 28px 80px rgba(17, 24, 39, 0.12);
+        overflow: hidden;
+      }
+
+      .panel-head {
+        align-items: center;
+        background: #f3f4f0;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        gap: 0.5rem;
+        padding: 1rem 1.2rem;
+      }
+
+      .dot {
+        background: #cfd3d0;
+        border-radius: 50%;
+        height: 10px;
+        width: 10px;
+      }
+
+      .dot:first-child {
+        background: var(--ey-yellow);
+      }
+
+      .panel-body {
+        padding: 28px;
+      }
+
+      .choice-grid {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: 1fr 1fr;
+        margin: 26px 0;
+      }
+
+      .choice {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        color: var(--ink);
+        cursor: pointer;
+        min-height: 132px;
+        padding: 20px;
+        text-align: left;
+        transition: transform 0.2s ease, border 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .choice:hover,
+      .choice.active {
+        border-color: rgba(205, 163, 73, 0.75);
+        box-shadow: 0 18px 45px rgba(17, 24, 39, 0.13);
+        transform: translateY(-3px);
+      }
+
+      .choice.disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+
+      .choice strong {
+        display: block;
+        font-size: 1.1rem;
+        margin-bottom: 0.55rem;
+      }
+
+      .choice small {
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .field {
+        display: grid;
+        gap: 0.65rem;
+        margin-top: 22px;
+      }
+
+      .field label {
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .field input {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        color: var(--ink);
+        outline: 0;
+        padding: 1rem 1.1rem;
+        width: 100%;
+      }
+
+      .field input:focus {
+        border-color: var(--ey-gold);
+        box-shadow: 0 0 0 4px rgba(205, 163, 73, 0.16);
+      }
+
+      .upload-zone {
+        background: rgba(255, 255, 255, 0.82);
+        border: 1.5px dashed rgba(17, 24, 39, 0.22);
+        border-radius: 22px;
+        cursor: pointer;
+        display: grid;
+        gap: 0.45rem;
+        padding: 1.2rem;
+      }
+
+      .upload-zone:focus-within,
+      .upload-zone:hover {
+        border-color: var(--ey-gold);
+        box-shadow: 0 0 0 4px rgba(205, 163, 73, 0.12);
+      }
+
+      .upload-zone strong {
+        color: var(--ink);
+      }
+
+      .upload-zone span {
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.5;
+      }
+
+      .upload-zone input {
+        margin-top: 0.45rem;
+        max-width: 100%;
+      }
+
+      .file-list {
+        color: var(--muted);
+        display: grid;
+        font-size: 0.86rem;
+        gap: 0.35rem;
+        margin: 0.75rem 0 0;
+        padding-left: 1.1rem;
+      }
+
+      .screenshot-grid {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        margin-top: 0.9rem;
+      }
+
+      .screenshot-card {
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        box-shadow: 0 16px 36px rgba(17, 24, 39, 0.08);
+        overflow: hidden;
+      }
+
+      .screenshot-thumb {
+        align-items: center;
+        background:
+          linear-gradient(45deg, rgba(17, 24, 39, 0.04) 25%, transparent 25%),
+          linear-gradient(-45deg, rgba(17, 24, 39, 0.04) 25%, transparent 25%),
+          #f9fafb;
+        background-size: 18px 18px;
+        display: flex;
+        height: 118px;
+        justify-content: center;
+        overflow: hidden;
+      }
+
+      .screenshot-thumb img {
+        height: 100%;
+        object-fit: contain;
+        width: 100%;
+      }
+
+      .screenshot-meta {
+        display: grid;
+        gap: 0.55rem;
+        padding: 0.85rem;
+      }
+
+      .screenshot-name-row {
+        align-items: center;
+        display: flex;
+        gap: 0.5rem;
+        justify-content: space-between;
+      }
+
+      .screenshot-name-row small {
+        color: var(--muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .remove-screenshot {
+        background: rgba(17, 24, 39, 0.06);
+        border: 1px solid transparent;
+        border-radius: 999px;
+        color: var(--muted);
+        cursor: pointer;
+        flex: 0 0 auto;
+        font-size: 0.78rem;
+        font-weight: 900;
+        padding: 0.35rem 0.55rem;
+      }
+
+      .remove-screenshot:hover {
+        background: white;
+        border-color: var(--line);
+        color: var(--ink);
+      }
+
+      .screenshot-label-input {
+        border-radius: 14px !important;
+        font-size: 0.88rem !important;
+        padding: 0.72rem 0.8rem !important;
+      }
+
+      .segmented {
+        background: rgba(17, 24, 39, 0.06);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        display: grid;
+        gap: 6px;
+        grid-template-columns: 1fr 1fr;
+        padding: 6px;
+      }
+
+      .segmented button {
+        background: transparent;
+        border: 0;
+        border-radius: 999px;
+        color: var(--muted);
+        cursor: pointer;
+        font-weight: 850;
+        padding: 0.9rem 1rem;
+      }
+
+      .segmented button.active {
+        background: var(--ink);
+        color: white;
+      }
+
+      .primary {
+        align-items: center;
+        background: var(--ink);
+        border: 0;
+        border-radius: 999px;
+        color: white;
+        cursor: pointer;
+        display: inline-flex;
+        font-weight: 900;
+        gap: 0.75rem;
+        justify-content: center;
+        margin-top: 24px;
+        padding: 1rem 1.35rem;
+        text-decoration: none;
+        width: 100%;
+      }
+
+      .primary::after {
+        color: var(--ey-yellow);
+        content: "->";
+        font-size: 1rem;
+      }
+
+      .primary:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
+
+      .error {
+        background: #fff4ed;
+        border: 1px solid #fed7aa;
+        border-radius: 16px;
+        color: var(--danger);
+        margin-top: 16px;
+        padding: 0.9rem 1rem;
+      }
+
+      .modal-backdrop {
+        align-items: center;
+        background: rgba(17, 24, 39, 0.48);
+        display: flex;
+        inset: 0;
+        justify-content: center;
+        padding: 24px;
+        position: fixed;
+        z-index: 100;
+      }
+
+      .modal {
+        background:
+          radial-gradient(circle at 86% 4%, rgba(255, 230, 0, 0.28), transparent 18rem),
+          #fffdf8;
+        border: 1px solid rgba(255, 255, 255, 0.55);
+        border-radius: 34px;
+        box-shadow: 0 34px 90px rgba(0, 0, 0, 0.28);
+        max-height: min(760px, 88vh);
+        max-width: 760px;
+        overflow: hidden;
+        width: 100%;
+      }
+
+      .modal-main {
+        padding: 32px;
+      }
+
+      .progress-wrap {
+        background: rgba(17, 24, 39, 0.08);
+        border-radius: 999px;
+        height: 12px;
+        overflow: hidden;
+        margin: 22px 0;
+      }
+
+      .progress {
+        background: linear-gradient(90deg, var(--ey-yellow), var(--ey-gold));
+        height: 100%;
+        transition: width 0.45s ease;
+      }
+
+      .stage {
+        color: var(--muted);
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
+
+      .log {
+        background: #111827;
+        border-radius: 22px;
+        color: #d1d5db;
+        font-family: "Cascadia Mono", Consolas, monospace;
+        font-size: 0.78rem;
+        line-height: 1.55;
+        margin-top: 20px;
+        max-height: 260px;
+        overflow: auto;
+        padding: 18px;
+      }
+
+      .log.debug-only {
+        margin-top: 22px;
+      }
+
+      .success-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 22px;
+      }
+
+      .ghost {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--ink);
+        cursor: pointer;
+        font-weight: 850;
+        padding: 0.95rem 1.2rem;
+      }
+
+      .process-list {
+        display: grid;
+        gap: 14px;
+        margin-top: 28px;
+      }
+
+      .process-step {
+        align-items: start;
+        display: grid;
+        gap: 14px;
+        grid-template-columns: 36px 1fr;
+      }
+
+      .process-step span {
+        background: var(--ey-yellow);
+        border-radius: 50%;
+        display: grid;
+        font-weight: 900;
+        height: 36px;
+        place-items: center;
+        width: 36px;
+      }
+
+      .process-step p {
+        color: var(--muted);
+        margin: 0.3rem 0 0;
+      }
+
+      .welcome-screen {
+        --cursor-x: 72%;
+        --cursor-y: 22%;
+        align-items: center;
+        background:
+          radial-gradient(circle at var(--cursor-x) var(--cursor-y), rgba(255, 230, 0, 0.24), transparent 18rem),
+          radial-gradient(circle at calc(100% - var(--cursor-x)) calc(100% - var(--cursor-y)), rgba(37, 99, 235, 0.12), transparent 20rem),
+          radial-gradient(circle at 20% 90%, rgba(247, 37, 133, 0.09), transparent 16rem);
+        display: grid;
+        min-height: 100vh;
+        padding: 36px 28px;
+        transition: background 0.18s ease-out;
+      }
+
+      .welcome-card {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 253, 248, 0.86));
+        border: 1px solid rgba(17, 24, 39, 0.1);
+        border-radius: 38px;
+        box-shadow: 0 34px 110px rgba(17, 24, 39, 0.14);
+        margin: 0 auto;
+        max-width: 1040px;
+        overflow: hidden;
+        padding: clamp(30px, 6vw, 70px);
+        width: min(100%, 1040px);
+      }
+
+      .welcome-brand {
+        margin-bottom: 46px;
+      }
+
+      .welcome-layout {
+        align-items: center;
+        display: grid;
+        gap: clamp(28px, 5vw, 70px);
+        grid-template-columns: minmax(0, 1.15fr) minmax(240px, 0.85fr);
+      }
+
+      .welcome-title {
+        font-size: clamp(3rem, 7vw, 6.9rem);
+        letter-spacing: -0.08em;
+        line-height: 0.86;
+        margin: 1.1rem 0 1.3rem;
+        max-width: 760px;
+      }
+
+      .welcome-copy {
+        color: var(--muted);
+        font-size: clamp(1.05rem, 1.5vw, 1.32rem);
+        line-height: 1.7;
+        margin: 0;
+        max-width: 680px;
+      }
+
+      .welcome-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-top: 34px;
+      }
+
+      .welcome-actions .primary {
+        margin-top: 0;
+        width: auto;
+      }
+
+      .welcome-note {
+        align-self: center;
+        color: var(--muted);
+        font-size: 0.92rem;
+        font-weight: 700;
+      }
+
+      .robot-scene {
+        --head-x: 0px;
+        --head-y: 0px;
+        --eye-x: 0px;
+        --eye-y: 0px;
+        --left-arm-rot: 18deg;
+        --right-arm-rot: -18deg;
+        --left-forearm-rot: -24deg;
+        --right-forearm-rot: 24deg;
+        align-items: center;
+        display: grid;
+        justify-items: center;
+        min-height: 330px;
+        position: relative;
+      }
+
+      .robot-bubble {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 22px 22px 22px 6px;
+        box-shadow: 0 18px 45px rgba(17, 24, 39, 0.12);
+        color: var(--ink);
+        font-size: 0.94rem;
+        font-weight: 850;
+        left: 6px;
+        line-height: 1.35;
+        max-width: 190px;
+        padding: 0.9rem 1rem;
+        position: absolute;
+        top: 12px;
+      }
+
+      .robot {
+        align-items: center;
+        display: grid;
+        gap: 0;
+        justify-items: center;
+        margin-top: 60px;
+        position: relative;
+      }
+
+      .robot::after {
+        background: radial-gradient(ellipse, rgba(17, 24, 39, 0.22), transparent 70%);
+        bottom: -20px;
+        content: "";
+        height: 34px;
+        position: absolute;
+        width: 210px;
+        z-index: 0;
+      }
+
+      .robot-head {
+        background:
+          linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(226, 230, 232, 0.96) 48%, rgba(168, 177, 187, 0.98)),
+          radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.98), transparent 44px);
+        border: 1px solid rgba(17, 24, 39, 0.16);
+        border-radius: 42px;
+        box-shadow:
+          inset 12px 12px 24px rgba(255, 255, 255, 0.82),
+          inset -16px -20px 30px rgba(17, 24, 39, 0.16),
+          0 28px 60px rgba(17, 24, 39, 0.22);
+        height: 144px;
+        position: relative;
+        transform: translate(var(--head-x), var(--head-y));
+        transition: transform 0.16s ease-out;
+        width: 184px;
+        z-index: 3;
+      }
+
+      .robot-head::before {
+        background: linear-gradient(180deg, #4b5563, #111827);
+        border-radius: 999px;
+        content: "";
+        height: 32px;
+        left: 50%;
+        position: absolute;
+        top: -31px;
+        transform: translateX(-50%);
+        width: 5px;
+      }
+
+      .robot-head::after {
+        background:
+          radial-gradient(circle at 38% 32%, white 0 18%, transparent 20%),
+          var(--ey-yellow);
+        border: 3px solid white;
+        border-radius: 50%;
+        box-shadow: 0 0 0 6px rgba(255, 230, 0, 0.18);
+        content: "";
+        height: 20px;
+        left: 50%;
+        position: absolute;
+        top: -52px;
+        transform: translateX(-50%);
+        width: 20px;
+      }
+
+      .robot-ear {
+        background: linear-gradient(145deg, #f8fafc, #9ca3af);
+        border: 1px solid rgba(17, 24, 39, 0.16);
+        border-radius: 999px;
+        box-shadow: inset -6px -8px 12px rgba(17, 24, 39, 0.12);
+        height: 58px;
+        position: absolute;
+        top: 43px;
+        width: 18px;
+      }
+
+      .robot-ear.left {
+        left: -12px;
+      }
+
+      .robot-ear.right {
+        right: -12px;
+      }
+
+      .robot-visor {
+        background:
+          radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.18), transparent 34px),
+          linear-gradient(145deg, #0f172a, #1f2937 58%, #030712);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 31px;
+        box-shadow:
+          inset 0 2px 10px rgba(255, 255, 255, 0.12),
+          inset 0 -10px 22px rgba(0, 0, 0, 0.42);
+        height: 78px;
+        left: 22px;
+        overflow: hidden;
+        position: absolute;
+        top: 33px;
+        width: 140px;
+      }
+
+      .robot-visor::before {
+        background: linear-gradient(115deg, rgba(255, 255, 255, 0.24), transparent 38%);
+        content: "";
+        height: 120%;
+        left: -18px;
+        position: absolute;
+        top: -40px;
+        transform: rotate(12deg);
+        width: 70px;
+      }
+
+      .robot-eye-row {
+        align-items: center;
+        display: flex;
+        gap: 34px;
+        justify-content: center;
+        padding-top: 24px;
+      }
+
+      .robot-eye {
+        background: #67e8f9;
+        border-radius: 50%;
+        box-shadow:
+          0 0 12px rgba(103, 232, 249, 0.86),
+          0 0 24px rgba(37, 99, 235, 0.58);
+        height: 18px;
+        opacity: 0.95;
+        position: relative;
+        transform: translate(var(--eye-x), var(--eye-y));
+        transition: transform 0.12s ease-out;
+        width: 18px;
+      }
+
+      .robot-eye::after {
+        background: white;
+        border-radius: 50%;
+        content: "";
+        height: 6px;
+        left: 4px;
+        position: absolute;
+        top: 3px;
+        width: 6px;
+      }
+
+      .robot-mouth {
+        background: linear-gradient(90deg, transparent, rgba(255, 230, 0, 0.95), transparent);
+        border-radius: 999px;
+        height: 4px;
+        left: 50%;
+        position: absolute;
+        top: 52px;
+        transform: translateX(-50%);
+        width: 58px;
+      }
+
+      .robot-neck {
+        background: linear-gradient(180deg, #9ca3af, #f9fafb);
+        border: 1px solid rgba(17, 24, 39, 0.12);
+        height: 28px;
+        margin-top: -2px;
+        width: 54px;
+        z-index: 2;
+      }
+
+      .robot-body {
+        background:
+          linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(219, 224, 230, 0.96) 55%, rgba(151, 161, 173, 0.98));
+        border: 1px solid rgba(17, 24, 39, 0.14);
+        border-radius: 34px 34px 42px 42px;
+        box-shadow:
+          inset 10px 12px 22px rgba(255, 255, 255, 0.82),
+          inset -18px -18px 28px rgba(17, 24, 39, 0.15),
+          0 24px 54px rgba(17, 24, 39, 0.16);
+        height: 124px;
+        margin-top: -3px;
+        position: relative;
+        width: 152px;
+        z-index: 2;
+      }
+
+      .robot-body::before {
+        background:
+          radial-gradient(circle at 35% 30%, white 0 12%, transparent 14%),
+          var(--ey-yellow);
+        border-radius: 999px;
+        content: "";
+        height: 18px;
+        left: 50%;
+        position: absolute;
+        top: 26px;
+        transform: translateX(-50%);
+        width: 58px;
+      }
+
+      .robot-body::after {
+        background:
+          linear-gradient(90deg, transparent 0 14%, rgba(17, 24, 39, 0.18) 14% 18%, transparent 18% 32%, rgba(17, 24, 39, 0.18) 32% 36%, transparent 36% 50%, rgba(17, 24, 39, 0.18) 50% 54%, transparent 54%),
+          rgba(255, 255, 255, 0.44);
+        border-radius: 14px;
+        content: "";
+        height: 36px;
+        left: 31px;
+        position: absolute;
+        top: 62px;
+        width: 90px;
+      }
+
+      .robot-arm {
+        background: transparent;
+        border: 0;
+        height: 126px;
+        position: absolute;
+        top: 166px;
+        transform-origin: 50% 18px;
+        transition: transform 0.16s ease-out;
+        width: 72px;
+        z-index: 1;
+      }
+
+      .robot-arm.left {
+        left: 18px;
+        transform: rotate(var(--left-arm-rot));
+      }
+
+      .robot-arm.right {
+        right: 18px;
+        transform: rotate(var(--right-arm-rot));
+      }
+
+      .robot-shoulder {
+        background:
+          radial-gradient(circle at 34% 28%, white 0 12%, transparent 14%),
+          linear-gradient(145deg, #f8fafc, #9ca3af);
+        border: 1px solid rgba(17, 24, 39, 0.14);
+        border-radius: 50%;
+        box-shadow: inset -6px -7px 12px rgba(17, 24, 39, 0.12), 0 10px 20px rgba(17, 24, 39, 0.12);
+        height: 32px;
+        left: 20px;
+        position: absolute;
+        top: 0;
+        width: 32px;
+      }
+
+      .robot-upper-arm {
+        background: linear-gradient(145deg, #ffffff, #d6dce3 45%, #8f98a5);
+        border: 1px solid rgba(17, 24, 39, 0.12);
+        border-radius: 999px;
+        box-shadow: inset 6px 6px 12px rgba(255, 255, 255, 0.72), inset -7px -9px 13px rgba(17, 24, 39, 0.14);
+        height: 70px;
+        left: 24px;
+        position: absolute;
+        top: 26px;
+        width: 24px;
+      }
+
+      .robot-forearm {
+        background: linear-gradient(145deg, #f9fafb, #c3cad3 52%, #717b88);
+        border: 1px solid rgba(17, 24, 39, 0.12);
+        border-radius: 999px;
+        bottom: -43px;
+        box-shadow: inset 5px 5px 10px rgba(255, 255, 255, 0.68), inset -6px -8px 12px rgba(17, 24, 39, 0.15);
+        height: 58px;
+        left: 3px;
+        position: absolute;
+        transform-origin: 50% 4px;
+        transition: transform 0.16s ease-out;
+        width: 18px;
+      }
+
+      .robot-arm.left .robot-forearm {
+        transform: rotate(var(--left-forearm-rot));
+      }
+
+      .robot-arm.right .robot-forearm {
+        transform: rotate(var(--right-forearm-rot));
+      }
+
+      .robot-hand {
+        background:
+          radial-gradient(circle at 35% 26%, rgba(255, 255, 255, 0.95), transparent 22%),
+          linear-gradient(145deg, #f8fafc, #9ca3af);
+        border: 1px solid rgba(17, 24, 39, 0.12);
+        border-radius: 55% 55% 48% 48%;
+        bottom: -16px;
+        box-shadow: inset -5px -6px 10px rgba(17, 24, 39, 0.14), 0 10px 18px rgba(17, 24, 39, 0.12);
+        height: 24px;
+        left: -7px;
+        position: absolute;
+        width: 32px;
+      }
+
+      @media (max-width: 900px) {
+        .topbar {
+          padding: 0 22px;
+        }
+
+        .topbar nav {
+          display: none;
+        }
+
+        .shell {
+          padding: 42px 18px 72px;
+        }
+
+        .hero {
+          grid-template-columns: 1fr;
+        }
+
+        .choice-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .welcome-layout {
+          grid-template-columns: 1fr;
+        }
+
+        .welcome-card {
+          border-radius: 28px;
+        }
+
+        .robot-scene {
+          min-height: 280px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      const { useEffect, useMemo, useRef, useState } = React;
+      const WELCOME_SEEN_KEY = "ey-studio-audit-welcome-seen-this-session";
+
+      function defaultScreenshotLabel(file, index) {
+        const fallback = `Screenshot ${index + 1}`;
+        const rawName = file?.name || fallback;
+        const stem = rawName.replace(/\.[^/.]+$/, "").replace(/[_-]+/g, " ").trim();
+        return stem || fallback;
+      }
+
+      function App() {
+        const [showWelcome, setShowWelcome] = useState(() => {
+          try {
+            return window.sessionStorage.getItem(WELCOME_SEEN_KEY) !== "1";
+          } catch (err) {
+            return true;
+          }
+        });
+        const [auditType, setAuditType] = useState("website");
+        const [mode, setMode] = useState("gtm");
+        const [url, setUrl] = useState("");
+        const [siteName, setSiteName] = useState("Screenshot Audit");
+        const [screenshotFiles, setScreenshotFiles] = useState([]);
+        const screenshotFilesRef = useRef([]);
+        const [error, setError] = useState("");
+        const [job, setJob] = useState(null);
+        const [isModalOpen, setIsModalOpen] = useState(false);
+
+        const hasRunningJob = job && ["queued", "running"].includes(job.status);
+        const canStart =
+          !hasRunningJob &&
+          ((auditType === "website" && url.trim().length > 3) || (auditType === "screenshot" && screenshotFiles.length > 0));
+
+        useEffect(() => {
+          if (!job || !["queued", "running"].includes(job.status)) return;
+          const timer = window.setInterval(async () => {
+            const response = await fetch(`/api/audits/${job.id}`);
+            if (!response.ok) return;
+            const nextJob = await response.json();
+            setJob(nextJob);
+            if (["completed", "failed"].includes(nextJob.status)) {
+              window.clearInterval(timer);
+            }
+          }, 1400);
+          return () => window.clearInterval(timer);
+        }, [job?.id, job?.status]);
+
+        useEffect(() => {
+          function preventFileDropNavigation(event) {
+            if (!event.dataTransfer?.types?.includes("Files")) return;
+            event.preventDefault();
+          }
+
+          window.addEventListener("dragover", preventFileDropNavigation);
+          window.addEventListener("drop", preventFileDropNavigation);
+          return () => {
+            window.removeEventListener("dragover", preventFileDropNavigation);
+            window.removeEventListener("drop", preventFileDropNavigation);
+          };
+        }, []);
+
+        useEffect(() => {
+          screenshotFilesRef.current = screenshotFiles;
+        }, [screenshotFiles]);
+
+        useEffect(() => {
+          return () => {
+            screenshotFilesRef.current.forEach((item) => window.URL.revokeObjectURL(item.previewUrl));
+          };
+        }, []);
+
+        function setImageFiles(fileList) {
+          const files = Array.from(fileList || []).filter((file) => file.type.startsWith("image/"));
+          const nextFiles = files.map((file, index) => ({
+            id: `${Date.now()}-${index}-${file.name}-${file.size}-${file.lastModified}`,
+            file,
+            label: defaultScreenshotLabel(file, index),
+            previewUrl: window.URL.createObjectURL(file),
+          }));
+          setScreenshotFiles((previous) => {
+            previous.forEach((item) => window.URL.revokeObjectURL(item.previewUrl));
+            return nextFiles;
+          });
+          if (files.length === 0) {
+            setError("Upload at least one image file.");
+          } else {
+            setError("");
+          }
+        }
+
+        function handleUploadDrop(event) {
+          event.preventDefault();
+          event.stopPropagation();
+          setImageFiles(event.dataTransfer?.files);
+        }
+
+        function updateScreenshotLabel(id, label) {
+          setScreenshotFiles((previous) => previous.map((item) => (item.id === id ? { ...item, label } : item)));
+        }
+
+        function removeScreenshotFile(id) {
+          setScreenshotFiles((previous) => {
+            const removed = previous.find((item) => item.id === id);
+            if (removed) {
+              window.URL.revokeObjectURL(removed.previewUrl);
+            }
+            return previous.filter((item) => item.id !== id);
+          });
+        }
+
+        async function startAudit(event) {
+          event.preventDefault();
+          setError("");
+          setIsModalOpen(true);
+          try {
+            let response;
+            if (auditType === "screenshot") {
+              const formData = new FormData();
+              formData.append("auditType", "screenshot");
+              formData.append("siteName", siteName.trim() || "Screenshot Audit");
+              formData.append("screenshotLabels", JSON.stringify(screenshotFiles.map((item, index) => item.label.trim() || defaultScreenshotLabel(item.file, index))));
+              screenshotFiles.forEach((item) => formData.append("screenshots", item.file));
+              response = await fetch("/api/audits", {
+                method: "POST",
+                body: formData,
+              });
+            } else {
+              response = await fetch("/api/audits", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ auditType, mode, url }),
+              });
+            }
+            const payload = await response.json();
+            if (!response.ok) {
+              const message = payload.error || "Unable to start the audit.";
+              if (auditType === "screenshot" && message.toLowerCase().includes("valid json")) {
+                throw new Error("Screenshot uploads need the updated backend route. Restart the UI server, then try again.");
+              }
+              throw new Error(message);
+            }
+            setJob(payload);
+          } catch (err) {
+            setError(err.message);
+            setJob(null);
+          }
+        }
+
+        const processText = useMemo(() => {
+          if (auditType === "screenshot") {
+            return "Upload screenshots, run the same 7-axis GTM vision review, generate the report, package assets, and deploy it to Vercel.";
+          }
+          return mode === "gtm"
+            ? "Crawl, extract, run checks, synthesize the 7-axis GTM audit, package assets, and deploy the final report to Vercel."
+            : "Crawl, extract, run detailed sheet checks, generate the workbook-style report, package assets, and deploy it to Vercel.";
+        }, [auditType, mode]);
+
+        function proceedFromWelcome() {
+          try {
+            window.sessionStorage.setItem(WELCOME_SEEN_KEY, "1");
+          } catch (err) {
+            // The interface should still proceed if storage is blocked.
+          }
+          setShowWelcome(false);
+        }
+
+        function reopenWelcome() {
+          try {
+            window.sessionStorage.removeItem(WELCOME_SEEN_KEY);
+          } catch (err) {
+            // The intro can still be shown if storage is blocked.
+          }
+          setShowWelcome(true);
+        }
+
+        if (showWelcome) {
+          return React.createElement(WelcomeScreen, { onProceed: proceedFromWelcome });
+        }
+
+        return React.createElement(
+          React.Fragment,
+          null,
+          React.createElement(
+            "header",
+            { className: "topbar" },
+            React.createElement(BrandLockup, null),
+            React.createElement("nav", null, React.createElement("button", { className: "nav-button", type: "button", onClick: reopenWelcome }, "Intro"), React.createElement("span", null, "Audit Launcher"), React.createElement("span", null, "Vercel Deployment"))
+          ),
+          React.createElement(
+            "main",
+            { className: "shell" },
+            React.createElement(
+              "section",
+              { className: "hero" },
+              React.createElement(
+                "div",
+                null,
+                React.createElement("div", { className: "ey-pill" }, React.createElement("span", { className: "ey-dot" }), "UX/UI Audit Console"),
+                React.createElement("h1", null, "Launch a client-ready audit."),
+                React.createElement("p", { className: "hero-copy" }, "Choose the audit type, enter a website URL, and let the existing pipeline generate the report. The UI shows progress and returns the final Vercel deployment link."),
+                React.createElement(
+                  "div",
+                  { className: "process-list" },
+                  React.createElement("div", { className: "process-step" }, React.createElement("span", null, "1"), React.createElement("div", null, React.createElement("strong", null, "Select the mission"), React.createElement("p", null, "Choose website audit or upload screenshots with meaningful names for a screenshot-only GTM review."))),
+                  React.createElement("div", { className: "process-step" }, React.createElement("span", null, "2"), React.createElement("div", null, React.createElement("strong", null, "Run the existing engine"), React.createElement("p", null, processText))),
+                  React.createElement("div", { className: "process-step" }, React.createElement("span", null, "3"), React.createElement("div", null, React.createElement("strong", null, "Open the deployed result"), React.createElement("p", null, "When the scan finishes, the launcher exposes the Vercel report link directly.")))
+                )
+              ),
+              React.createElement(
+                "form",
+                { className: "hero-panel", onSubmit: startAudit },
+                React.createElement("div", { className: "panel-head" }, React.createElement("span", { className: "dot" }), React.createElement("span", { className: "dot" }), React.createElement("span", { className: "dot" })),
+                React.createElement(
+                  "div",
+                  { className: "panel-body" },
+                  React.createElement("div", { className: "ey-pill" }, "Start here"),
+                  React.createElement(
+                    "div",
+                    { className: "choice-grid" },
+                    React.createElement("button", { type: "button", className: `choice ${auditType === "website" ? "active" : ""}`, onClick: () => setAuditType("website") }, React.createElement("strong", null, "Website audit"), React.createElement("small", null, "Run the current crawler, extraction, audit, report, and Vercel deployment flow.")),
+                    React.createElement("button", { type: "button", className: `choice ${auditType === "screenshot" ? "active" : ""}`, onClick: () => setAuditType("screenshot") }, React.createElement("strong", null, "Screenshot audit"), React.createElement("small", null, "Upload interface screenshots for the same 7-axis GTM audit and Vercel report flow."))
+                  ),
+                  auditType === "website" &&
+                    React.createElement(
+                      React.Fragment,
+                      null,
+                      React.createElement("div", { className: "field" }, React.createElement("label", { htmlFor: "website-url" }, "Website URL"), React.createElement("input", { id: "website-url", value: url, placeholder: "https://example.com", onChange: (event) => setUrl(event.target.value), autoComplete: "url" })),
+                      React.createElement(
+                        "div",
+                        { className: "field" },
+                        React.createElement("label", null, "Audit mode"),
+                        React.createElement("div", { className: "segmented" }, React.createElement("button", { type: "button", className: mode === "detailed" ? "active" : "", onClick: () => setMode("detailed") }, "Detailed audit"), React.createElement("button", { type: "button", className: mode === "gtm" ? "active" : "", onClick: () => setMode("gtm") }, "GTM audit"))
+                      )
+                    ),
+                  auditType === "screenshot" &&
+                    React.createElement(
+                      React.Fragment,
+                      null,
+                      React.createElement("div", { className: "field" }, React.createElement("label", { htmlFor: "screenshot-site-name" }, "Audit label"), React.createElement("input", { id: "screenshot-site-name", value: siteName, placeholder: "Client app screenshots", onChange: (event) => setSiteName(event.target.value) })),
+                      React.createElement(
+                        "div",
+                        { className: "field" },
+                        React.createElement("label", { htmlFor: "screenshot-files" }, "Screenshots"),
+                        React.createElement(
+                          "label",
+                          { className: "upload-zone", htmlFor: "screenshot-files", onDragOver: (event) => event.preventDefault(), onDrop: handleUploadDrop },
+                          React.createElement("strong", null, "Upload as many images as needed"),
+                          React.createElement("span", null, "Click to choose files, or drag images here. PNG, JPG, JPEG, WebP, and GIF screenshots are supported."),
+                          React.createElement("input", { id: "screenshot-files", type: "file", accept: "image/png,image/jpeg,image/webp,image/gif", multiple: true, onChange: (event) => setImageFiles(event.target.files) })
+                        ),
+                        screenshotFiles.length > 0 &&
+                          React.createElement(
+                            "div",
+                            { className: "screenshot-grid" },
+                            screenshotFiles.map((item, index) =>
+                              React.createElement(
+                                "article",
+                                { className: "screenshot-card", key: item.id },
+                                React.createElement("div", { className: "screenshot-thumb" }, React.createElement("img", { src: item.previewUrl, alt: item.label || `Screenshot ${index + 1}` })),
+                                React.createElement(
+                                  "div",
+                                  { className: "screenshot-meta" },
+                                  React.createElement(
+                                    "div",
+                                    { className: "screenshot-name-row" },
+                                    React.createElement("small", { title: item.file.name }, `${item.file.name} (${Math.round(item.file.size / 1024)} KB)`),
+                                    React.createElement("button", { className: "remove-screenshot", type: "button", onClick: () => removeScreenshotFile(item.id), "aria-label": `Remove ${item.label || item.file.name}` }, "Remove")
+                                  ),
+                                  React.createElement("input", {
+                                    className: "screenshot-label-input",
+                                    value: item.label,
+                                    placeholder: `Screenshot ${index + 1} label`,
+                                    onChange: (event) => updateScreenshotLabel(item.id, event.target.value),
+                                    "aria-label": `Meaningful name for screenshot ${index + 1}`,
+                                  })
+                                )
+                              )
+                            )
+                          )
+                      )
+                    ),
+                  error && React.createElement("div", { className: "error" }, error),
+                  React.createElement("button", { className: "primary", type: "submit", disabled: !canStart }, auditType === "screenshot" ? "Start screenshot audit" : "Start audit")
+                )
+              )
+            )
+          ),
+          isModalOpen && React.createElement(ProgressModal, { job, error, onClose: () => setIsModalOpen(false) })
+        );
+      }
+
+      function BrandLockup({ className = "" }) {
+        return React.createElement(
+          "div",
+          { className: `brand ${className}`.trim(), "aria-label": "EY Studio+" },
+          React.createElement("span", { className: "ey-mark", "aria-hidden": "true" }, "EY"),
+          React.createElement("span", { className: "brand-name" }, React.createElement("strong", null, "Studio"), React.createElement("span", { className: "brand-plus" }, "+"))
+        );
+      }
+
+      function WelcomeScreen({ onProceed }) {
+        const screenRef = useRef(null);
+        const robotRef = useRef(null);
+
+        useEffect(() => {
+          function clamp(value, min, max) {
+            return Math.min(Math.max(value, min), max);
+          }
+
+          function handlePointerMove(event) {
+            const screen = screenRef.current;
+            const robot = robotRef.current;
+            if (screen) {
+              const x = clamp((event.clientX / Math.max(window.innerWidth, 1)) * 100, 0, 100);
+              const y = clamp((event.clientY / Math.max(window.innerHeight, 1)) * 100, 0, 100);
+              screen.style.setProperty("--cursor-x", `${x}%`);
+              screen.style.setProperty("--cursor-y", `${y}%`);
+            }
+            if (!robot) return;
+
+            const rect = robot.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const dx = clamp((event.clientX - centerX) / 32, -8, 8);
+            const dy = clamp((event.clientY - centerY) / 42, -6, 6);
+            const armX = clamp((event.clientX - centerX) / 18, -22, 22);
+            const armY = clamp((centerY - event.clientY) / 16, -18, 24);
+
+            robot.style.setProperty("--head-x", `${dx * 0.55}px`);
+            robot.style.setProperty("--head-y", `${dy * 0.55}px`);
+            robot.style.setProperty("--eye-x", `${dx}px`);
+            robot.style.setProperty("--eye-y", `${dy}px`);
+            robot.style.setProperty("--left-arm-rot", `${18 + armX * 0.42 - armY * 0.18}deg`);
+            robot.style.setProperty("--right-arm-rot", `${-18 + armX * 0.42 + armY * 0.18}deg`);
+            robot.style.setProperty("--left-forearm-rot", `${-24 + armX * 0.35 - armY * 0.46}deg`);
+            robot.style.setProperty("--right-forearm-rot", `${24 + armX * 0.35 + armY * 0.46}deg`);
+          }
+
+          function resetRobot() {
+            const screen = screenRef.current;
+            const robot = robotRef.current;
+            if (screen) {
+              screen.style.setProperty("--cursor-x", "72%");
+              screen.style.setProperty("--cursor-y", "22%");
+            }
+            if (!robot) return;
+            robot.style.setProperty("--head-x", "0px");
+            robot.style.setProperty("--head-y", "0px");
+            robot.style.setProperty("--eye-x", "0px");
+            robot.style.setProperty("--eye-y", "0px");
+            robot.style.setProperty("--left-arm-rot", "18deg");
+            robot.style.setProperty("--right-arm-rot", "-18deg");
+            robot.style.setProperty("--left-forearm-rot", "-24deg");
+            robot.style.setProperty("--right-forearm-rot", "24deg");
+          }
+
+          window.addEventListener("pointermove", handlePointerMove);
+          window.addEventListener("pointerleave", resetRobot);
+          return () => {
+            window.removeEventListener("pointermove", handlePointerMove);
+            window.removeEventListener("pointerleave", resetRobot);
+          };
+        }, []);
+
+        return React.createElement(
+          "main",
+          { className: "welcome-screen", ref: screenRef },
+          React.createElement(
+            "section",
+            { className: "welcome-card", "aria-labelledby": "welcome-title" },
+            React.createElement(BrandLockup, { className: "welcome-brand" }),
+            React.createElement(
+              "div",
+              { className: "welcome-layout" },
+              React.createElement(
+                "div",
+                null,
+                React.createElement("div", { className: "ey-pill" }, React.createElement("span", { className: "ey-dot" }), "UX/UI Audit Console"),
+                React.createElement("h1", { id: "welcome-title", className: "welcome-title" }, "Welcome to the audit launcher."),
+                React.createElement("p", { className: "welcome-copy" }, "Start a client-ready UX/UI scan, track report generation, and open the deployed Vercel result from one focused workspace."),
+                React.createElement(
+                  "div",
+                  { className: "welcome-actions" },
+                  React.createElement("button", { className: "primary", type: "button", onClick: onProceed }, "Enter audit console"),
+                  React.createElement("span", { className: "welcome-note" }, "This intro appears only on first visit.")
+                )
+              ),
+              React.createElement(RobotGuide, { robotRef })
+            )
+          )
+        );
+      }
+
+      function RobotGuide({ robotRef }) {
+        return React.createElement(
+          "div",
+          { className: "robot-scene", ref: robotRef, "aria-label": "Friendly AI robot guide" },
+          React.createElement("div", { className: "robot-bubble" }, "Hi, I am your AI audit guide. Move your cursor and I will follow."),
+          React.createElement(
+            "div",
+            { className: "robot", "aria-hidden": "true" },
+            React.createElement(
+              "span",
+              { className: "robot-arm left" },
+              React.createElement("span", { className: "robot-shoulder" }),
+              React.createElement("span", { className: "robot-upper-arm" }, React.createElement("span", { className: "robot-forearm" }, React.createElement("span", { className: "robot-hand" })))
+            ),
+            React.createElement(
+              "span",
+              { className: "robot-arm right" },
+              React.createElement("span", { className: "robot-shoulder" }),
+              React.createElement("span", { className: "robot-upper-arm" }, React.createElement("span", { className: "robot-forearm" }, React.createElement("span", { className: "robot-hand" })))
+            ),
+            React.createElement(
+              "div",
+              { className: "robot-head" },
+              React.createElement("span", { className: "robot-ear left" }),
+              React.createElement("span", { className: "robot-ear right" }),
+              React.createElement(
+                "div",
+                { className: "robot-visor" },
+                React.createElement("div", { className: "robot-eye-row" }, React.createElement("span", { className: "robot-eye" }), React.createElement("span", { className: "robot-eye" })),
+                React.createElement("span", { className: "robot-mouth" })
+              )
+            ),
+            React.createElement("div", { className: "robot-neck" }),
+            React.createElement("div", { className: "robot-body" })
+          )
+        );
+      }
+
+      function ProgressModal({ job, error, onClose }) {
+        const progress = job?.progress || 0;
+        const status = job?.status || (error ? "failed" : "queued");
+        const logs = job?.logs || [];
+        const shouldShowLog = status === "failed" && logs.length > 0;
+        return React.createElement(
+          "div",
+          { className: "modal-backdrop" },
+          React.createElement(
+            "section",
+            { className: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Audit progress" },
+            React.createElement(
+              "div",
+              { className: "modal-main" },
+              React.createElement("div", { className: "ey-pill" }, status === "completed" ? "Deployment ready" : status === "failed" ? "Action needed" : "Audit running"),
+              React.createElement("h2", null, status === "completed" ? "Your report is deployed." : status === "failed" ? "The audit could not finish." : "Building the audit report."),
+              React.createElement("p", { className: "stage" }, error || job?.error || job?.stage || "Preparing process..."),
+              React.createElement("div", { className: "progress-wrap" }, React.createElement("div", { className: "progress", style: { width: `${progress}%` } })),
+              status === "completed" &&
+                React.createElement(
+                  "div",
+                  { className: "success-actions" },
+                  React.createElement("a", { className: "primary", href: job.resultUrl, target: "_blank", rel: "noreferrer" }, "Open Vercel report"),
+                  React.createElement("button", { className: "ghost", onClick: onClose }, "Close")
+                ),
+              status === "failed" && React.createElement("div", { className: "success-actions" }, React.createElement("button", { className: "ghost", onClick: onClose }, "Close")),
+              shouldShowLog && React.createElement("pre", { className: "log debug-only" }, logs.join("\n"))
+            )
+          )
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+    </script>
+  </body>
+</html>
