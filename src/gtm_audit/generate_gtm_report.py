@@ -96,12 +96,13 @@ def render_score_ring(score_ten: float, *, label: str, accent: str = "#caa23b", 
     """
 
 
-def render_priority_story(item: Dict[str, Any], index: int, output_dir: Path) -> str:
+def render_priority_story(item: Dict[str, Any], index: int, output_dir: Path, is_screenshot_audit: bool = False) -> str:
     spotlight = clean_text(item.get("spotlightImage"))
     shot = spotlight or href_from_repo(item.get("screenshotPath", ""), output_dir)
     axis_score = round(float(item.get("axisScore", 0)) / 10, 1)
     tone = severity_tone(item.get("severity"))
     severity = severity_label(item.get("severity"))
+    body_class = "desktop-screen-body screenshot-body" if is_screenshot_audit else "desktop-screen-body"
     return f"""
     <article class="story-row tone-{tone}">
       <div class="story-index">0{index}</div>
@@ -109,7 +110,7 @@ def render_priority_story(item: Dict[str, Any], index: int, output_dir: Path) ->
         <div class="story-visual-frame">
           <div class="desktop-screen">
             <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-            <div class="desktop-screen-body">
+            <div class="{body_class}">
               {f'<img src="{shot}" alt="{html.escape(clean_text(item.get("title")))} evidence">' if shot else '<div class="story-visual-empty">No evidence crop available</div>'}
             </div>
           </div>
@@ -145,11 +146,12 @@ def render_axis_tile(axis: Dict[str, Any], index: int) -> str:
     """
 
 
-def render_axis_section(axis: Dict[str, Any], index: int, output_dir: Path) -> str:
+def render_axis_section(axis: Dict[str, Any], index: int, output_dir: Path, is_screenshot_audit: bool = False) -> str:
     lead_item = ((axis.get("painPoints") or [])[:1] or (axis.get("strengths") or [])[:1] or [{}])[0]
     shot = clean_text(lead_item.get("spotlightImage")) or href_from_repo(lead_item.get("screenshotPath", ""), output_dir)
     axis_score = round(float(axis.get("score", 0)) / 10, 1)
     tone = severity_tone(axis.get("severity"))
+    body_class = "desktop-screen-body screenshot-body" if is_screenshot_audit else "desktop-screen-body"
     return f"""
     <article class="axis-story tone-{tone}" id="axis-{index}">
       <div class="story-index">0{index}</div>
@@ -157,7 +159,7 @@ def render_axis_section(axis: Dict[str, Any], index: int, output_dir: Path) -> s
         <div class="axis-story-frame">
           <div class="desktop-screen">
             <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-            <div class="desktop-screen-body">
+            <div class="{body_class}">
               {f'<img src="{shot}" alt="{html.escape(clean_text(axis.get("shortName")) or clean_text(axis.get("name")))} visual evidence">' if shot else '<div class="story-visual-empty">No evidence crop available</div>'}
             </div>
           </div>
@@ -257,20 +259,57 @@ def build_screenshot_spotlight(item: Dict[str, Any], output_dir: Path, issue_ind
     except Exception:
         return ""
 
-    max_width = 1920
-    if image.width > max_width:
-        scale = max_width / image.width
-        image = image.resize((max_width, max(1, int(round(image.height * scale)))))
+    source_width, source_height = image.width, image.height
+    x, y, width, height = _region_to_pixels(_visual_region_from_item(item), source_width, source_height)
+    target_width = 1920
+    target_height = 1080
+    target_aspect = target_width / target_height
 
-    x, y, width, height = _region_to_pixels(_visual_region_from_item(item), image.width, image.height)
+    crop_width = min(source_width, max(width * 2.6, source_width * 0.62))
+    crop_height = min(source_height, max(height * 2.6, source_height * 0.18))
+    if crop_width / max(crop_height, 1.0) < target_aspect:
+        crop_width = min(source_width, crop_height * target_aspect)
+    else:
+        crop_height = min(source_height, crop_width / target_aspect)
+
+    if crop_width >= source_width:
+        crop_width = float(source_width)
+        crop_height = min(float(source_height), crop_width / target_aspect)
+    if crop_height >= source_height:
+        crop_height = float(source_height)
+        crop_width = min(float(source_width), crop_height * target_aspect)
+
+    center_x = x + (width / 2.0)
+    center_y = y + (height / 2.0)
+    crop_left = max(0.0, min(center_x - (crop_width / 2.0), source_width - crop_width))
+    crop_top = max(0.0, min(center_y - (crop_height / 2.0), source_height - crop_height))
+    crop_right = crop_left + crop_width
+    crop_bottom = crop_top + crop_height
+
+    image = image.crop(
+        (
+            int(round(crop_left)),
+            int(round(crop_top)),
+            int(round(crop_right)),
+            int(round(crop_bottom)),
+        )
+    ).resize((target_width, target_height), Image.Resampling.LANCZOS)
+
+    scale_x = target_width / max(crop_width, 1.0)
+    scale_y = target_height / max(crop_height, 1.0)
+    x = (x - crop_left) * scale_x
+    y = (y - crop_top) * scale_y
+    width *= scale_x
+    height *= scale_y
+
     draw = ImageDraw.Draw(image, "RGBA")
     halo = max(20, int(max(width, height) * 0.12))
     bounds = (x - halo, y - halo, x + width + halo, y + height + halo)
-    draw.ellipse(bounds, outline=(255, 52, 52, 245), width=max(8, int(max(image.width, image.height) * 0.006)))
+    draw.ellipse(bounds, outline=(255, 52, 52, 245), width=max(10, int(max(image.width, image.height) * 0.008)))
     draw.ellipse(
         (bounds[0] - 10, bounds[1] - 10, bounds[2] + 10, bounds[3] + 10),
         outline=(255, 52, 52, 115),
-        width=max(12, int(max(image.width, image.height) * 0.008)),
+        width=max(14, int(max(image.width, image.height) * 0.011)),
     )
 
     evidence_dir = output_dir / "evidence"
@@ -402,7 +441,7 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
                 }
             )
             seen_scanned_pages.add(page_key)
-    priorities = "".join(render_priority_story(item, index, output_dir) for index, item in enumerate(priorities_data, start=1))
+    priorities = "".join(render_priority_story(item, index, output_dir, is_screenshot_audit=is_screenshot_audit) for index, item in enumerate(priorities_data, start=1))
     axes_data = payload.get("axes") or []
     for index, axis in enumerate(axes_data, start=1):
         lead_item = ((axis.get("painPoints") or [])[:1] or (axis.get("strengths") or [])[:1] or [{}])[0]
@@ -414,7 +453,7 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
             issue_index=100 + index,
         )
     axes_tiles_html = "".join(render_axis_tile(axis, index) for index, axis in enumerate(axes_data, start=1))
-    axis_sections_html = "".join(render_axis_section(axis, index, output_dir) for index, axis in enumerate(axes_data, start=1))
+    axis_sections_html = "".join(render_axis_section(axis, index, output_dir, is_screenshot_audit=is_screenshot_audit) for index, axis in enumerate(axes_data, start=1))
     radar_html = render_radar_chart(axes_data)
     methodology_html = "".join(
         f"""
@@ -448,13 +487,15 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     scanned_pages_html = "".join(render_scanned_page(item, output_dir) for item in scanned_pages_data)
     scanned_pages_clone_html = scanned_pages_html.replace('<a class="scan-card"', '<a class="scan-card" tabindex="-1"')
     scanned_pages_loop = (
-        f"""
-        <div class="scan-marquee">
-          <div class="scan-strip">
-            <div class="scan-track">{scanned_pages_html}</div>
-            <div class="scan-track" aria-hidden="true">{scanned_pages_clone_html}</div>
-          </div>
-        </div>
+        f'<div class="scan-static">{scanned_pages_html}</div>'
+        if is_screenshot_audit
+        else f"""
+            <div class="scan-marquee">
+              <div class="scan-strip">
+                <div class="scan-track">{scanned_pages_html}</div>
+                <div class="scan-track" aria-hidden="true">{scanned_pages_clone_html}</div>
+              </div>
+            </div>
         """
         if scanned_pages_html
         else "<p class='empty'>No scanned-page screenshots were available for this run.</p>"
@@ -782,6 +823,13 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       gap: 18px;
       padding-right: 18px;
     }}
+    .scan-static {{
+      display: flex;
+      gap: 18px;
+      overflow-x: auto;
+      padding: 8px 0 22px;
+      scrollbar-color: rgba(32,39,51,0.22) transparent;
+    }}
     .scan-card {{
       display: block;
       flex: 0 0 clamp(280px, 25vw, 360px);
@@ -1077,6 +1125,9 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     .desktop-screen-body {{
       aspect-ratio: 16 / 9;
       background: #ffffff;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
     }}
     .story-visual-frame img,
     .axis-story-frame img {{
@@ -1365,6 +1416,10 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
         height: 40px;
       }}
       .scan-strip {{
+        grid-template-columns: 1fr;
+      }}
+      .scan-static {{
+        display: grid;
         grid-template-columns: 1fr;
       }}
       .axis-grid {{

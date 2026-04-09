@@ -279,7 +279,7 @@ def _visual_region(issue: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     return None
 
 
-def _copy_missing_visual_regions(refined: Dict[str, Any], original: Dict[str, Any]) -> Dict[str, Any]:
+def _copy_missing_issue_context(refined: Dict[str, Any], original: Dict[str, Any]) -> Dict[str, Any]:
     issue_keys = ("priority_issues", "criteria_discoveries", "visual_trust_findings")
     source_by_position: Dict[tuple[str, int], Dict[str, Any]] = {}
     source_by_context: Dict[tuple[str, int], List[Dict[str, Any]]] = {}
@@ -288,26 +288,35 @@ def _copy_missing_visual_regions(refined: Dict[str, Any], original: Dict[str, An
         for index, issue in enumerate(original.get(key) or []):
             if not isinstance(issue, dict):
                 continue
-            region = _visual_region(issue)
-            if not region:
-                continue
-            source_by_position[(key, index)] = region
             screenshot_index = _screenshot_index(issue.get("screenshot_index"))
             context_key = (clean_text(issue.get("axis_id")), screenshot_index if screenshot_index is not None else -1)
-            source_by_context.setdefault(context_key, []).append(region)
+            source_by_position[(key, index)] = issue
+            source_by_context.setdefault(context_key, []).append(issue)
 
     for key in issue_keys:
         for index, issue in enumerate(refined.get(key) or []):
-            if not isinstance(issue, dict) or _visual_region(issue):
+            if not isinstance(issue, dict):
                 continue
-            region = source_by_position.get((key, index))
-            if not region:
+            source_issue = source_by_position.get((key, index))
+            if not source_issue:
                 screenshot_index = _screenshot_index(issue.get("screenshot_index"))
                 context_key = (clean_text(issue.get("axis_id")), screenshot_index if screenshot_index is not None else -1)
                 matches = source_by_context.get(context_key) or []
-                region = matches[0] if matches else None
-            if region:
-                issue["visual_region"] = region
+                source_issue = matches[0] if matches else None
+            if not source_issue:
+                continue
+            if _visual_region(source_issue) and not _visual_region(issue):
+                issue["visual_region"] = _visual_region(source_issue)
+            if _screenshot_index(issue.get("screenshot_index")) is None and _screenshot_index(source_issue.get("screenshot_index")) is not None:
+                issue["screenshot_index"] = _screenshot_index(source_issue.get("screenshot_index"))
+            if not clean_text(issue.get("page_name")) and clean_text(source_issue.get("page_name")):
+                issue["page_name"] = clean_text(source_issue.get("page_name"))
+            if not clean_text(issue.get("page_url")) and clean_text(source_issue.get("page_url")):
+                issue["page_url"] = clean_text(source_issue.get("page_url"))
+            if not clean_text(issue.get("title")) and clean_text(source_issue.get("title")):
+                issue["title"] = clean_text(source_issue.get("title"))
+            if not clean_text(issue.get("criterion")) and clean_text(source_issue.get("criterion")):
+                issue["criterion"] = clean_text(source_issue.get("criterion"))
 
     return refined
 
@@ -376,7 +385,7 @@ Return strict JSON only matching the requested schema.
             "model": client.config.model,
             "backend": client.config.backend,
             "error": "",
-            "result": _copy_missing_visual_regions(refined, vision_result),
+            "result": _copy_missing_issue_context(refined, vision_result),
         }
     except Exception as error:
         return {

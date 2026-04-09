@@ -28,6 +28,7 @@ GTM_REPORT_DIR = GENERATED_DIR / "gtm-report"
 DETAILED_VERCEL_DIR = GENERATED_DIR / "vercel-audit-report"
 GTM_VERCEL_DIR = GENERATED_DIR / "vercel-gtm-report"
 SCREENSHOT_AUDIT_DIR = GENERATED_DIR / "screenshot-audits"
+MOBILE_AUDIT_DIR = GENERATED_DIR / "mobile-audits"
 
 URL_RE = re.compile(r"https://[^\s]+")
 STAGE_RE = re.compile(r"\[(?P<current>\d+)/(?P<total>\d+)\]\s*(?P<label>.+)")
@@ -82,6 +83,39 @@ def _new_screenshot_job(site_name: str, screenshot_paths: list[Path], screenshot
     }
 
 
+def _new_mobile_job(
+    app_label: str,
+    app_package: str,
+    app_activity: str,
+    appium_url: str,
+    device_name: str,
+    platform_version: str,
+    udid: str,
+) -> dict[str, Any]:
+    return {
+        "id": uuid.uuid4().hex[:12],
+        "type": "mobile",
+        "url": "",
+        "mode": "interactive",
+        "appLabel": app_label,
+        "appPackage": app_package,
+        "appActivity": app_activity,
+        "appiumUrl": appium_url,
+        "deviceName": device_name,
+        "platformVersion": platform_version,
+        "udid": udid,
+        "status": "queued",
+        "stage": "Queued",
+        "progress": 0,
+        "logs": [],
+        "resultUrl": "",
+        "outputDir": "",
+        "error": "",
+        "createdAt": _now(),
+        "updatedAt": _now(),
+    }
+
+
 def _snapshot_job(job: dict[str, Any]) -> dict[str, Any]:
     safe = dict(job)
     safe["logs"] = list(job.get("logs", []))[-200:]
@@ -129,6 +163,13 @@ def _validate_url(value: str) -> str:
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise ValueError("Enter a valid website URL, for example https://example.com.")
     return url
+
+
+def _validate_required_text(value: str, field_label: str) -> str:
+    clean = str(value or "").strip()
+    if not clean:
+        raise ValueError(f"{field_label} is required.")
+    return clean
 
 
 def _safe_upload_name(raw_name: str, index: int, suffix_source: str = "") -> str:
@@ -369,6 +410,72 @@ def _run_screenshot_audit_job(job_id: str) -> None:
     _set_job(job_id, status="completed", stage="Completed", progress=100, resultUrl=result_url)
 
 
+def _run_mobile_audit_job(job_id: str) -> None:
+    with JOBS_LOCK:
+        job = JOBS[job_id]
+        app_label = str(job.get("appLabel") or "Android App Audit").strip() or "Android App Audit"
+        app_package = str(job.get("appPackage") or "").strip()
+        app_activity = str(job.get("appActivity") or "").strip()
+        appium_url = str(job.get("appiumUrl") or "http://127.0.0.1:4723").strip() or "http://127.0.0.1:4723"
+        device_name = str(job.get("deviceName") or "Android Emulator").strip() or "Android Emulator"
+        platform_version = str(job.get("platformVersion") or "").strip()
+        udid = str(job.get("udid") or "").strip()
+
+    output_dir = MOBILE_AUDIT_DIR / job_id
+    _set_job(job_id, status="running", stage="Launching Android extraction", progress=5)
+    command = [
+        sys.executable,
+        "-m",
+        "src.mobile_audit.run_mobile_audit",
+        "--job-id",
+        job_id,
+        "--output-root",
+        str(MOBILE_AUDIT_DIR),
+        "--app-package",
+        app_package,
+        "--app-activity",
+        app_activity,
+        "--appium-url",
+        appium_url,
+        "--device-name",
+        device_name,
+    ]
+    if platform_version:
+        command.extend(["--platform-version", platform_version])
+    if udid:
+        command.extend(["--udid", udid])
+
+    _append_log(job_id, f"Preparing mobile audit for: {app_label}")
+    exit_code = _run_command(job_id, command, stage="Running Android Block 1 extraction", progress=15)
+    if exit_code != 0:
+        _set_job(
+            job_id,
+            status="failed",
+            error=(
+                f"Mobile app audit failed with exit code {exit_code}. "
+                "Check that Appium is running, the Android emulator/device is available, "
+                "and the target app package/activity are correct."
+            ),
+        )
+        return
+
+    if not output_dir.exists():
+        _set_job(
+            job_id,
+            status="failed",
+            error="Mobile extraction finished but the expected artifact directory was not created.",
+        )
+        return
+
+    _set_job(
+        job_id,
+        status="completed",
+        stage="Mobile extraction artifacts ready",
+        progress=100,
+        outputDir=str(output_dir),
+    )
+
+
 class AuditRequestHandler(BaseHTTPRequestHandler):
     server_version = "UXUIAuditUI/1.0"
 
@@ -473,11 +580,6 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
             data = self._read_json_body()
             audit_type = str(data.get("auditType") or "website")
             mode = str(data.get("mode") or "gtm").lower()
-            if audit_type != "website":
-                raise ValueError("Use multipart upload for screenshot audits.")
-            if mode not in {"detailed", "gtm"}:
-                raise ValueError("Audit mode must be either detailed or gtm.")
-            url = _validate_url(str(data.get("url") or ""))
             with JOBS_LOCK:
                 running = [job for job in JOBS.values() if job.get("status") in {"queued", "running"}]
                 if running:
@@ -486,9 +588,34 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
                         HTTPStatus.CONFLICT,
                     )
                     return
-                job = _new_job(url, mode)
-                JOBS[job["id"]] = job
-            worker = threading.Thread(target=_run_audit_job, args=(job["id"],), daemon=True)
+                if audit_type == "website":
+                    if mode not in {"detailed", "gtm"}:
+                        raise ValueError("Audit mode must be either detailed or gtm.")
+                    url = _validate_url(str(data.get("url") or ""))
+                    job = _new_job(url, mode)
+                    JOBS[job["id"]] = job
+                    worker = threading.Thread(target=_run_audit_job, args=(job["id"],), daemon=True)
+                elif audit_type == "mobile":
+                    app_label = str(data.get("appLabel") or "Android App Audit").strip() or "Android App Audit"
+                    app_package = _validate_required_text(str(data.get("appPackage") or ""), "Android app package")
+                    app_activity = _validate_required_text(str(data.get("appActivity") or ""), "Android app activity")
+                    appium_url = str(data.get("appiumUrl") or "http://127.0.0.1:4723").strip() or "http://127.0.0.1:4723"
+                    device_name = str(data.get("deviceName") or "Android Emulator").strip() or "Android Emulator"
+                    platform_version = str(data.get("platformVersion") or "").strip()
+                    udid = str(data.get("udid") or "").strip()
+                    job = _new_mobile_job(
+                        app_label=app_label,
+                        app_package=app_package,
+                        app_activity=app_activity,
+                        appium_url=appium_url,
+                        device_name=device_name,
+                        platform_version=platform_version,
+                        udid=udid,
+                    )
+                    JOBS[job["id"]] = job
+                    worker = threading.Thread(target=_run_mobile_audit_job, args=(job["id"],), daemon=True)
+                else:
+                    raise ValueError("Use multipart upload for screenshot audits. Supported JSON audit types are website and mobile.")
             worker.start()
             self._send_json(_snapshot_job(job), HTTPStatus.ACCEPTED)
         except ValueError as exc:

@@ -221,4 +221,36 @@ AUDIT_CONFIG = {
     "execution": {
         "pageConcurrency": 5,
     },
+        "mobileAudit": {
+        "appium": {
+            "url": "http://127.0.0.1:4723",
+            "platformName": "Android",
+            "automationName": "UiAutomator2",
+            "deviceName": "Android Emulator",
+            "newCommandTimeoutSec": 120,
+            "adbExecTimeoutMs": 120000,
+            "uiautomator2ServerInstallTimeoutMs": 120000,
+            "uiautomator2ServerLaunchTimeoutMs": 120000,
+            "uiautomator2ServerReadTimeoutMs": 120000,
+            "androidInstallTimeoutMs": 120000,
+            "appWaitDurationMs": 120000,
+            "skipDeviceInitialization": False,
+            "disableWindowAnimation": True,
+            "deviceReadyTimeoutMs": 180000,
+            "deviceReadyPollMs": 2000,
+            "autoGrantPermissions": True,
+            "noReset": True,
+        },
+        "capture": {
+            "launchTimeoutMs": 15000,
+            "settleDelayMs": 1200,
+            "stabilizationTimeoutMs": 10000,
+            "stabilizationPollMs": 700,
+        },
+        "paths": {
+            "outputRoot": "shared/generated/mobile-audits",
+            "screenshotDirName": "screenshots",
+            "hierarchyDirName": "hierarchies",
+        },
+    },
 }

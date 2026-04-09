@@ -74,6 +74,8 @@ desktop.ini
 # =========================
 output/
 shared/output/
+shared/generated/mobile-audits/
+shared/generated/screenshot-audits/
 shared/generated/*.json
 shared/generated/*.ndjson
 shared/generated/*.csv

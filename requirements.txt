@@ -7,6 +7,7 @@ lxml==5.2.2
 
 # Browser automation
 playwright==1.43.0
+Appium-Python-Client>=4.0,<6.0
 
 # Data handling (optional but safe)
 pydantic==2.7.1

@@ -9,6 +9,7 @@
     "report": "python -m src.report.generate_audit_report",
     "report:gtm": "python -m src.gtm_audit.generate_gtm_report",
     "audit:screenshots": "python -m src.gtm_audit.generate_screenshot_gtm_audit",
+    "audit:mobile": "python -m src.mobile_audit.run_mobile_audit",
     "package:gtm:vercel": "python -m src.gtm_audit.vercel_static_deploy",
     "deploy:gtm:vercel": "python -m src.gtm_audit.vercel_static_deploy --deploy",
     "ui": "python -m src.ui.server"

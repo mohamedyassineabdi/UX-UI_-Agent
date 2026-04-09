@@ -249,7 +249,7 @@
       .choice-grid {
         display: grid;
         gap: 14px;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         margin: 26px 0;
       }
 
@@ -317,6 +317,12 @@
         box-shadow: 0 0 0 4px rgba(205, 163, 73, 0.16);
       }
 
+      .field-grid {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: 1fr 1fr;
+      }
+
       .upload-zone {
         background: rgba(255, 255, 255, 0.82);
         border: 1.5px dashed rgba(17, 24, 39, 0.22);
@@ -358,10 +364,13 @@
       }
 
       .screenshot-grid {
-        display: grid;
+        display: flex;
         gap: 14px;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
         margin-top: 0.9rem;
+        overflow-x: auto;
+        padding: 0.1rem 0.1rem 0.8rem;
+        scroll-snap-type: x proximity;
+        scrollbar-color: rgba(17, 24, 39, 0.28) transparent;
       }
 
       .screenshot-card {
@@ -369,7 +378,10 @@
         border: 1px solid var(--line);
         border-radius: 20px;
         box-shadow: 0 16px 36px rgba(17, 24, 39, 0.08);
+        flex: 0 0 156px;
         overflow: hidden;
+        position: relative;
+        scroll-snap-align: start;
       }
 
       .screenshot-thumb {
@@ -380,7 +392,7 @@
           #f9fafb;
         background-size: 18px 18px;
         display: flex;
-        height: 118px;
+        aspect-ratio: 1 / 1;
         justify-content: center;
         overflow: hidden;
       }
@@ -397,36 +409,38 @@
         padding: 0.85rem;
       }
 
-      .screenshot-name-row {
-        align-items: center;
-        display: flex;
-        gap: 0.5rem;
-        justify-content: space-between;
-      }
-
       .screenshot-name-row small {
         color: var(--muted);
+        display: block;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
 
       .remove-screenshot {
-        background: rgba(17, 24, 39, 0.06);
-        border: 1px solid transparent;
+        align-items: center;
+        background: rgba(17, 24, 39, 0.78);
+        border: 1px solid rgba(255, 255, 255, 0.75);
         border-radius: 999px;
-        color: var(--muted);
+        color: white;
         cursor: pointer;
-        flex: 0 0 auto;
-        font-size: 0.78rem;
+        display: flex;
+        font-size: 0.72rem;
         font-weight: 900;
-        padding: 0.35rem 0.55rem;
+        height: 26px;
+        justify-content: center;
+        padding: 0;
+        position: absolute;
+        right: 8px;
+        top: 8px;
+        width: 26px;
+        z-index: 2;
       }
 
       .remove-screenshot:hover {
-        background: white;
-        border-color: var(--line);
-        color: var(--ink);
+        background: var(--ink);
+        border-color: white;
+        color: white;
       }
 
       .screenshot-label-input {
@@ -567,6 +581,32 @@
         flex-wrap: wrap;
         gap: 12px;
         margin-top: 22px;
+      }
+
+      .artifact-summary {
+        background: rgba(17, 24, 39, 0.04);
+        border: 1px solid rgba(17, 24, 39, 0.08);
+        border-radius: 18px;
+        color: var(--muted);
+        display: grid;
+        gap: 0.55rem;
+        margin-top: 18px;
+        padding: 0.95rem 1rem;
+      }
+
+      .artifact-summary strong {
+        color: var(--ink);
+      }
+
+      .artifact-path {
+        background: rgba(255, 255, 255, 0.75);
+        border-radius: 12px;
+        color: var(--ink);
+        font-family: "Cascadia Code", "Consolas", monospace;
+        font-size: 0.84rem;
+        line-height: 1.5;
+        padding: 0.72rem 0.82rem;
+        word-break: break-word;
       }
 
       .ghost {
@@ -1024,6 +1064,10 @@
           grid-template-columns: 1fr;
         }
 
+        .field-grid {
+          grid-template-columns: 1fr;
+        }
+
         .welcome-layout {
           grid-template-columns: 1fr;
         }
@@ -1051,6 +1095,13 @@
         return stem || fallback;
       }
 
+      function screenshotRecordId(file, index) {
+        if (window.crypto?.randomUUID) {
+          return window.crypto.randomUUID();
+        }
+        return `${Date.now()}-${index}-${file.name}-${file.size}-${file.lastModified}`;
+      }
+
       function App() {
         const [showWelcome, setShowWelcome] = useState(() => {
           try {
@@ -1063,6 +1114,13 @@
         const [mode, setMode] = useState("gtm");
         const [url, setUrl] = useState("");
         const [siteName, setSiteName] = useState("Screenshot Audit");
+        const [mobileAppLabel, setMobileAppLabel] = useState("Android App Audit");
+        const [mobileAppPackage, setMobileAppPackage] = useState("");
+        const [mobileAppActivity, setMobileAppActivity] = useState("");
+        const [mobileAppiumUrl, setMobileAppiumUrl] = useState("http://127.0.0.1:4723");
+        const [mobileDeviceName, setMobileDeviceName] = useState("Android Emulator");
+        const [mobilePlatformVersion, setMobilePlatformVersion] = useState("");
+        const [mobileUdid, setMobileUdid] = useState("");
         const [screenshotFiles, setScreenshotFiles] = useState([]);
         const screenshotFilesRef = useRef([]);
         const [error, setError] = useState("");
@@ -1072,7 +1130,11 @@
         const hasRunningJob = job && ["queued", "running"].includes(job.status);
         const canStart =
           !hasRunningJob &&
-          ((auditType === "website" && url.trim().length > 3) || (auditType === "screenshot" && screenshotFiles.length > 0));
+          (
+            (auditType === "website" && url.trim().length > 3) ||
+            (auditType === "screenshot" && screenshotFiles.length > 0) ||
+            (auditType === "mobile" && mobileAppPackage.trim().length > 1 && mobileAppActivity.trim().length > 1)
+          );
 
         useEffect(() => {
           if (!job || !["queued", "running"].includes(job.status)) return;
@@ -1114,21 +1176,18 @@
 
         function setImageFiles(fileList) {
           const files = Array.from(fileList || []).filter((file) => file.type.startsWith("image/"));
+          if (files.length === 0) {
+            setError("Choose at least one image file to add.");
+            return;
+          }
           const nextFiles = files.map((file, index) => ({
-            id: `${Date.now()}-${index}-${file.name}-${file.size}-${file.lastModified}`,
+            id: screenshotRecordId(file, index),
             file,
             label: defaultScreenshotLabel(file, index),
             previewUrl: window.URL.createObjectURL(file),
           }));
-          setScreenshotFiles((previous) => {
-            previous.forEach((item) => window.URL.revokeObjectURL(item.previewUrl));
-            return nextFiles;
-          });
-          if (files.length === 0) {
-            setError("Upload at least one image file.");
-          } else {
-            setError("");
-          }
+          setScreenshotFiles((previous) => [...previous, ...nextFiles]);
+          setError("");
         }
 
         function handleUploadDrop(event) {
@@ -1167,6 +1226,21 @@
                 method: "POST",
                 body: formData,
               });
+            } else if (auditType === "mobile") {
+              response = await fetch("/api/audits", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  auditType: "mobile",
+                  appLabel: mobileAppLabel.trim() || "Android App Audit",
+                  appPackage: mobileAppPackage.trim(),
+                  appActivity: mobileAppActivity.trim(),
+                  appiumUrl: mobileAppiumUrl.trim() || "http://127.0.0.1:4723",
+                  deviceName: mobileDeviceName.trim() || "Android Emulator",
+                  platformVersion: mobilePlatformVersion.trim(),
+                  udid: mobileUdid.trim(),
+                }),
+              });
             } else {
               response = await fetch("/api/audits", {
                 method: "POST",
@@ -1193,10 +1267,20 @@
           if (auditType === "screenshot") {
             return "Upload screenshots, run the same 7-axis GTM vision review, generate the report, package assets, and deploy it to Vercel.";
           }
+          if (auditType === "mobile") {
+            return "Connect to Appium, launch the Android app, capture the first screen, dump the hierarchy, parse visible elements, and save structured mobile artifacts.";
+          }
           return mode === "gtm"
             ? "Crawl, extract, run checks, synthesize the 7-axis GTM audit, package assets, and deploy the final report to Vercel."
             : "Crawl, extract, run detailed sheet checks, generate the workbook-style report, package assets, and deploy it to Vercel.";
         }, [auditType, mode]);
+
+        const completionText = useMemo(() => {
+          if (auditType === "mobile") {
+            return "When the extraction finishes, the launcher returns the local artifact directory for inspection.";
+          }
+          return "When the scan finishes, the launcher exposes the Vercel report link directly.";
+        }, [auditType]);
 
         function proceedFromWelcome() {
           try {
@@ -1240,13 +1324,13 @@
                 null,
                 React.createElement("div", { className: "ey-pill" }, React.createElement("span", { className: "ey-dot" }), "UX/UI Audit Console"),
                 React.createElement("h1", null, "Launch a client-ready audit."),
-                React.createElement("p", { className: "hero-copy" }, "Choose the audit type, enter a website URL, and let the existing pipeline generate the report. The UI shows progress and returns the final Vercel deployment link."),
+                React.createElement("p", { className: "hero-copy" }, "Choose the audit type, provide the required website, screenshot, or Android app inputs, and let the existing pipeline collect evidence, analyze it, and surface the final output."),
                 React.createElement(
                   "div",
                   { className: "process-list" },
-                  React.createElement("div", { className: "process-step" }, React.createElement("span", null, "1"), React.createElement("div", null, React.createElement("strong", null, "Select the mission"), React.createElement("p", null, "Choose website audit or upload screenshots with meaningful names for a screenshot-only GTM review."))),
+                  React.createElement("div", { className: "process-step" }, React.createElement("span", null, "1"), React.createElement("div", null, React.createElement("strong", null, "Select the mission"), React.createElement("p", null, "Choose website audit, screenshot audit, or Android mobile extraction depending on the evidence source you want to inspect."))),
                   React.createElement("div", { className: "process-step" }, React.createElement("span", null, "2"), React.createElement("div", null, React.createElement("strong", null, "Run the existing engine"), React.createElement("p", null, processText))),
-                  React.createElement("div", { className: "process-step" }, React.createElement("span", null, "3"), React.createElement("div", null, React.createElement("strong", null, "Open the deployed result"), React.createElement("p", null, "When the scan finishes, the launcher exposes the Vercel report link directly.")))
+                  React.createElement("div", { className: "process-step" }, React.createElement("span", null, "3"), React.createElement("div", null, React.createElement("strong", null, auditType === "mobile" ? "Inspect the extracted artifacts" : "Open the deployed result"), React.createElement("p", null, completionText)))
                 )
               ),
               React.createElement(
@@ -1261,7 +1345,8 @@
                     "div",
                     { className: "choice-grid" },
                     React.createElement("button", { type: "button", className: `choice ${auditType === "website" ? "active" : ""}`, onClick: () => setAuditType("website") }, React.createElement("strong", null, "Website audit"), React.createElement("small", null, "Run the current crawler, extraction, audit, report, and Vercel deployment flow.")),
-                    React.createElement("button", { type: "button", className: `choice ${auditType === "screenshot" ? "active" : ""}`, onClick: () => setAuditType("screenshot") }, React.createElement("strong", null, "Screenshot audit"), React.createElement("small", null, "Upload interface screenshots for the same 7-axis GTM audit and Vercel report flow."))
+                    React.createElement("button", { type: "button", className: `choice ${auditType === "screenshot" ? "active" : ""}`, onClick: () => setAuditType("screenshot") }, React.createElement("strong", null, "Screenshot audit"), React.createElement("small", null, "Upload interface screenshots for the same 7-axis GTM audit and Vercel report flow.")),
+                    React.createElement("button", { type: "button", className: `choice ${auditType === "mobile" ? "active" : ""}`, onClick: () => setAuditType("mobile") }, React.createElement("strong", null, "Mobile app audit"), React.createElement("small", null, "Connect to Appium and capture the first Android app screen, hierarchy, and structured UI evidence."))
                   ),
                   auditType === "website" &&
                     React.createElement(
@@ -1288,8 +1373,8 @@
                           "label",
                           { className: "upload-zone", htmlFor: "screenshot-files", onDragOver: (event) => event.preventDefault(), onDrop: handleUploadDrop },
                           React.createElement("strong", null, "Upload as many images as needed"),
-                          React.createElement("span", null, "Click to choose files, or drag images here. PNG, JPG, JPEG, WebP, and GIF screenshots are supported."),
-                          React.createElement("input", { id: "screenshot-files", type: "file", accept: "image/png,image/jpeg,image/webp,image/gif", multiple: true, onChange: (event) => setImageFiles(event.target.files) })
+                          React.createElement("span", null, "Click to add more files, or drag images here. PNG, JPG, JPEG, WebP, and GIF screenshots are supported."),
+                          React.createElement("input", { id: "screenshot-files", type: "file", accept: "image/png,image/jpeg,image/webp,image/gif", multiple: true, onChange: (event) => { setImageFiles(event.target.files); event.target.value = ""; } })
                         ),
                         screenshotFiles.length > 0 &&
                           React.createElement(
@@ -1307,7 +1392,7 @@
                                     "div",
                                     { className: "screenshot-name-row" },
                                     React.createElement("small", { title: item.file.name }, `${item.file.name} (${Math.round(item.file.size / 1024)} KB)`),
-                                    React.createElement("button", { className: "remove-screenshot", type: "button", onClick: () => removeScreenshotFile(item.id), "aria-label": `Remove ${item.label || item.file.name}` }, "Remove")
+                                    React.createElement("button", { className: "remove-screenshot", type: "button", onClick: () => removeScreenshotFile(item.id), "aria-label": `Remove ${item.label || item.file.name}` }, "X")
                                   ),
                                   React.createElement("input", {
                                     className: "screenshot-label-input",
@@ -1322,8 +1407,32 @@
                           )
                       )
                     ),
+                  auditType === "mobile" &&
+                    React.createElement(
+                      React.Fragment,
+                      null,
+                      React.createElement("div", { className: "field" }, React.createElement("label", { htmlFor: "mobile-app-label" }, "Audit label"), React.createElement("input", { id: "mobile-app-label", value: mobileAppLabel, placeholder: "Android App Audit", onChange: (event) => setMobileAppLabel(event.target.value) })),
+                      React.createElement(
+                        "div",
+                        { className: "field-grid" },
+                        React.createElement("div", { className: "field" }, React.createElement("label", { htmlFor: "mobile-app-package" }, "App package"), React.createElement("input", { id: "mobile-app-package", value: mobileAppPackage, placeholder: "com.example.app", onChange: (event) => setMobileAppPackage(event.target.value), autoComplete: "off" })),
+                        React.createElement("div", { className: "field" }, React.createElement("label", { htmlFor: "mobile-app-activity" }, "Launch activity"), React.createElement("input", { id: "mobile-app-activity", value: mobileAppActivity, placeholder: "com.example.app.MainActivity", onChange: (event) => setMobileAppActivity(event.target.value), autoComplete: "off" }))
+                      ),
+                      React.createElement(
+                        "div",
+                        { className: "field-grid" },
+                        React.createElement("div", { className: "field" }, React.createElement("label", { htmlFor: "mobile-appium-url" }, "Appium URL"), React.createElement("input", { id: "mobile-appium-url", value: mobileAppiumUrl, placeholder: "http://127.0.0.1:4723", onChange: (event) => setMobileAppiumUrl(event.target.value), autoComplete: "off" })),
+                        React.createElement("div", { className: "field" }, React.createElement("label", { htmlFor: "mobile-device-name" }, "Device name"), React.createElement("input", { id: "mobile-device-name", value: mobileDeviceName, placeholder: "Android Emulator", onChange: (event) => setMobileDeviceName(event.target.value), autoComplete: "off" }))
+                      ),
+                      React.createElement(
+                        "div",
+                        { className: "field-grid" },
+                        React.createElement("div", { className: "field" }, React.createElement("label", { htmlFor: "mobile-platform-version" }, "Platform version"), React.createElement("input", { id: "mobile-platform-version", value: mobilePlatformVersion, placeholder: "Optional", onChange: (event) => setMobilePlatformVersion(event.target.value), autoComplete: "off" })),
+                        React.createElement("div", { className: "field" }, React.createElement("label", { htmlFor: "mobile-udid" }, "UDID"), React.createElement("input", { id: "mobile-udid", value: mobileUdid, placeholder: "Optional emulator/device id", onChange: (event) => setMobileUdid(event.target.value), autoComplete: "off" }))
+                      )
+                    ),
                   error && React.createElement("div", { className: "error" }, error),
-                  React.createElement("button", { className: "primary", type: "submit", disabled: !canStart }, auditType === "screenshot" ? "Start screenshot audit" : "Start audit")
+                  React.createElement("button", { className: "primary", type: "submit", disabled: !canStart }, auditType === "screenshot" ? "Start screenshot audit" : auditType === "mobile" ? "Start mobile extraction" : "Start audit")
                 )
               )
             )
@@ -1477,6 +1586,12 @@
         const status = job?.status || (error ? "failed" : "queued");
         const logs = job?.logs || [];
         const shouldShowLog = status === "failed" && logs.length > 0;
+        const isMobileJob = job?.type === "mobile";
+        const completedEyebrow = isMobileJob ? "Artifacts ready" : "Deployment ready";
+        const completedHeading = isMobileJob ? "Mobile extraction is complete." : "Your report is deployed.";
+        const completedMessage = isMobileJob
+          ? (job?.stage || "The first Android screen, hierarchy, and structured extraction artifacts are ready.")
+          : (job?.stage || "Deployment completed.");
         return React.createElement(
           "div",
           { className: "modal-backdrop" },
@@ -1486,16 +1601,23 @@
             React.createElement(
               "div",
               { className: "modal-main" },
-              React.createElement("div", { className: "ey-pill" }, status === "completed" ? "Deployment ready" : status === "failed" ? "Action needed" : "Audit running"),
-              React.createElement("h2", null, status === "completed" ? "Your report is deployed." : status === "failed" ? "The audit could not finish." : "Building the audit report."),
-              React.createElement("p", { className: "stage" }, error || job?.error || job?.stage || "Preparing process..."),
+              React.createElement("div", { className: "ey-pill" }, status === "completed" ? completedEyebrow : status === "failed" ? "Action needed" : "Audit running"),
+              React.createElement("h2", null, status === "completed" ? completedHeading : status === "failed" ? "The audit could not finish." : isMobileJob ? "Running the Android extraction." : "Building the audit report."),
+              React.createElement("p", { className: "stage" }, status === "completed" ? completedMessage : error || job?.error || job?.stage || "Preparing process..."),
               React.createElement("div", { className: "progress-wrap" }, React.createElement("div", { className: "progress", style: { width: `${progress}%` } })),
               status === "completed" &&
                 React.createElement(
                   "div",
                   { className: "success-actions" },
-                  React.createElement("a", { className: "primary", href: job.resultUrl, target: "_blank", rel: "noreferrer" }, "Open Vercel report"),
+                  !isMobileJob && React.createElement("a", { className: "primary", href: job.resultUrl, target: "_blank", rel: "noreferrer" }, "Open Vercel report"),
                   React.createElement("button", { className: "ghost", onClick: onClose }, "Close")
+                ),
+              status === "completed" && isMobileJob && job?.outputDir &&
+                React.createElement(
+                  "div",
+                  { className: "artifact-summary" },
+                  React.createElement("strong", null, "Saved artifact directory"),
+                  React.createElement("div", { className: "artifact-path" }, job.outputDir)
                 ),
               status === "failed" && React.createElement("div", { className: "success-actions" }, React.createElement("button", { className: "ghost", onClick: onClose }, "Close")),
               shouldShowLog && React.createElement("pre", { className: "log debug-only" }, logs.join("\n"))
