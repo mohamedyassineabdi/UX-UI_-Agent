@@ -9,8 +9,9 @@ from dotenv import load_dotenv
 from src.config.audit_config import AUDIT_CONFIG
 
 from .device_manager import AndroidDeviceManager, AndroidSessionConfig
-from .mobile_artifact_writer import create_mobile_audit_output_dir, write_mobile_block1_artifacts
+from .mobile_artifact_writer import create_mobile_audit_output_dir, write_mobile_audit_artifacts
 from .mobile_runner import MobileRunner, MobileRunnerConfig
+from .screen_explorer import SingleStepScreenExplorer
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -31,6 +32,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--app-activity", required=True, help="Android launch activity.")
     parser.add_argument("--appium-url", default=appium_defaults["url"], help="Appium server URL.")
     parser.add_argument("--device-name", default=appium_defaults["deviceName"], help="ADB/Appium device name.")
+    parser.add_argument("--adb-path", default=appium_defaults.get("adbPath", ""), help="Optional absolute adb executable path.")
+    parser.add_argument("--android-sdk-root", default=appium_defaults.get("androidSdkRoot", ""), help="Optional Android SDK root used to resolve adb.")
     parser.add_argument("--platform-version", default="", help="Optional Android platform version.")
     parser.add_argument("--udid", default="", help="Optional emulator/device UDID.")
     parser.add_argument("--job-id", default="", help="Optional output job id.")
@@ -83,6 +86,8 @@ def _build_session_config(args: argparse.Namespace) -> AndroidSessionConfig:
         app_package=args.app_package,
         app_activity=args.app_activity,
         device_name=args.device_name,
+        adb_path=args.adb_path or None,
+        android_sdk_root=args.android_sdk_root or None,
         udid=args.udid or None,
         platform_version=args.platform_version or None,
         app_wait_activity=args.app_wait_activity,
@@ -116,27 +121,31 @@ def run_block1(args: argparse.Namespace) -> Path:
     session_config = _build_session_config(args)
     runner_config = _build_runner_config(args)
 
-    print("[1/4] Connecting to Appium and launching the Android app.")
+    print("[1/5] Connecting to Appium and launching the Android app.")
     manager = AndroidDeviceManager(session_config)
     driver = manager.connect()
 
     try:
-        print("[2/4] Capturing first screen screenshot and hierarchy.")
+        print("[2/5] Capturing first screen screenshot and hierarchy.")
         runner = MobileRunner(driver, runner_config)
-        capture = runner.capture_current_screen(screen_id="screen_001")
+        first_capture = runner.capture_current_screen(screen_id="screen_001")
 
-        print("[3/4] Writing mobile extraction artifacts.")
-        write_mobile_block1_artifacts(
+        print("[3/5] Running bounded two-step safe exploration.")
+        explorer = SingleStepScreenExplorer(driver, runner)
+        exploration_result = explorer.run_bounded_two_step_flow(first_capture)
+
+        print("[4/5] Writing mobile extraction artifacts.")
+        write_mobile_audit_artifacts(
             output_dir=output_dir,
             app_info=manager.build_app_info(),
-            screen_record=capture["screen"],
-            screenshot_png=capture["screenshot_png"],
-            hierarchy_xml=capture["hierarchy_xml"],
+            captures=exploration_result.captures,
+            screens=exploration_result.screens,
+            interactions=exploration_result.interactions,
         )
     finally:
         manager.close()
 
-    print("[4/4] Mobile extraction complete.")
+    print("[5/5] Mobile extraction complete.")
     print(f"Artifacts written to: {output_dir}")
     return output_dir
 

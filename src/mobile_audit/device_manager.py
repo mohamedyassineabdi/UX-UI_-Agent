@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import os
+import shutil
 import subprocess
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Optional
 
 from appium import webdriver
@@ -18,6 +21,8 @@ class AndroidSessionConfig:
     platform_name: str = "Android"
     automation_name: str = "UiAutomator2"
     device_name: str = "Android Emulator"
+    adb_path: Optional[str] = None
+    android_sdk_root: Optional[str] = None
     udid: Optional[str] = None
     platform_version: Optional[str] = None
     app_wait_activity: str = "*"
@@ -41,9 +46,49 @@ class AndroidDeviceManager:
     def __init__(self, config: AndroidSessionConfig):
         self.config = config
         self.driver: Optional[webdriver.Remote] = None
+        self._resolved_adb_path: Optional[str] = None
+
+    def _resolve_adb_path(self) -> str:
+        if self._resolved_adb_path:
+            return self._resolved_adb_path
+
+        candidates: list[Path] = []
+        configured_adb_path = str(self.config.adb_path or "").strip()
+        configured_sdk_root = str(self.config.android_sdk_root or "").strip()
+        env_sdk_root = str(os.getenv("ANDROID_SDK_ROOT") or "").strip()
+        env_android_home = str(os.getenv("ANDROID_HOME") or "").strip()
+
+        if configured_adb_path:
+            candidates.append(Path(configured_adb_path))
+        if configured_sdk_root:
+            candidates.append(Path(configured_sdk_root) / "platform-tools" / "adb.exe")
+            candidates.append(Path(configured_sdk_root) / "platform-tools" / "adb")
+        if env_sdk_root:
+            candidates.append(Path(env_sdk_root) / "platform-tools" / "adb.exe")
+            candidates.append(Path(env_sdk_root) / "platform-tools" / "adb")
+        if env_android_home:
+            candidates.append(Path(env_android_home) / "platform-tools" / "adb.exe")
+            candidates.append(Path(env_android_home) / "platform-tools" / "adb")
+
+        for candidate in candidates:
+            if candidate.exists():
+                self._resolved_adb_path = str(candidate.resolve())
+                print(f"[mobile] Using adb executable: {self._resolved_adb_path}")
+                return self._resolved_adb_path
+
+        path_fallback = shutil.which("adb")
+        if path_fallback:
+            self._resolved_adb_path = str(Path(path_fallback).resolve())
+            print(f"[mobile] Using adb executable from PATH: {self._resolved_adb_path}")
+            return self._resolved_adb_path
+
+        raise RuntimeError(
+            "adb could not be resolved. Configure mobileAudit.appium.adbPath, "
+            "mobileAudit.appium.androidSdkRoot, ANDROID_SDK_ROOT, or ANDROID_HOME."
+        )
 
     def _adb_base_command(self) -> list[str]:
-        command = ["adb"]
+        command = [self._resolve_adb_path()]
         if self.config.udid:
             command.extend(["-s", self.config.udid])
         return command
@@ -162,7 +207,12 @@ class AndroidDeviceManager:
     def _log_session_request(self) -> None:
         print("[mobile] Creating Appium session with:")
         print(f"[mobile]   Appium URL: {self.config.appium_url}")
+        print(f"[mobile]   adb executable: {self._resolve_adb_path()}")
         print(f"[mobile]   Device name: {self.config.device_name}")
+        print(
+            "[mobile]   Android SDK root: "
+            f"{self.config.android_sdk_root or os.getenv('ANDROID_SDK_ROOT') or os.getenv('ANDROID_HOME') or '(not set)'}"
+        )
         print(f"[mobile]   Platform version: {self.config.platform_version or '(default)'}")
         print(f"[mobile]   UDID: {self.config.udid or '(not set)'}")
         print(f"[mobile]   App package: {self.config.app_package}")

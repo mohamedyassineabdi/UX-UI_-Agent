@@ -227,6 +227,8 @@ AUDIT_CONFIG = {
             "platformName": "Android",
             "automationName": "UiAutomator2",
             "deviceName": "Android Emulator",
+            "adbPath": "",
+            "androidSdkRoot": "",
             "newCommandTimeoutSec": 120,
             "adbExecTimeoutMs": 120000,
             "uiautomator2ServerInstallTimeoutMs": 120000,

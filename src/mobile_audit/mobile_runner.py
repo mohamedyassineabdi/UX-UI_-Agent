@@ -7,6 +7,7 @@ from typing import Any
 from appium.webdriver.webdriver import WebDriver
 
 from .hierarchy_extractor import build_screen_fingerprint, extract_hierarchy
+from .tappable_extractor import build_tappables
 
 
 @dataclass(slots=True)
@@ -39,6 +40,7 @@ class MobileRunner:
         hierarchy_xml = self.wait_for_stabilization()
         screenshot_png = self.driver.get_screenshot_as_png()
         parsed = extract_hierarchy(hierarchy_xml)
+        tappables = build_tappables(parsed["elements"])
 
         package_name = str(getattr(self.driver, "current_package", "") or "").strip()
         try:
@@ -61,7 +63,7 @@ class MobileRunner:
             "hierarchy_path": f"hierarchies/{screen_id}.xml",
             "visible_text": parsed["visible_text"],
             "elements": parsed["elements"],
-            "tappables": [],
+            "tappables": tappables,
             "meta": parsed["meta"],
         }
 

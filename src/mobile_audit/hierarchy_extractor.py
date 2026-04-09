@@ -39,14 +39,75 @@ def _resource_hint(resource_id: str) -> str:
     return tail.replace("_", " ").replace("-", " ").strip()
 
 
-def _label_for_element(text: str, content_desc: str, resource_id: str, class_name: str) -> str:
-    for candidate in (text, content_desc, _resource_hint(resource_id)):
+def _title_hint(text: str, content_desc: str, resource_id: str, hint_text: str, class_name: str) -> str:
+    for candidate in (text, content_desc, hint_text, _resource_hint(resource_id)):
         if str(candidate or "").strip():
             return str(candidate).strip()
     return class_name.rsplit(".", 1)[-1] if class_name else "Element"
 
 
-def _meta_flags(elements: list[dict[str, Any]]) -> dict[str, bool]:
+def _normalize_text(value: Any) -> str:
+    return str(value or "").replace("\n", " ").strip()
+
+
+def _dedupe_key(element: dict[str, Any]) -> tuple[Any, ...]:
+    return (
+        element.get("class_name") or "",
+        element.get("resource_id") or "",
+        element.get("text") or "",
+        element.get("content_desc") or "",
+        tuple(element.get("bounds") or []),
+    )
+
+
+def _is_probably_visible(attributes: dict[str, Any], width: int, height: int) -> bool:
+    displayed = attributes.get("displayed")
+    visible_to_user = attributes.get("visible-to-user")
+    if width <= 0 or height <= 0:
+        return False
+    if displayed is not None and not _as_bool(displayed):
+        return False
+    if visible_to_user is not None and not _as_bool(visible_to_user):
+        return False
+    return True
+
+
+def _collect_candidate_strings(element: dict[str, Any]) -> list[str]:
+    values = [
+        element.get("text"),
+        element.get("content_desc"),
+        element.get("hint_text"),
+    ]
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for candidate in values:
+        value = _normalize_text(candidate)
+        if not value or len(value) > 160:
+            continue
+        if value in seen:
+            continue
+        seen.add(value)
+        ordered.append(value)
+    return ordered
+
+
+def _visible_bounds_union(elements: list[dict[str, Any]]) -> list[int]:
+    visible_elements = [
+        element
+        for element in elements
+        if element.get("visible") and len(element.get("bounds") or []) == 4
+    ]
+    if not visible_elements:
+        return [0, 0, 0, 0]
+    return [
+        min(element["bounds"][0] for element in visible_elements),
+        min(element["bounds"][1] for element in visible_elements),
+        max(element["bounds"][2] for element in visible_elements),
+        max(element["bounds"][3] for element in visible_elements),
+    ]
+
+
+def _meta_flags(elements: list[dict[str, Any]], visible_text: list[str], screen_width: int, screen_height: int) -> dict[str, bool]:
     clickable = [element for element in elements if element.get("clickable") and element.get("visible")]
     max_bottom = max((element["bounds"][3] for element in elements if len(element.get("bounds", [])) == 4), default=0)
     bottom_threshold = max_bottom * 0.72 if max_bottom else 0
@@ -61,11 +122,24 @@ def _meta_flags(elements: list[dict[str, Any]]) -> dict[str, bool]:
         ).lower()
         for element in clickable
     )
-    has_modal = any(
+    explicit_modal = any(
         token in str(element.get("class_name") or "").lower() or token in str(element.get("resource_id") or "").lower()
         for element in elements
-        for token in ("dialog", "modal", "popup")
+        for token in ("dialog", "modal", "popup", "listview", "list_menu", "app_menu", "menu_item")
     )
+    union_bounds = _visible_bounds_union(elements)
+    union_width, union_height = _bounds_size(union_bounds)
+    compact_overlay = False
+    if screen_width > 0 and screen_height > 0 and union_width > 0 and union_height > 0:
+        width_ratio = union_width / screen_width
+        height_ratio = union_height / screen_height
+        compact_overlay = (
+            width_ratio <= 0.45
+            and height_ratio <= 0.32
+            and len(visible_text) <= 8
+            and len(clickable) <= 8
+        )
+    has_modal = explicit_modal or compact_overlay
     return {
         "has_bottom_nav": has_bottom_nav,
         "has_back_button": has_back_button,
@@ -79,10 +153,7 @@ def _visible_text(elements: list[dict[str, Any]]) -> list[str]:
     for element in elements:
         if not element.get("visible"):
             continue
-        for candidate in (element.get("text"), element.get("content_desc")):
-            value = str(candidate or "").strip()
-            if not value or len(value) > 160:
-                continue
+        for value in _collect_candidate_strings(element):
             if value in seen:
                 continue
             seen.add(value)
@@ -94,9 +165,9 @@ def _screen_title_guess(elements: list[dict[str, Any]]) -> str:
     for element in elements:
         if not element.get("visible"):
             continue
-        text = str(element.get("text") or "").strip()
-        if 2 <= len(text) <= 80:
-            return text
+        for candidate in _collect_candidate_strings(element):
+            if 2 <= len(candidate) <= 80:
+                return candidate
     return ""
 
 
@@ -121,57 +192,87 @@ def build_screen_fingerprint(
     return hashlib.sha1(payload.encode("utf-8")).hexdigest()
 
 
+def _node_class_name(node: ET.Element, attributes: dict[str, Any]) -> str:
+    return _normalize_text(attributes.get("class") or node.tag)
+
+
+def _extract_node(node: ET.Element, index: int) -> dict[str, Any]:
+    attributes = dict(node.attrib)
+    bounds = _parse_bounds(attributes.get("bounds", ""))
+    width, height = _bounds_size(bounds)
+
+    text = _normalize_text(attributes.get("text"))
+    content_desc = _normalize_text(attributes.get("content-desc"))
+    resource_id = _normalize_text(attributes.get("resource-id"))
+    class_name = _node_class_name(node, attributes)
+    package_name = _normalize_text(attributes.get("package"))
+    hint_text = _normalize_text(
+        attributes.get("hint-text")
+        or attributes.get("hint")
+        or attributes.get("pane-title")
+        or attributes.get("tooltip-text")
+    )
+    title_hint = _title_hint(text, content_desc, resource_id, hint_text, class_name)
+    visible = _is_probably_visible(attributes, width, height)
+
+    return {
+        "element_id": f"el_{index:04d}",
+        "text": text,
+        "content_desc": content_desc,
+        "hint_text": hint_text,
+        "title_hint": title_hint,
+        "class_name": class_name,
+        "resource_id": resource_id,
+        "package_name": package_name,
+        "bounds": bounds,
+        "width": width,
+        "height": height,
+        "clickable": _as_bool(attributes.get("clickable")),
+        "enabled": _as_bool(attributes.get("enabled", "true")),
+        "focusable": _as_bool(attributes.get("focusable")),
+        "focused": _as_bool(attributes.get("focused")),
+        "scrollable": _as_bool(attributes.get("scrollable")),
+        "long_clickable": _as_bool(attributes.get("long-clickable")),
+        "selected": _as_bool(attributes.get("selected")),
+        "checked": _as_bool(attributes.get("checked")),
+        "displayed": _as_bool(attributes.get("displayed", "true")),
+        "visible": visible,
+        "label": title_hint,
+    }
+
+
 def extract_hierarchy(xml_source: str) -> dict[str, Any]:
     root = ET.fromstring(xml_source)
+    screen_width = int(str(root.attrib.get("width") or "0") or "0")
+    screen_height = int(str(root.attrib.get("height") or "0") or "0")
     elements: list[dict[str, Any]] = []
+    seen: set[tuple[Any, ...]] = set()
 
     for index, node in enumerate(root.iter()):
-        if node.tag != "node":
+        if node is root:
             continue
 
-        attributes = dict(node.attrib)
-        bounds = _parse_bounds(attributes.get("bounds", ""))
-        width, height = _bounds_size(bounds)
-        visible = width > 0 and height > 0 and attributes.get("visible-to-user", "true") != "false"
+        element = _extract_node(node, index)
+        dedupe_key = _dedupe_key(element)
+        if dedupe_key in seen:
+            continue
 
-        text = str(attributes.get("text") or "").strip()
-        content_desc = str(attributes.get("content-desc") or "").strip()
-        resource_id = str(attributes.get("resource-id") or "").strip()
-        class_name = str(attributes.get("class") or "").strip()
-
-        element = {
-            "element_id": f"el_{index:04d}",
-            "text": text,
-            "content_desc": content_desc,
-            "class_name": class_name,
-            "resource_id": resource_id,
-            "package_name": str(attributes.get("package") or "").strip(),
-            "bounds": bounds,
-            "width": width,
-            "height": height,
-            "clickable": _as_bool(attributes.get("clickable")),
-            "focusable": _as_bool(attributes.get("focusable")),
-            "enabled": _as_bool(attributes.get("enabled", "true")),
-            "checked": _as_bool(attributes.get("checked")),
-            "selected": _as_bool(attributes.get("selected")),
-            "scrollable": _as_bool(attributes.get("scrollable")),
-            "long_clickable": _as_bool(attributes.get("long-clickable")),
-            "visible": visible,
-            "label": _label_for_element(text, content_desc, resource_id, class_name),
-        }
-
-        # Skip empty structural nodes that do not contribute visible evidence.
+        # Skip completely empty, non-visible structural wrappers.
         if not any(
             [
                 element["text"],
                 element["content_desc"],
+                element["hint_text"],
                 element["resource_id"],
-                element["class_name"],
                 element["clickable"],
+                element["focusable"],
+                element["scrollable"],
+                element["visible"],
             ]
         ):
             continue
 
+        seen.add(dedupe_key)
         elements.append(element)
 
     visible_text = _visible_text(elements)
@@ -179,5 +280,5 @@ def extract_hierarchy(xml_source: str) -> dict[str, Any]:
         "elements": elements,
         "visible_text": visible_text,
         "screen_title_guess": _screen_title_guess(elements),
-        "meta": _meta_flags(elements),
+        "meta": _meta_flags(elements, visible_text, screen_width, screen_height),
     }
