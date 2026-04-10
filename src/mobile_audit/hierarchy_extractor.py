@@ -107,8 +107,16 @@ def _visible_bounds_union(elements: list[dict[str, Any]]) -> list[int]:
     ]
 
 
+def _contains_long_form_text(visible_text: list[str]) -> bool:
+    return any(len(str(value or "").strip()) >= 40 for value in visible_text)
+
+
 def _meta_flags(elements: list[dict[str, Any]], visible_text: list[str], screen_width: int, screen_height: int) -> dict[str, bool]:
     clickable = [element for element in elements if element.get("clickable") and element.get("visible")]
+    visible_elements = [element for element in elements if element.get("visible")]
+    class_names = [str(element.get("class_name") or "").lower() for element in visible_elements]
+    resource_ids = [str(element.get("resource_id") or "").lower() for element in visible_elements]
+    text_values = [str(value or "").strip().lower() for value in visible_text if str(value or "").strip()]
     max_bottom = max((element["bounds"][3] for element in elements if len(element.get("bounds", [])) == 4), default=0)
     bottom_threshold = max_bottom * 0.72 if max_bottom else 0
     has_bottom_nav = sum(1 for element in clickable if element["bounds"][1] >= bottom_threshold) >= 2
@@ -123,9 +131,9 @@ def _meta_flags(elements: list[dict[str, Any]], visible_text: list[str], screen_
         for element in clickable
     )
     explicit_modal = any(
-        token in str(element.get("class_name") or "").lower() or token in str(element.get("resource_id") or "").lower()
-        for element in elements
-        for token in ("dialog", "modal", "popup", "listview", "list_menu", "app_menu", "menu_item")
+        token in class_name or token in resource_id
+        for class_name, resource_id in zip(class_names, resource_ids)
+        for token in ("dialog", "modal", "popup", "list_menu", "app_menu", "sheet")
     )
     union_bounds = _visible_bounds_union(elements)
     union_width, union_height = _bounds_size(union_bounds)
@@ -139,11 +147,32 @@ def _meta_flags(elements: list[dict[str, Any]], visible_text: list[str], screen_
             and len(visible_text) <= 8
             and len(clickable) <= 8
         )
-    has_modal = explicit_modal or compact_overlay
+    has_webview = any("webview" in class_name for class_name in class_names)
+    has_address_bar = any("url_bar" in resource_id or "location_bar" in resource_id for resource_id in resource_ids)
+    has_page_controls = any(
+        value in text_values
+        for value in ("main menu", "search help center", "sign in", "google chrome help")
+    )
+    has_help_or_article_structure = any(
+        token in text
+        for text in text_values
+        for token in ("help", "support", "customize your new tab page", "helpcenter sections")
+    ) or _contains_long_form_text(visible_text)
+    is_page_like = (
+        (has_webview and has_address_bar)
+        or (has_webview and len(visible_text) >= 8)
+        or (has_address_bar and has_page_controls)
+        or (has_help_or_article_structure and len(visible_text) >= 6)
+    )
+    has_modal = compact_overlay or (explicit_modal and not is_page_like)
     return {
         "has_bottom_nav": has_bottom_nav,
         "has_back_button": has_back_button,
         "has_modal": has_modal,
+        "has_webview": has_webview,
+        "has_address_bar": has_address_bar,
+        "is_page_like": is_page_like,
+        "has_help_or_article_structure": has_help_or_article_structure,
     }
 
 

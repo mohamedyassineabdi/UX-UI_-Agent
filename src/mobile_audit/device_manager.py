@@ -260,6 +260,35 @@ class AndroidDeviceManager:
         )
         return self.driver
 
+    def activate_target_app(self) -> None:
+        if not self.driver:
+            raise RuntimeError("Android driver session is not initialized.")
+        print(f"[mobile] Bringing target app to foreground: {self.config.app_package}")
+        self.driver.activate_app(self.config.app_package)
+        self.wait_for_app_focus(self.config.launch_timeout_ms)
+
+    def start_target_activity(self) -> None:
+        if not self.driver:
+            raise RuntimeError("Android driver session is not initialized.")
+        print(
+            "[mobile] Re-launching target activity: "
+            f"{self.config.app_package}/{self.config.app_activity}"
+        )
+        try:
+            self.driver.start_activity(self.config.app_package, self.config.app_activity)
+        except Exception:
+            self.driver.activate_app(self.config.app_package)
+        self.wait_for_app_focus(self.config.launch_timeout_ms)
+
+    def press_back(self) -> None:
+        if not self.driver:
+            raise RuntimeError("Android driver session is not initialized.")
+        print("[mobile] Sending Android back.")
+        try:
+            self.driver.back()
+        except Exception:
+            self.driver.press_keycode(4)
+
     def wait_for_app_focus(self, timeout_ms: int) -> None:
         if not self.driver:
             raise RuntimeError("Android driver session is not initialized.")

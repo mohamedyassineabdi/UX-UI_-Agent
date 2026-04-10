@@ -249,6 +249,21 @@ AUDIT_CONFIG = {
             "stabilizationTimeoutMs": 10000,
             "stabilizationPollMs": 700,
         },
+        "initialization": {
+            "maxBackPresses": 2,
+            "postBackDelayMs": 900,
+            "maxRelaunches": 1,
+            "postRelaunchDelayMs": 1400,
+        },
+        "exploration": {
+            "maxScreens": 12,
+            "maxActionsTotal": 24,
+            "maxActionsPerScreen": 6,
+            "maxScrollsPerPath": 3,
+            "maxBacktrackSteps": 2,
+            "scrollPostDelayMs": 900,
+            "scrollPercent": 0.82,
+        },
         "paths": {
             "outputRoot": "shared/generated/mobile-audits",
             "screenshotDirName": "screenshots",

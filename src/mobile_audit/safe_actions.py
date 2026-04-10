@@ -14,6 +14,27 @@ SAFE_RULES: list[tuple[re.Pattern[str], int, int, str, str]] = [
         "tab switcher control",
         "opens a contained tab-management surface",
     ),
+    (
+        re.compile(r"^(learn more|read more|more info|details|view details)$", re.IGNORECASE),
+        90,
+        74,
+        "low-risk informational control",
+        "opens explanatory content and is safe to explore in a bounded run",
+    ),
+    (
+        re.compile(r"^(about|help)$", re.IGNORECASE),
+        88,
+        70,
+        "read-only informational destination",
+        "opens an informational destination that is still considered safe for bounded exploration",
+    ),
+    (
+        re.compile(r"^(menu|main menu|open menu|more options)$", re.IGNORECASE),
+        87,
+        72,
+        "bounded menu control",
+        "opens a bounded option surface that can reveal additional safe controls",
+    ),
     (re.compile(r"^home$", re.IGNORECASE), 100, 8, "home navigation control", "safe but often a no-op on the current home surface"),
 ]
 
@@ -28,8 +49,8 @@ MODAL_FOLLOWUP_SAFE_RULES: list[tuple[re.Pattern[str], int, int, str, str]] = [
 ]
 
 BLOCKED_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"^turn off$", re.IGNORECASE), "changes product state and is blocked for mini Block 3"),
-    (re.compile(r"\bturn off\b", re.IGNORECASE), "changes product state and is blocked for mini Block 3"),
+    (re.compile(r"^turn off$", re.IGNORECASE), "changes product state and is blocked for bounded safe exploration"),
+    (re.compile(r"\bturn off\b", re.IGNORECASE), "changes product state and is blocked for bounded safe exploration"),
 ]
 
 UNSAFE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
@@ -50,10 +71,6 @@ def _text(value: Any) -> str:
     return str(value or "").strip()
 
 
-def _normalized_label(tappable: dict[str, Any]) -> str:
-    return _primary_label(tappable).strip().lower()
-
-
 def _primary_label(tappable: dict[str, Any]) -> str:
     for key in ("label", "text", "content_desc", "hint_text"):
         value = _text(tappable.get(key))
@@ -64,6 +81,41 @@ def _primary_label(tappable: dict[str, Any]) -> str:
         tail = resource_id.split("/")[-1].split(":")[-1]
         return tail.replace("_", " ").replace("-", " ").strip()
     return ""
+
+
+def _apply_contextual_adjustments(
+    normalized_label: str,
+    base_safety_score: int,
+    base_exploration_score: int,
+    base_reason: str,
+    base_selection_reason: str,
+    context: dict[str, Any],
+) -> tuple[int, int, str, str]:
+    phase = _text(context.get("phase")) or "initial"
+    surface_profile = _text(context.get("surface_profile"))
+    available_labels = {str(value or "").strip().lower() for value in context.get("available_labels", []) if str(value or "").strip()}
+
+    safety_score = base_safety_score
+    exploration_score = base_exploration_score
+    reason = base_reason
+    selection_reason = base_selection_reason
+
+    if phase == "initial" and surface_profile == "chrome_home":
+        if normalized_label == "options for discover":
+            exploration_score += 14
+            selection_reason = "preferred bounded discover path on the Chrome home/new-tab surface"
+        elif normalized_label == "update available. more options":
+            exploration_score -= 18
+            selection_reason = "safe overflow menu but deprioritized versus the bounded discover path on the Chrome home/new-tab surface"
+            if "options for discover" in available_labels:
+                exploration_score -= 6
+        elif "open tab" in normalized_label:
+            exploration_score -= 4
+            selection_reason = "contained chrome navigation but lower priority than the Discover bounded menu on the home surface"
+        elif normalized_label == "home":
+            exploration_score = min(exploration_score, 8)
+
+    return safety_score, exploration_score, reason, selection_reason
 
 
 def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]] = None) -> dict[str, Any]:
@@ -99,15 +151,23 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
         return {
             **tappable,
             "safe_action": "unsafe",
-            "safe_reason": "text input is out of scope for Block 2",
+            "safe_reason": "text input is out of scope for bounded safe exploration",
             "safety_score": -90,
             "exploration_score": -90,
             "selection_score": -180,
         }
 
     if phase == "modal_followup":
-        for pattern, safety_score, exploration_score, reason, exploration_reason in MODAL_FOLLOWUP_SAFE_RULES:
+        for pattern, base_safety_score, base_exploration_score, base_reason, base_selection_reason in MODAL_FOLLOWUP_SAFE_RULES:
             if pattern.search(label):
+                safety_score, exploration_score, reason, selection_reason = _apply_contextual_adjustments(
+                    normalized_label,
+                    base_safety_score,
+                    base_exploration_score,
+                    base_reason,
+                    base_selection_reason,
+                    context,
+                )
                 return {
                     **tappable,
                     "safe_action": "safe",
@@ -115,7 +175,7 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
                     "safety_score": safety_score,
                     "exploration_score": exploration_score,
                     "selection_score": safety_score + exploration_score,
-                    "selection_reason": exploration_reason,
+                    "selection_reason": selection_reason,
                 }
 
         if normalized_label in {"home", "options for discover", "update available. more options"}:
@@ -128,8 +188,16 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
                 "selection_score": -25,
             }
 
-    for pattern, safety_score, exploration_score, reason, exploration_reason in SAFE_RULES:
+    for pattern, base_safety_score, base_exploration_score, base_reason, base_selection_reason in SAFE_RULES:
         if pattern.search(label):
+            safety_score, exploration_score, reason, selection_reason = _apply_contextual_adjustments(
+                normalized_label,
+                base_safety_score,
+                base_exploration_score,
+                base_reason,
+                base_selection_reason,
+                context,
+            )
             return {
                 **tappable,
                 "safe_action": "safe",
@@ -137,7 +205,7 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
                 "safety_score": safety_score,
                 "exploration_score": exploration_score,
                 "selection_score": safety_score + exploration_score,
-                "selection_reason": exploration_reason,
+                "selection_reason": selection_reason,
             }
 
     for pattern, reason in UNSAFE_PATTERNS:
@@ -159,16 +227,16 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
                 "safe_reason": reason,
                 "safety_score": -75,
                 "exploration_score": -75,
-            "selection_score": -150,
-        }
+                "selection_score": -150,
+            }
 
     return {
         **tappable,
         "safe_action": "unknown",
         "safe_reason": (
-            "does not match the mini Block 3 modal allowlist"
+            "does not match the modal follow-up allowlist"
             if phase == "modal_followup"
-            else "does not match the strict Block 2 allowlist"
+            else "does not match the bounded safe exploration allowlist"
         ),
         "safety_score": 0,
         "exploration_score": 0,

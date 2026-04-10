@@ -11,7 +11,7 @@ from src.config.audit_config import AUDIT_CONFIG
 from .device_manager import AndroidDeviceManager, AndroidSessionConfig
 from .mobile_artifact_writer import create_mobile_audit_output_dir, write_mobile_audit_artifacts
 from .mobile_runner import MobileRunner, MobileRunnerConfig
-from .screen_explorer import SingleStepScreenExplorer
+from .screen_explorer import BoundedScreenExplorer, ExplorerConfig
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -109,10 +109,30 @@ def _build_session_config(args: argparse.Namespace) -> AndroidSessionConfig:
 
 
 def _build_runner_config(args: argparse.Namespace) -> MobileRunnerConfig:
+    defaults = _mobile_defaults()
+    initialization_defaults = defaults.get("initialization", {})
+    exploration_defaults = defaults.get("exploration", {})
     return MobileRunnerConfig(
         settle_delay_ms=args.settle_delay_ms,
         stabilization_timeout_ms=args.stabilization_timeout_ms,
         stabilization_poll_ms=args.stabilization_poll_ms,
+        initialization_max_back_presses=int(initialization_defaults.get("maxBackPresses", 2)),
+        initialization_post_back_delay_ms=int(initialization_defaults.get("postBackDelayMs", 900)),
+        initialization_max_relaunches=int(initialization_defaults.get("maxRelaunches", 1)),
+        initialization_post_relaunch_delay_ms=int(initialization_defaults.get("postRelaunchDelayMs", 1400)),
+        scroll_post_delay_ms=int(exploration_defaults.get("scrollPostDelayMs", 900)),
+        scroll_percent=float(exploration_defaults.get("scrollPercent", 0.82)),
+    )
+
+
+def _build_explorer_config() -> ExplorerConfig:
+    exploration_defaults = _mobile_defaults().get("exploration", {})
+    return ExplorerConfig(
+        max_screens=int(exploration_defaults.get("maxScreens", 12)),
+        max_actions_total=int(exploration_defaults.get("maxActionsTotal", 24)),
+        max_actions_per_screen=int(exploration_defaults.get("maxActionsPerScreen", 6)),
+        max_scrolls_per_path=int(exploration_defaults.get("maxScrollsPerPath", 3)),
+        max_backtrack_steps=int(exploration_defaults.get("maxBacktrackSteps", 2)),
     )
 
 
@@ -120,19 +140,21 @@ def run_block1(args: argparse.Namespace) -> Path:
     output_dir = create_mobile_audit_output_dir(job_id=args.job_id or None, output_root=args.output_root)
     session_config = _build_session_config(args)
     runner_config = _build_runner_config(args)
+    explorer_config = _build_explorer_config()
 
     print("[1/5] Connecting to Appium and launching the Android app.")
     manager = AndroidDeviceManager(session_config)
     driver = manager.connect()
 
     try:
-        print("[2/5] Capturing first screen screenshot and hierarchy.")
+        print("[2/5] Normalizing baseline state and capturing the first screen.")
         runner = MobileRunner(driver, runner_config)
+        runner.normalize_to_baseline(manager, expected_package=args.app_package)
         first_capture = runner.capture_current_screen(screen_id="screen_001")
 
-        print("[3/5] Running bounded two-step safe exploration.")
-        explorer = SingleStepScreenExplorer(driver, runner)
-        exploration_result = explorer.run_bounded_two_step_flow(first_capture)
+        print("[3/5] Running bounded all-safe exploration plus scroll discovery.")
+        explorer = BoundedScreenExplorer(driver, runner, manager, config=explorer_config)
+        exploration_result = explorer.run_bounded_exploration(first_capture)
 
         print("[4/5] Writing mobile extraction artifacts.")
         write_mobile_audit_artifacts(
