@@ -39,6 +39,9 @@ load_dotenv(ROOT_DIR / ".env")
 
 JOBS: dict[str, dict[str, Any]] = {}
 JOBS_LOCK = threading.Lock()
+JOB_PROCESSES: dict[str, subprocess.Popen[str]] = {}
+JOB_PROCESSES_LOCK = threading.Lock()
+CANCELLED_RETURN_CODE = -999
 
 
 def _now() -> float:
@@ -57,6 +60,7 @@ def _new_job(url: str, mode: str) -> dict[str, Any]:
         "logs": [],
         "resultUrl": "",
         "error": "",
+        "cancelRequested": False,
         "createdAt": _now(),
         "updatedAt": _now(),
     }
@@ -78,6 +82,7 @@ def _new_screenshot_job(site_name: str, screenshot_paths: list[Path], screenshot
         "logs": [],
         "resultUrl": "",
         "error": "",
+        "cancelRequested": False,
         "createdAt": _now(),
         "updatedAt": _now(),
     }
@@ -111,6 +116,7 @@ def _new_mobile_job(
         "resultUrl": "",
         "outputDir": "",
         "error": "",
+        "cancelRequested": False,
         "createdAt": _now(),
         "updatedAt": _now(),
     }
@@ -151,6 +157,93 @@ def _set_job(job_id: str, **updates: Any) -> None:
             return
         job.update(updates)
         job["updatedAt"] = _now()
+
+
+def _get_job_status(job_id: str) -> str:
+    with JOBS_LOCK:
+        job = JOBS.get(job_id)
+        if not job:
+            return ""
+        return str(job.get("status") or "")
+
+
+def _is_cancel_requested(job_id: str) -> bool:
+    with JOBS_LOCK:
+        job = JOBS.get(job_id)
+        return bool(job and job.get("cancelRequested"))
+
+
+def _mark_job_cancelled(job_id: str) -> None:
+    _set_job(
+        job_id,
+        status="cancelled",
+        stage="Audit stopped",
+        progress=100,
+        error="Audit stopped by user.",
+        cancelRequested=True,
+    )
+
+
+def _finish_if_cancelled(job_id: str) -> bool:
+    if _is_cancel_requested(job_id) or _get_job_status(job_id) == "cancelled":
+        _mark_job_cancelled(job_id)
+        return True
+    return False
+
+
+def _terminate_process(process: subprocess.Popen[str]) -> None:
+    if process.poll() is not None:
+        return
+    if os.name == "nt":
+        subprocess.run(
+            ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        try:
+            process.wait(timeout=5)
+            return
+        except Exception:
+            pass
+
+    try:
+        process.terminate()
+        process.wait(timeout=5)
+        return
+    except subprocess.TimeoutExpired:
+        pass
+    except Exception:
+        return
+
+    try:
+        process.kill()
+    except Exception:
+        pass
+
+
+def _cancel_job(job_id: str) -> tuple[dict[str, Any] | None, bool]:
+    with JOBS_LOCK:
+        job = JOBS.get(job_id)
+        if not job:
+            return None, False
+        status = str(job.get("status") or "")
+        if status not in {"queued", "running"}:
+            return _snapshot_job(job), False
+        job["cancelRequested"] = True
+        job["status"] = "cancelled"
+        job["stage"] = "Stopping audit"
+        job["progress"] = 100
+        job["error"] = "Audit stopped by user."
+        job["updatedAt"] = _now()
+
+    with JOB_PROCESSES_LOCK:
+        process = JOB_PROCESSES.get(job_id)
+    if process:
+        _terminate_process(process)
+
+    with JOBS_LOCK:
+        return _snapshot_job(JOBS[job_id]), True
 
 
 def _validate_url(value: str) -> str:
@@ -235,6 +328,9 @@ def _save_screenshot_uploads(form: cgi.FieldStorage, job_id: str, labels: list[s
 
 
 def _run_command(job_id: str, command: list[str], *, stage: str, progress: int) -> int:
+    if _finish_if_cancelled(job_id):
+        return CANCELLED_RETURN_CODE
+
     _set_job(job_id, stage=stage, progress=progress)
     _append_log(job_id, f"$ {' '.join(command)}")
     env = os.environ.copy()
@@ -249,10 +345,23 @@ def _run_command(job_id: str, command: list[str], *, stage: str, progress: int) 
         text=True,
         bufsize=1,
     )
-    assert process.stdout is not None
-    for line in process.stdout:
-        _append_log(job_id, line)
-    return process.wait()
+    with JOB_PROCESSES_LOCK:
+        JOB_PROCESSES[job_id] = process
+    try:
+        assert process.stdout is not None
+        for line in process.stdout:
+            if _finish_if_cancelled(job_id):
+                _terminate_process(process)
+                return CANCELLED_RETURN_CODE
+            _append_log(job_id, line)
+        return_code = process.wait()
+        if _finish_if_cancelled(job_id):
+            return CANCELLED_RETURN_CODE
+        return return_code
+    finally:
+        with JOB_PROCESSES_LOCK:
+            if JOB_PROCESSES.get(job_id) is process:
+                JOB_PROCESSES.pop(job_id, None)
 
 
 def _report_paths_for_mode(mode: str) -> tuple[Path, Path]:
@@ -276,12 +385,17 @@ def _run_audit_job(job_id: str) -> None:
         mode,
     ]
     pipeline_code = _run_command(job_id, pipeline_command, stage="Running audit pipeline", progress=5)
+    if pipeline_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
+        return
     if pipeline_code != 0:
         _set_job(
             job_id,
             status="failed",
-            error=f"Audit pipeline failed with exit code {pipeline_code}. Check the process log above.",
+            error=f"Audit pipeline failed with exit code {pipeline_code}.",
         )
+        return
+
+    if _finish_if_cancelled(job_id):
         return
 
     report_dir, vercel_dir = _report_paths_for_mode(mode)
@@ -296,6 +410,8 @@ def _run_audit_job(job_id: str) -> None:
         "--deploy",
     ]
     deploy_code = _run_command(job_id, deploy_command, stage="Deploying report to Vercel", progress=90)
+    if deploy_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
+        return
     with JOBS_LOCK:
         result_url = JOBS[job_id].get("resultUrl", "")
     if deploy_code != 0:
@@ -346,11 +462,13 @@ def _run_screenshot_audit_job(job_id: str) -> None:
     if screenshot_labels:
         analysis_command.extend(["--screenshot-names-json", json.dumps(screenshot_labels, ensure_ascii=False)])
     analysis_code = _run_command(job_id, analysis_command, stage="Running screenshot GTM audit", progress=10)
+    if analysis_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
+        return
     if analysis_code != 0:
         _set_job(
             job_id,
             status="failed",
-            error=f"Screenshot audit failed with exit code {analysis_code}. Check the process log above.",
+            error=f"Screenshot audit failed with exit code {analysis_code}.",
         )
         return
 
@@ -368,6 +486,8 @@ def _run_screenshot_audit_job(job_id: str) -> None:
         stage="Generating screenshot audit report",
         progress=70,
     )
+    if report_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
+        return
     if report_code != 0:
         _set_job(job_id, status="failed", error=f"Report generation failed with exit code {report_code}.")
         return
@@ -387,6 +507,8 @@ def _run_screenshot_audit_job(job_id: str) -> None:
         stage="Deploying screenshot audit to Vercel",
         progress=90,
     )
+    if deploy_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
+        return
     with JOBS_LOCK:
         result_url = JOBS[job_id].get("resultUrl", "")
     if deploy_code != 0:
@@ -447,6 +569,8 @@ def _run_mobile_audit_job(job_id: str) -> None:
 
     _append_log(job_id, f"Preparing mobile audit for: {app_label}")
     exit_code = _run_command(job_id, command, stage="Running Android Block 1 extraction", progress=15)
+    if exit_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
+        return
     if exit_code != 0:
         _set_job(
             job_id,
@@ -542,6 +666,15 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path.startswith("/api/audits/") and parsed.path.endswith("/cancel"):
+            job_id = unquote(parsed.path.removeprefix("/api/audits/").removesuffix("/cancel").strip("/"))
+            payload, _cancelled = _cancel_job(job_id)
+            if not payload:
+                self._send_json({"error": "Audit job not found."}, HTTPStatus.NOT_FOUND)
+                return
+            self._send_json(payload)
+            return
+
         if parsed.path != "/api/audits":
             self.send_error(HTTPStatus.NOT_FOUND, "Not found")
             return

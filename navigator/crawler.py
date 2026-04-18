@@ -2505,6 +2505,7 @@ async def ai_navigation_recovery(
         "clicked_candidate": None,
         "ai_response": None,
         "improved": False,
+        "error": None,
     }
 
     quality = evaluate_nav_quality(current_result.get("navbars", []))
@@ -2531,13 +2532,19 @@ async def ai_navigation_recovery(
     candidates = await extract_clickable_candidates(page, options.debug)
     screenshot_bytes = await page.screenshot(full_page=False, type="png")
 
-    ai_result = call_llama_navigation_detector(
-        screenshot_bytes=screenshot_bytes,
-        homepage=homepage,
-        mobile=mobile,
-        current_nav_items=current_nav_items,
-        candidates=candidates,
-    )
+    try:
+        ai_result = call_llama_navigation_detector(
+            screenshot_bytes=screenshot_bytes,
+            homepage=homepage,
+            mobile=mobile,
+            current_nav_items=current_nav_items,
+            candidates=candidates,
+        )
+    except Exception as exc:
+        ai_meta["error"] = str(exc)
+        ai_meta["reason"] = f"ai_failed:{quality['reason']}"
+        debug_log(options.debug, f"AI navigation recovery failed; continuing without it: {exc}")
+        return current_result, ai_meta
     ai_meta["ai_response"] = ai_result
 
     if current_result.get("navbars"):

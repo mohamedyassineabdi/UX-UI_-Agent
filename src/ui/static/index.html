@@ -3,36 +3,58 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>UX/UI Audit Launcher</title>
+    <title>UX/UI Auditor</title>
+    <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.6.3/dist/es-module-shims.min.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@v0.151.3/build/three.module.min.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.151.3/examples/jsm/"
+        }
+      }
+    </script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/gsap@3.11.5/dist/gsap.min.js"></script>
+    <script src="https://unpkg.com/gsap@3.11.5/dist/ScrollTrigger.min.js"></script>
     <style>
       :root {
-        --ey-yellow: #ffe600;
-        --ey-gold: #cda349;
-        --ink: #111827;
-        --muted: #667085;
-        --line: rgba(17, 24, 39, 0.12);
-        --panel: rgba(255, 255, 255, 0.78);
-        --cream: #f7f2e8;
-        --cream-2: #fffbf2;
-        --danger: #b54708;
+        --bg: #05050a;
+        --bg-2: #090814;
+        --panel: rgba(22, 21, 30, 0.86);
+        --panel-strong: rgba(31, 27, 43, 0.92);
+        --panel-soft: rgba(255, 255, 255, 0.08);
+        --line: rgba(255, 255, 255, 0.12);
+        --line-strong: rgba(255, 255, 255, 0.22);
+        --text: #fbf9ff;
+        --muted: #b9b5c8;
+        --faint: #88839a;
+        --purple: #a421ff;
+        --violet: #7c3cff;
+        --pink: #e6008a;
+        --magenta: #f43f9d;
+        --orange: #ff5a14;
+        --yellow: #ffe600;
+        --teal: #00a7b5;
+        --blue: #1162ff;
+        --danger: #ff6b6b;
+        --success: #37d67a;
+        --shadow: 0 28px 90px rgba(0, 0, 0, 0.45);
       }
 
       * {
         box-sizing: border-box;
       }
 
+      html {
+        scroll-behavior: smooth;
+      }
+
       body {
-        margin: 0;
-        color: var(--ink);
+        background: var(--bg);
+        color: var(--text);
         font-family: Aptos, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-        background:
-          linear-gradient(rgba(17, 24, 39, 0.035) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(17, 24, 39, 0.035) 1px, transparent 1px),
-          radial-gradient(circle at 80% 5%, rgba(255, 230, 0, 0.24), transparent 22rem),
-          linear-gradient(135deg, var(--cream-2), var(--cream));
-        background-size: 56px 56px, 56px 56px, auto, auto;
+        margin: 0;
         min-height: 100vh;
       }
 
@@ -41,360 +63,681 @@
         font: inherit;
       }
 
+      button {
+        color: inherit;
+      }
+
       input[type="file"] {
         cursor: pointer;
       }
 
+      .app-shell {
+        background:
+          linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+          radial-gradient(ellipse at 8% 12%, rgba(0, 167, 181, 0.28), transparent 22rem),
+          radial-gradient(ellipse at 72% 2%, rgba(164, 33, 255, 0.32), transparent 30rem),
+          radial-gradient(ellipse at 92% 14%, rgba(230, 0, 138, 0.34), transparent 25rem),
+          radial-gradient(ellipse at 86% 5%, rgba(255, 230, 0, 0.34), transparent 21rem),
+          linear-gradient(180deg, #05050a 0%, #070711 48%, #0a0712 100%);
+        background-size: 64px 64px, 64px 64px, auto, auto, auto, auto, auto;
+        isolation: isolate;
+        min-height: 100vh;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .app-shell::before {
+        background:
+          linear-gradient(110deg, rgba(0, 0, 0, 0) 0%, rgba(17, 98, 255, 0.24) 32%, rgba(164, 33, 255, 0.34) 51%, rgba(255, 90, 20, 0.28) 72%, rgba(255, 230, 0, 0.22) 100%);
+        content: "";
+        filter: blur(54px);
+        height: 240px;
+        left: 8%;
+        opacity: 0.72;
+        pointer-events: none;
+        position: absolute;
+        right: -10%;
+        top: -110px;
+        transform: rotate(5deg);
+        z-index: -1;
+      }
+
       .topbar {
         align-items: center;
-        background: rgba(255, 255, 255, 0.86);
-        border-bottom: 1px solid var(--line);
+        backdrop-filter: blur(22px);
+        background: rgba(5, 5, 10, 0.7);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
         display: flex;
         justify-content: space-between;
-        min-height: 72px;
-        padding: 0 8vw;
+        min-height: 76px;
+        padding: 0 clamp(24px, 7vw, 132px);
         position: sticky;
         top: 0;
-        z-index: 20;
-        backdrop-filter: blur(16px);
+        z-index: 30;
       }
 
       .brand {
-        align-items: baseline;
-        display: flex;
-        gap: 0.42rem;
-        font-weight: 800;
-        letter-spacing: -0.04em;
-      }
-
-      .ey-mark {
-        background: transparent;
-        color: #4a4a4a;
-        display: grid;
-        font-size: 2rem;
-        font-weight: 900;
-        height: 43px;
-        letter-spacing: -0.11em;
-        line-height: 0.95;
-        place-items: end start;
-        position: relative;
-        top: 1px;
-        width: 47px;
-      }
-
-      .ey-mark::before {
-        background: var(--ey-yellow);
-        clip-path: polygon(100% 0, 100% 100%, 0 100%);
-        content: "";
-        height: 13px;
-        left: 2px;
-        position: absolute;
-        top: 0;
-        width: 43px;
-      }
-
-      .brand-name {
-        align-items: baseline;
-        color: #4a4a4a;
-        display: inline-flex;
-        font-size: 1.15rem;
-        font-weight: 800;
-        gap: 0.12rem;
-        letter-spacing: -0.06em;
-        line-height: 1;
-        transform: translateY(1px);
-      }
-
-      .brand-name strong {
-        color: inherit;
-        font-weight: inherit;
-      }
-
-      .brand-plus {
-        display: inline-block;
-        font-size: 0;
-        height: 9px;
-        margin-left: 1px;
-        position: relative;
-        transform: translateY(1px);
-        width: 9px;
-      }
-
-      .brand-plus::before,
-      .brand-plus::after {
-        border-radius: 999px;
-        content: "";
-        position: absolute;
-      }
-
-      .brand-plus::before {
-        background: #f72585;
-        height: 2px;
-        left: 0;
-        top: 3.5px;
-        width: 9px;
-      }
-
-      .brand-plus::after {
-        background: #2563eb;
-        height: 9px;
-        left: 3.5px;
-        top: 0;
-        width: 2px;
-      }
-
-      .topbar nav {
         align-items: center;
-        color: var(--muted);
         display: flex;
-        font-size: 0.9rem;
-        font-weight: 700;
-        gap: 1.5rem;
+        min-width: 0;
       }
 
-      .nav-button {
-        background: transparent;
-        border: 0;
-        color: inherit;
-        cursor: pointer;
-        font-weight: inherit;
-        padding: 0;
+      .brand-logo {
+        display: block;
+        height: auto;
+        width: clamp(142px, 11vw, 184px);
       }
 
-      .nav-button:hover {
-        color: var(--ink);
-      }
-
-      .shell {
+      .page {
         margin: 0 auto;
-        max-width: 1180px;
-        padding: 72px 28px 96px;
+        max-width: 1360px;
+        padding: 0 clamp(22px, 7vw, 88px) 88px;
       }
 
       .hero {
-        display: grid;
-        gap: 44px;
-        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
         align-items: center;
+        display: grid;
+        gap: clamp(36px, 6vw, 86px);
+        grid-template-columns: minmax(0, 0.88fr) minmax(360px, 1.12fr);
+        min-height: auto;
+        padding: clamp(48px, 5vw, 72px) 0 clamp(58px, 5vw, 76px);
       }
 
       .ey-pill {
         align-items: center;
-        background: white;
-        border: 1px solid var(--line);
+        background: linear-gradient(90deg, rgba(124, 60, 255, 0.34), rgba(230, 0, 138, 0.22));
+        border: 1px solid rgba(226, 84, 255, 0.35);
         border-radius: 999px;
+        color: #fff4ff;
         display: inline-flex;
-        font-size: 0.78rem;
-        font-weight: 900;
-        gap: 0.5rem;
-        letter-spacing: 0.16em;
-        padding: 0.6rem 0.9rem;
-        text-transform: uppercase;
+        font-size: 0.83rem;
+        font-weight: 800;
+        gap: 9px;
+        line-height: 1;
+        padding: 12px 24px;
+        width: fit-content;
       }
 
-      .ey-dot {
-        background: var(--ey-yellow);
-        border-radius: 50%;
-        height: 0.62rem;
-        width: 0.62rem;
+      .hero h1,
+      .launch-copy h2 {
+        color: var(--text);
+        font-size: clamp(3.2rem, 6.2vw, 5.9rem);
+        font-weight: 700;
+        line-height: 1.11;
+        margin: 38px 0 28px;
+        max-width: 680px;
       }
 
-      h1 {
-        font-size: clamp(3rem, 7vw, 6.6rem);
-        letter-spacing: -0.075em;
-        line-height: 0.9;
-        margin: 1.2rem 0 1rem;
-        max-width: 800px;
+      .accent {
+        background: linear-gradient(90deg, #f56cff 0%, #e6008a 48%, #ff5a14 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
       }
 
-      .hero-copy {
-        color: var(--muted);
-        font-size: clamp(1.1rem, 1.5vw, 1.35rem);
-        line-height: 1.7;
-        max-width: 660px;
+      .hero-copy,
+      .launch-copy p {
+        color: #d5d1df;
+        font-size: clamp(1.05rem, 1.35vw, 1.22rem);
+        line-height: 1.58;
+        margin: 0;
+        max-width: 610px;
       }
 
-      .hero-panel {
-        background: rgba(255, 255, 255, 0.72);
-        border: 1px solid rgba(17, 24, 39, 0.1);
-        border-radius: 34px;
-        box-shadow: 0 28px 80px rgba(17, 24, 39, 0.12);
-        overflow: hidden;
-      }
-
-      .panel-head {
-        align-items: center;
-        background: #f3f4f0;
-        border-bottom: 1px solid var(--line);
+      .hero-actions {
         display: flex;
-        gap: 0.5rem;
-        padding: 1rem 1.2rem;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-top: 38px;
       }
 
-      .dot {
-        background: #cfd3d0;
-        border-radius: 50%;
-        height: 10px;
-        width: 10px;
-      }
-
-      .dot:first-child {
-        background: var(--ey-yellow);
-      }
-
-      .panel-body {
-        padding: 28px;
-      }
-
-      .choice-grid {
-        display: grid;
-        gap: 14px;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        margin: 26px 0;
-      }
-
-      .choice {
-        background: white;
-        border: 1px solid var(--line);
-        border-radius: 22px;
-        color: var(--ink);
+      .primary,
+      .secondary,
+      .ghost {
+        align-items: center;
+        border-radius: 18px;
         cursor: pointer;
-        min-height: 132px;
-        padding: 20px;
-        text-align: left;
-        transition: transform 0.2s ease, border 0.2s ease, box-shadow 0.2s ease;
+        display: inline-flex;
+        font-weight: 850;
+        gap: 10px;
+        justify-content: center;
+        min-height: 58px;
+        padding: 0 28px;
+        text-decoration: none;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, background 0.18s ease;
       }
 
-      .choice:hover,
-      .choice.active {
-        border-color: rgba(205, 163, 73, 0.75);
-        box-shadow: 0 18px 45px rgba(17, 24, 39, 0.13);
-        transform: translateY(-3px);
+      .primary {
+        background: linear-gradient(100deg, var(--purple) 0%, var(--pink) 58%, var(--orange) 100%);
+        border: 0;
+        box-shadow: 0 18px 42px rgba(230, 0, 138, 0.25);
+        color: white;
       }
 
-      .choice.disabled {
+      .primary:hover,
+      .secondary:hover,
+      .ghost:hover {
+        transform: translateY(-1px);
+      }
+
+      .primary:disabled {
         cursor: not-allowed;
-        opacity: 0.55;
+        opacity: 0.45;
+        transform: none;
       }
 
-      .choice strong {
+      .secondary,
+      .ghost {
+        background: rgba(5, 5, 10, 0.34);
+        border: 1px solid rgba(164, 33, 255, 0.55);
+        color: white;
+      }
+
+      .ghost {
+        border-color: rgba(255, 255, 255, 0.16);
+        min-height: 46px;
+        padding: 0 18px;
+      }
+
+      .stop-button {
+        border-color: rgba(255, 107, 107, 0.52);
+        color: #ffd0d0;
+      }
+
+      .stop-button:hover {
+        background: rgba(255, 107, 107, 0.12);
+        border-color: rgba(255, 107, 107, 0.78);
+      }
+
+      .icon {
+        display: inline-block;
+        flex: 0 0 auto;
+        height: 19px;
+        width: 19px;
+      }
+
+      .hero-visual {
+        min-height: 600px;
+        position: relative;
+      }
+
+      .visual-card {
+        background:
+          linear-gradient(180deg, rgba(9, 14, 28, 0.42), rgba(5, 5, 10, 0.82)),
+          radial-gradient(ellipse at 42% 0%, rgba(17, 98, 255, 0.36), transparent 32rem),
+          radial-gradient(ellipse at 88% 34%, rgba(230, 0, 138, 0.18), transparent 28rem),
+          #05070a;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+        height: min(68vh, 620px);
+        min-height: 540px;
+        overflow: hidden;
+        position: absolute;
+        right: 0;
+        top: 24px;
+        width: min(100%, 580px);
+      }
+
+      .visual-card::before {
+        background:
+          linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+        background-size: 42px 42px;
+        content: "";
+        inset: 0;
+        opacity: 0.48;
+        position: absolute;
+      }
+
+      .chaingpt-robot-card {
+        isolation: isolate;
+      }
+
+      .chaingpt-robot-card .webgl {
+        inset: -8% -10% -4%;
+        pointer-events: none;
+        position: absolute;
+        z-index: 2;
+      }
+
+      .chaingpt-robot-card .webgl canvas {
         display: block;
-        font-size: 1.1rem;
-        margin-bottom: 0.55rem;
+        height: 100% !important;
+        max-width: none;
+        object-fit: contain;
+        transform: translateY(7%) scale(1.68);
+        transform-origin: center center;
+        width: 100% !important;
       }
 
-      .choice small {
+      .robot-video-assets,
+      .shader-assets {
+        display: none;
+      }
+
+      .webgl-fallback {
+        align-items: center;
+        background:
+          radial-gradient(circle at 50% 28%, rgba(255, 230, 0, 0.2), transparent 7rem),
+          radial-gradient(circle at 58% 52%, rgba(244, 63, 157, 0.18), transparent 9rem),
+          radial-gradient(circle at 42% 68%, rgba(17, 98, 255, 0.22), transparent 10rem);
+        color: rgba(255, 255, 255, 0.58);
+        display: flex;
+        font-size: 0.9rem;
+        font-weight: 800;
+        inset: 0;
+        justify-content: center;
+        letter-spacing: 0.08em;
+        position: absolute;
+        text-transform: uppercase;
+        z-index: 1;
+      }
+
+      body.loaded .webgl-fallback {
+        opacity: 0;
+        visibility: hidden;
+      }
+
+      .robot-script-hooks {
+        height: 1px;
+        left: -9999px;
+        overflow: hidden;
+        position: fixed;
+        top: -9999px;
+        width: 1px;
+      }
+
+      .robot-portrait {
+        bottom: -44px;
+        height: 500px;
+        left: 46%;
+        position: absolute;
+        transform: translateX(-50%);
+        width: 360px;
+        z-index: 2;
+      }
+
+      .robot-head {
+        background:
+          radial-gradient(circle at 27% 20%, #fffbd1 0 13%, transparent 14%),
+          radial-gradient(circle at 70% 34%, rgba(244, 63, 157, 0.95), transparent 21%),
+          linear-gradient(135deg, #fff4a8 0%, #ff5a14 27%, #101016 45%, #1162ff 70%, #dfe8ff 100%);
+        border: 1px solid rgba(255, 255, 255, 0.32);
+        border-radius: 44% 48% 48% 44%;
+        box-shadow:
+          inset -18px -26px 38px rgba(0, 0, 0, 0.5),
+          inset 18px 16px 34px rgba(255, 255, 255, 0.28),
+          0 25px 90px rgba(17, 98, 255, 0.28);
+        height: 176px;
+        left: 92px;
+        position: absolute;
+        top: 12px;
+        transform: rotate(4deg);
+        width: 162px;
+      }
+
+      .robot-head::before {
+        background: linear-gradient(90deg, #0b0a0f 0%, #15131f 55%, #050506 100%);
+        border-radius: 999px;
+        content: "";
+        height: 48px;
+        left: 28px;
+        position: absolute;
+        top: 56px;
+        transform: rotate(-2deg);
+        width: 122px;
+      }
+
+      .robot-head::after {
+        background: linear-gradient(160deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.02));
+        border-radius: 50%;
+        content: "";
+        height: 86px;
+        left: 18px;
+        position: absolute;
+        top: 13px;
+        width: 78px;
+      }
+
+      .robot-neck {
+        background: linear-gradient(90deg, #11131f, #f2f4ff 42%, #ff5a14 60%, #09090e);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 22px;
+        height: 80px;
+        left: 142px;
+        position: absolute;
+        top: 156px;
+        width: 66px;
+      }
+
+      .robot-torso {
+        background:
+          radial-gradient(circle at 36% 14%, rgba(255, 230, 0, 0.9), transparent 20%),
+          radial-gradient(circle at 76% 34%, rgba(244, 63, 157, 0.78), transparent 22%),
+          linear-gradient(135deg, #dfe8ff 0%, #17234d 34%, #050506 54%, #ff5a14 75%, #f8f7ff 100%);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 48% 48% 18% 18%;
+        box-shadow:
+          inset -28px -30px 52px rgba(0, 0, 0, 0.54),
+          inset 20px 20px 42px rgba(255, 255, 255, 0.16),
+          0 34px 90px rgba(0, 0, 0, 0.52);
+        height: 270px;
+        left: 78px;
+        position: absolute;
+        top: 206px;
+        width: 214px;
+      }
+
+      .robot-shoulder {
+        background: linear-gradient(135deg, #dfe8ff, #0e1020 48%, #ff5a14 100%);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 999px;
+        height: 80px;
+        position: absolute;
+        top: 222px;
+        width: 92px;
+      }
+
+      .robot-shoulder.left {
+        left: 20px;
+        transform: rotate(-22deg);
+      }
+
+      .robot-shoulder.right {
+        right: 4px;
+        transform: rotate(18deg);
+      }
+
+      .robot-arm {
+        background: linear-gradient(180deg, #1162ff, #0d1022 54%, #cbd5ff);
+        border-radius: 999px;
+        height: 190px;
+        left: 28px;
+        position: absolute;
+        top: 292px;
+        transform: rotate(22deg);
+        width: 42px;
+      }
+
+      .launch-section {
+        align-items: start;
+        display: grid;
+        gap: clamp(36px, 6vw, 74px);
+        grid-template-columns: minmax(280px, 0.62fr) minmax(0, 1fr);
+        padding: 36px 0 96px;
+      }
+
+      .view-home .launch-section {
+        display: none;
+      }
+
+      .view-audit .hero {
+        display: none;
+      }
+
+      .view-audit .page {
+        min-height: calc(100vh - 76px);
+      }
+
+      .view-audit .launch-section {
+        min-height: calc(100vh - 164px);
+        padding-top: clamp(48px, 6vw, 84px);
+      }
+
+      .launch-copy {
+        padding-top: 10px;
+      }
+
+      .launch-copy h2 {
+        font-size: clamp(2.4rem, 4.1vw, 4rem);
+        margin: 0 0 18px;
+      }
+
+      .process-list {
+        display: grid;
+        gap: 27px;
+        margin-top: 38px;
+      }
+
+      .process-step {
+        align-items: start;
+        display: grid;
+        gap: 15px;
+        grid-template-columns: 34px 1fr;
+      }
+
+      .process-step-number {
+        align-items: center;
+        background: linear-gradient(135deg, var(--purple), var(--pink));
+        border-radius: 999px;
+        display: flex;
+        font-size: 0.86rem;
+        font-weight: 900;
+        height: 34px;
+        justify-content: center;
+        width: 34px;
+      }
+
+      .process-step strong {
+        display: block;
+        font-size: 1.02rem;
+        margin-top: 2px;
+      }
+
+      .process-step p {
         color: var(--muted);
         line-height: 1.5;
+        margin: 8px 0 0;
+      }
+
+      .audit-panel {
+        backdrop-filter: blur(24px);
+        background:
+          radial-gradient(ellipse at 90% 0%, rgba(164, 33, 255, 0.16), transparent 25rem),
+          rgba(17, 17, 24, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 18px;
+        box-shadow: var(--shadow);
+        padding: clamp(24px, 3vw, 34px);
+      }
+
+      .audit-panel h2 {
+        font-size: 1.5rem;
+        margin: 0 0 12px;
+      }
+
+      .panel-subtitle {
+        color: var(--muted);
+        font-weight: 700;
+        margin: 0 0 34px;
       }
 
       .field {
         display: grid;
-        gap: 0.65rem;
-        margin-top: 22px;
+        gap: 8px;
+        margin-top: 24px;
       }
 
-      .field label {
-        color: var(--muted);
-        font-size: 0.8rem;
-        font-weight: 900;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
+      .field label,
+      .field-legend {
+        color: #c9c5d6;
+        font-size: 0.94rem;
+        font-weight: 850;
       }
 
       .field input {
-        background: white;
-        border: 1px solid var(--line);
+        background: rgba(24, 24, 35, 0.78);
+        border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 18px;
-        color: var(--ink);
+        color: var(--text);
+        min-height: 58px;
         outline: 0;
-        padding: 1rem 1.1rem;
+        padding: 0 26px;
         width: 100%;
       }
 
+      .field input::placeholder {
+        color: rgba(210, 205, 224, 0.46);
+      }
+
       .field input:focus {
-        border-color: var(--ey-gold);
-        box-shadow: 0 0 0 4px rgba(205, 163, 73, 0.16);
+        border-color: rgba(188, 72, 255, 0.88);
+        box-shadow: 0 0 0 4px rgba(164, 33, 255, 0.18);
       }
 
       .field-grid {
         display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .choice-stack {
+        display: grid;
         gap: 14px;
+        margin-top: 8px;
+      }
+
+      .choice {
+        align-items: center;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        border-radius: 18px;
+        cursor: pointer;
+        display: grid;
+        gap: 16px;
+        grid-template-columns: 50px 1fr;
+        min-height: 100px;
+        padding: 18px 24px;
+        text-align: left;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, transform 0.18s ease;
+        width: 100%;
+      }
+
+      .choice:hover {
+        border-color: rgba(188, 72, 255, 0.54);
+        transform: translateY(-1px);
+      }
+
+      .choice.active {
+        background: rgba(105, 36, 127, 0.58);
+        border-color: rgba(188, 72, 255, 0.95);
+        box-shadow: 0 0 0 1px rgba(188, 72, 255, 0.32), 0 18px 48px rgba(164, 33, 255, 0.18);
+      }
+
+      .choice-icon {
+        align-items: center;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        display: flex;
+        height: 48px;
+        justify-content: center;
+        width: 48px;
+      }
+
+      .choice.active .choice-icon {
+        background: linear-gradient(135deg, var(--purple), var(--pink));
+      }
+
+      .choice strong {
+        display: block;
+        font-size: 1.06rem;
+        margin-bottom: 7px;
+      }
+
+      .choice small {
+        color: #c8c3d0;
+        display: block;
+        font-size: 0.91rem;
+        font-weight: 700;
+        line-height: 1.36;
+      }
+
+      .segmented {
+        display: grid;
+        gap: 12px;
         grid-template-columns: 1fr 1fr;
       }
 
-      .upload-zone {
-        background: rgba(255, 255, 255, 0.82);
-        border: 1.5px dashed rgba(17, 24, 39, 0.22);
-        border-radius: 22px;
+      .segmented button {
+        align-items: center;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        border-radius: 18px;
+        color: var(--muted);
         cursor: pointer;
-        display: grid;
-        gap: 0.45rem;
-        padding: 1.2rem;
+        display: flex;
+        font-weight: 850;
+        gap: 8px;
+        justify-content: center;
+        min-height: 58px;
       }
 
-      .upload-zone:focus-within,
-      .upload-zone:hover {
-        border-color: var(--ey-gold);
-        box-shadow: 0 0 0 4px rgba(205, 163, 73, 0.12);
+      .segmented button.active {
+        background: linear-gradient(100deg, var(--purple), var(--pink));
+        border-color: transparent;
+        color: white;
+      }
+
+      .upload-zone {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1.5px dashed rgba(255, 255, 255, 0.24);
+        border-radius: 18px;
+        cursor: pointer;
+        display: grid;
+        gap: 8px;
+        padding: 22px;
+      }
+
+      .upload-zone:hover,
+      .upload-zone:focus-within {
+        border-color: rgba(188, 72, 255, 0.95);
+        box-shadow: 0 0 0 4px rgba(164, 33, 255, 0.16);
       }
 
       .upload-zone strong {
-        color: var(--ink);
+        color: white;
       }
 
       .upload-zone span {
         color: var(--muted);
-        font-size: 0.92rem;
-        line-height: 1.5;
+        line-height: 1.45;
       }
 
       .upload-zone input {
-        margin-top: 0.45rem;
-        max-width: 100%;
-      }
-
-      .file-list {
         color: var(--muted);
-        display: grid;
-        font-size: 0.86rem;
-        gap: 0.35rem;
-        margin: 0.75rem 0 0;
-        padding-left: 1.1rem;
+        margin-top: 8px;
+        max-width: 100%;
       }
 
       .screenshot-grid {
         display: flex;
         gap: 14px;
-        margin-top: 0.9rem;
+        margin-top: 16px;
         overflow-x: auto;
-        padding: 0.1rem 0.1rem 0.8rem;
-        scroll-snap-type: x proximity;
-        scrollbar-color: rgba(17, 24, 39, 0.28) transparent;
+        padding: 2px 2px 12px;
       }
 
       .screenshot-card {
-        background: rgba(255, 255, 255, 0.92);
-        border: 1px solid var(--line);
-        border-radius: 20px;
-        box-shadow: 0 16px 36px rgba(17, 24, 39, 0.08);
-        flex: 0 0 156px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        flex: 0 0 170px;
         overflow: hidden;
         position: relative;
-        scroll-snap-align: start;
       }
 
       .screenshot-thumb {
         align-items: center;
+        aspect-ratio: 1 / 1;
         background:
-          linear-gradient(45deg, rgba(17, 24, 39, 0.04) 25%, transparent 25%),
-          linear-gradient(-45deg, rgba(17, 24, 39, 0.04) 25%, transparent 25%),
-          #f9fafb;
+          linear-gradient(45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
+          linear-gradient(-45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
+          rgba(0, 0, 0, 0.28);
         background-size: 18px 18px;
         display: flex;
-        aspect-ratio: 1 / 1;
         justify-content: center;
-        overflow: hidden;
       }
 
       .screenshot-thumb img {
@@ -405,8 +748,8 @@
 
       .screenshot-meta {
         display: grid;
-        gap: 0.55rem;
-        padding: 0.85rem;
+        gap: 8px;
+        padding: 10px;
       }
 
       .screenshot-name-row small {
@@ -419,101 +762,81 @@
 
       .remove-screenshot {
         align-items: center;
-        background: rgba(17, 24, 39, 0.78);
-        border: 1px solid rgba(255, 255, 255, 0.75);
+        background: rgba(5, 5, 10, 0.78);
+        border: 1px solid rgba(255, 255, 255, 0.34);
         border-radius: 999px;
         color: white;
         cursor: pointer;
         display: flex;
-        font-size: 0.72rem;
+        font-size: 0.76rem;
         font-weight: 900;
-        height: 26px;
+        height: 28px;
         justify-content: center;
         padding: 0;
         position: absolute;
         right: 8px;
         top: 8px;
-        width: 26px;
-        z-index: 2;
-      }
-
-      .remove-screenshot:hover {
-        background: var(--ink);
-        border-color: white;
-        color: white;
+        width: 28px;
       }
 
       .screenshot-label-input {
-        border-radius: 14px !important;
+        border-radius: 12px !important;
         font-size: 0.88rem !important;
-        padding: 0.72rem 0.8rem !important;
+        min-height: 42px !important;
+        padding: 0 10px !important;
       }
 
-      .segmented {
-        background: rgba(17, 24, 39, 0.06);
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        display: grid;
-        gap: 6px;
-        grid-template-columns: 1fr 1fr;
-        padding: 6px;
-      }
-
-      .segmented button {
-        background: transparent;
-        border: 0;
-        border-radius: 999px;
-        color: var(--muted);
-        cursor: pointer;
-        font-weight: 850;
-        padding: 0.9rem 1rem;
-      }
-
-      .segmented button.active {
-        background: var(--ink);
-        color: white;
-      }
-
-      .primary {
-        align-items: center;
-        background: var(--ink);
-        border: 0;
-        border-radius: 999px;
-        color: white;
-        cursor: pointer;
-        display: inline-flex;
-        font-weight: 900;
-        gap: 0.75rem;
-        justify-content: center;
-        margin-top: 24px;
-        padding: 1rem 1.35rem;
-        text-decoration: none;
+      .start-button {
+        margin-top: 30px;
+        min-height: 58px;
         width: 100%;
       }
 
-      .primary::after {
-        color: var(--ey-yellow);
-        content: "->";
-        font-size: 1rem;
-      }
-
-      .primary:disabled {
-        cursor: not-allowed;
-        opacity: 0.5;
-      }
-
       .error {
-        background: #fff4ed;
-        border: 1px solid #fed7aa;
+        background: rgba(255, 107, 107, 0.1);
+        border: 1px solid rgba(255, 107, 107, 0.35);
+        border-radius: 14px;
+        color: #ffd0d0;
+        line-height: 1.45;
+        margin-top: 18px;
+        padding: 14px 16px;
+      }
+
+      .status-strip {
+        align-items: center;
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 16px;
-        color: var(--danger);
-        margin-top: 16px;
-        padding: 0.9rem 1rem;
+        color: var(--muted);
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+        margin-top: 22px;
+        padding: 14px 16px;
+      }
+
+      .status-strip strong {
+        color: white;
+      }
+
+      .progress-wrap {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 999px;
+        height: 11px;
+        overflow: hidden;
+        width: 100%;
+      }
+
+      .progress {
+        background: linear-gradient(90deg, var(--purple), var(--pink), var(--orange));
+        height: 100%;
+        transition: width 0.35s ease;
       }
 
       .modal-backdrop {
         align-items: center;
-        background: rgba(17, 24, 39, 0.48);
+        background: rgba(0, 0, 0, 0.62);
+        backdrop-filter: blur(12px);
         display: flex;
         inset: 0;
         justify-content: center;
@@ -524,56 +847,76 @@
 
       .modal {
         background:
-          radial-gradient(circle at 86% 4%, rgba(255, 230, 0, 0.28), transparent 18rem),
-          #fffdf8;
-        border: 1px solid rgba(255, 255, 255, 0.55);
-        border-radius: 34px;
-        box-shadow: 0 34px 90px rgba(0, 0, 0, 0.28);
+          radial-gradient(ellipse at 82% 0%, rgba(164, 33, 255, 0.22), transparent 22rem),
+          rgba(17, 17, 24, 0.98);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 18px;
+        box-shadow: var(--shadow);
         max-height: min(760px, 88vh);
         max-width: 760px;
-        overflow: hidden;
+        overflow: auto;
+        padding: 30px;
         width: 100%;
       }
 
-      .modal-main {
-        padding: 32px;
+      .modal-head {
+        align-items: start;
+        display: flex;
+        gap: 18px;
+        justify-content: space-between;
       }
 
-      .progress-wrap {
-        background: rgba(17, 24, 39, 0.08);
-        border-radius: 999px;
-        height: 12px;
-        overflow: hidden;
-        margin: 22px 0;
-      }
-
-      .progress {
-        background: linear-gradient(90deg, var(--ey-yellow), var(--ey-gold));
-        height: 100%;
-        transition: width 0.45s ease;
+      .modal h2 {
+        font-size: clamp(1.8rem, 4vw, 2.55rem);
+        margin: 18px 0 12px;
       }
 
       .stage {
         color: var(--muted);
-        font-weight: 800;
-        letter-spacing: 0.02em;
+        font-weight: 750;
+        line-height: 1.5;
+        margin: 0 0 22px;
       }
 
       .log {
-        background: #111827;
-        border-radius: 22px;
-        color: #d1d5db;
+        background: rgba(0, 0, 0, 0.42);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 14px;
+        color: #d8d3e4;
         font-family: "Cascadia Mono", Consolas, monospace;
         font-size: 0.78rem;
         line-height: 1.55;
         margin-top: 20px;
-        max-height: 260px;
+        max-height: 240px;
         overflow: auto;
-        padding: 18px;
+        padding: 16px;
+        white-space: pre-wrap;
       }
 
-      .log.debug-only {
-        margin-top: 22px;
+      .artifact-summary {
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        color: var(--muted);
+        display: grid;
+        gap: 9px;
+        margin-top: 20px;
+        padding: 15px;
+      }
+
+      .artifact-summary strong {
+        color: white;
+      }
+
+      .artifact-path {
+        background: rgba(0, 0, 0, 0.28);
+        border-radius: 10px;
+        color: white;
+        font-family: "Cascadia Mono", Consolas, monospace;
+        font-size: 0.84rem;
+        line-height: 1.5;
+        padding: 12px;
+        word-break: break-word;
       }
 
       .success-actions {
@@ -583,537 +926,219 @@
         margin-top: 22px;
       }
 
-      .artifact-summary {
-        background: rgba(17, 24, 39, 0.04);
-        border: 1px solid rgba(17, 24, 39, 0.08);
-        border-radius: 18px;
-        color: var(--muted);
-        display: grid;
-        gap: 0.55rem;
-        margin-top: 18px;
-        padding: 0.95rem 1rem;
-      }
-
-      .artifact-summary strong {
-        color: var(--ink);
-      }
-
-      .artifact-path {
-        background: rgba(255, 255, 255, 0.75);
-        border-radius: 12px;
-        color: var(--ink);
-        font-family: "Cascadia Code", "Consolas", monospace;
-        font-size: 0.84rem;
-        line-height: 1.5;
-        padding: 0.72rem 0.82rem;
-        word-break: break-word;
-      }
-
-      .ghost {
-        background: white;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        color: var(--ink);
-        cursor: pointer;
-        font-weight: 850;
-        padding: 0.95rem 1.2rem;
-      }
-
-      .process-list {
-        display: grid;
-        gap: 14px;
-        margin-top: 28px;
-      }
-
-      .process-step {
-        align-items: start;
-        display: grid;
-        gap: 14px;
-        grid-template-columns: 36px 1fr;
-      }
-
-      .process-step span {
-        background: var(--ey-yellow);
-        border-radius: 50%;
-        display: grid;
-        font-weight: 900;
-        height: 36px;
-        place-items: center;
-        width: 36px;
-      }
-
-      .process-step p {
-        color: var(--muted);
-        margin: 0.3rem 0 0;
-      }
-
-      .welcome-screen {
-        --cursor-x: 72%;
-        --cursor-y: 22%;
+      .footer-mark {
         align-items: center;
-        background:
-          radial-gradient(circle at var(--cursor-x) var(--cursor-y), rgba(255, 230, 0, 0.24), transparent 18rem),
-          radial-gradient(circle at calc(100% - var(--cursor-x)) calc(100% - var(--cursor-y)), rgba(37, 99, 235, 0.12), transparent 20rem),
-          radial-gradient(circle at 20% 90%, rgba(247, 37, 133, 0.09), transparent 16rem);
-        display: grid;
-        min-height: 100vh;
-        padding: 36px 28px;
-        transition: background 0.18s ease-out;
-      }
-
-      .welcome-card {
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 253, 248, 0.86));
-        border: 1px solid rgba(17, 24, 39, 0.1);
-        border-radius: 38px;
-        box-shadow: 0 34px 110px rgba(17, 24, 39, 0.14);
-        margin: 0 auto;
-        max-width: 1040px;
-        overflow: hidden;
-        padding: clamp(30px, 6vw, 70px);
-        width: min(100%, 1040px);
-      }
-
-      .welcome-brand {
-        margin-bottom: 46px;
-      }
-
-      .welcome-layout {
-        align-items: center;
-        display: grid;
-        gap: clamp(28px, 5vw, 70px);
-        grid-template-columns: minmax(0, 1.15fr) minmax(240px, 0.85fr);
-      }
-
-      .welcome-title {
-        font-size: clamp(3rem, 7vw, 6.9rem);
-        letter-spacing: -0.08em;
-        line-height: 0.86;
-        margin: 1.1rem 0 1.3rem;
-        max-width: 760px;
-      }
-
-      .welcome-copy {
-        color: var(--muted);
-        font-size: clamp(1.05rem, 1.5vw, 1.32rem);
-        line-height: 1.7;
-        margin: 0;
-        max-width: 680px;
-      }
-
-      .welcome-actions {
+        color: white;
         display: flex;
-        flex-wrap: wrap;
-        gap: 14px;
-        margin-top: 34px;
+        justify-content: flex-end;
+        padding: 18px clamp(22px, 7vw, 88px) 28px;
       }
 
-      .welcome-actions .primary {
-        margin-top: 0;
-        width: auto;
+      .footer-mark .brand-logo {
+        width: clamp(132px, 10vw, 172px);
       }
 
-      .welcome-note {
-        align-self: center;
-        color: var(--muted);
-        font-size: 0.92rem;
-        font-weight: 700;
-      }
-
-      .robot-scene {
-        --head-x: 0px;
-        --head-y: 0px;
-        --eye-x: 0px;
-        --eye-y: 0px;
-        --left-arm-rot: 18deg;
-        --right-arm-rot: -18deg;
-        --left-forearm-rot: -24deg;
-        --right-forearm-rot: 24deg;
-        align-items: center;
-        display: grid;
-        justify-items: center;
-        min-height: 330px;
-        position: relative;
-      }
-
-      .robot-bubble {
-        background: white;
-        border: 1px solid var(--line);
-        border-radius: 22px 22px 22px 6px;
-        box-shadow: 0 18px 45px rgba(17, 24, 39, 0.12);
-        color: var(--ink);
-        font-size: 0.94rem;
-        font-weight: 850;
-        left: 6px;
-        line-height: 1.35;
-        max-width: 190px;
-        padding: 0.9rem 1rem;
-        position: absolute;
-        top: 12px;
-      }
-
-      .robot {
-        align-items: center;
-        display: grid;
-        gap: 0;
-        justify-items: center;
-        margin-top: 60px;
-        position: relative;
-      }
-
-      .robot::after {
-        background: radial-gradient(ellipse, rgba(17, 24, 39, 0.22), transparent 70%);
-        bottom: -20px;
-        content: "";
-        height: 34px;
-        position: absolute;
-        width: 210px;
-        z-index: 0;
-      }
-
-      .robot-head {
-        background:
-          linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(226, 230, 232, 0.96) 48%, rgba(168, 177, 187, 0.98)),
-          radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.98), transparent 44px);
-        border: 1px solid rgba(17, 24, 39, 0.16);
-        border-radius: 42px;
-        box-shadow:
-          inset 12px 12px 24px rgba(255, 255, 255, 0.82),
-          inset -16px -20px 30px rgba(17, 24, 39, 0.16),
-          0 28px 60px rgba(17, 24, 39, 0.22);
-        height: 144px;
-        position: relative;
-        transform: translate(var(--head-x), var(--head-y));
-        transition: transform 0.16s ease-out;
-        width: 184px;
-        z-index: 3;
-      }
-
-      .robot-head::before {
-        background: linear-gradient(180deg, #4b5563, #111827);
-        border-radius: 999px;
-        content: "";
-        height: 32px;
-        left: 50%;
-        position: absolute;
-        top: -31px;
-        transform: translateX(-50%);
-        width: 5px;
-      }
-
-      .robot-head::after {
-        background:
-          radial-gradient(circle at 38% 32%, white 0 18%, transparent 20%),
-          var(--ey-yellow);
-        border: 3px solid white;
-        border-radius: 50%;
-        box-shadow: 0 0 0 6px rgba(255, 230, 0, 0.18);
-        content: "";
-        height: 20px;
-        left: 50%;
-        position: absolute;
-        top: -52px;
-        transform: translateX(-50%);
-        width: 20px;
-      }
-
-      .robot-ear {
-        background: linear-gradient(145deg, #f8fafc, #9ca3af);
-        border: 1px solid rgba(17, 24, 39, 0.16);
-        border-radius: 999px;
-        box-shadow: inset -6px -8px 12px rgba(17, 24, 39, 0.12);
-        height: 58px;
-        position: absolute;
-        top: 43px;
-        width: 18px;
-      }
-
-      .robot-ear.left {
-        left: -12px;
-      }
-
-      .robot-ear.right {
-        right: -12px;
-      }
-
-      .robot-visor {
-        background:
-          radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.18), transparent 34px),
-          linear-gradient(145deg, #0f172a, #1f2937 58%, #030712);
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        border-radius: 31px;
-        box-shadow:
-          inset 0 2px 10px rgba(255, 255, 255, 0.12),
-          inset 0 -10px 22px rgba(0, 0, 0, 0.42);
-        height: 78px;
-        left: 22px;
-        overflow: hidden;
-        position: absolute;
-        top: 33px;
-        width: 140px;
-      }
-
-      .robot-visor::before {
-        background: linear-gradient(115deg, rgba(255, 255, 255, 0.24), transparent 38%);
-        content: "";
-        height: 120%;
-        left: -18px;
-        position: absolute;
-        top: -40px;
-        transform: rotate(12deg);
-        width: 70px;
-      }
-
-      .robot-eye-row {
-        align-items: center;
-        display: flex;
-        gap: 34px;
-        justify-content: center;
-        padding-top: 24px;
-      }
-
-      .robot-eye {
-        background: #67e8f9;
-        border-radius: 50%;
-        box-shadow:
-          0 0 12px rgba(103, 232, 249, 0.86),
-          0 0 24px rgba(37, 99, 235, 0.58);
-        height: 18px;
-        opacity: 0.95;
-        position: relative;
-        transform: translate(var(--eye-x), var(--eye-y));
-        transition: transform 0.12s ease-out;
-        width: 18px;
-      }
-
-      .robot-eye::after {
-        background: white;
-        border-radius: 50%;
-        content: "";
-        height: 6px;
-        left: 4px;
-        position: absolute;
-        top: 3px;
-        width: 6px;
-      }
-
-      .robot-mouth {
-        background: linear-gradient(90deg, transparent, rgba(255, 230, 0, 0.95), transparent);
-        border-radius: 999px;
-        height: 4px;
-        left: 50%;
-        position: absolute;
-        top: 52px;
-        transform: translateX(-50%);
-        width: 58px;
-      }
-
-      .robot-neck {
-        background: linear-gradient(180deg, #9ca3af, #f9fafb);
-        border: 1px solid rgba(17, 24, 39, 0.12);
-        height: 28px;
-        margin-top: -2px;
-        width: 54px;
-        z-index: 2;
-      }
-
-      .robot-body {
-        background:
-          linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(219, 224, 230, 0.96) 55%, rgba(151, 161, 173, 0.98));
-        border: 1px solid rgba(17, 24, 39, 0.14);
-        border-radius: 34px 34px 42px 42px;
-        box-shadow:
-          inset 10px 12px 22px rgba(255, 255, 255, 0.82),
-          inset -18px -18px 28px rgba(17, 24, 39, 0.15),
-          0 24px 54px rgba(17, 24, 39, 0.16);
-        height: 124px;
-        margin-top: -3px;
-        position: relative;
-        width: 152px;
-        z-index: 2;
-      }
-
-      .robot-body::before {
-        background:
-          radial-gradient(circle at 35% 30%, white 0 12%, transparent 14%),
-          var(--ey-yellow);
-        border-radius: 999px;
-        content: "";
-        height: 18px;
-        left: 50%;
-        position: absolute;
-        top: 26px;
-        transform: translateX(-50%);
-        width: 58px;
-      }
-
-      .robot-body::after {
-        background:
-          linear-gradient(90deg, transparent 0 14%, rgba(17, 24, 39, 0.18) 14% 18%, transparent 18% 32%, rgba(17, 24, 39, 0.18) 32% 36%, transparent 36% 50%, rgba(17, 24, 39, 0.18) 50% 54%, transparent 54%),
-          rgba(255, 255, 255, 0.44);
-        border-radius: 14px;
-        content: "";
-        height: 36px;
-        left: 31px;
-        position: absolute;
-        top: 62px;
-        width: 90px;
-      }
-
-      .robot-arm {
-        background: transparent;
+      .sr-only {
+        clip: rect(0 0 0 0);
         border: 0;
-        height: 126px;
+        height: 1px;
+        margin: -1px;
+        overflow: hidden;
+        padding: 0;
         position: absolute;
-        top: 166px;
-        transform-origin: 50% 18px;
-        transition: transform 0.16s ease-out;
-        width: 72px;
-        z-index: 1;
+        white-space: nowrap;
+        width: 1px;
       }
 
-      .robot-arm.left {
-        left: 18px;
-        transform: rotate(var(--left-arm-rot));
-      }
-
-      .robot-arm.right {
-        right: 18px;
-        transform: rotate(var(--right-arm-rot));
-      }
-
-      .robot-shoulder {
-        background:
-          radial-gradient(circle at 34% 28%, white 0 12%, transparent 14%),
-          linear-gradient(145deg, #f8fafc, #9ca3af);
-        border: 1px solid rgba(17, 24, 39, 0.14);
-        border-radius: 50%;
-        box-shadow: inset -6px -7px 12px rgba(17, 24, 39, 0.12), 0 10px 20px rgba(17, 24, 39, 0.12);
-        height: 32px;
-        left: 20px;
-        position: absolute;
-        top: 0;
-        width: 32px;
-      }
-
-      .robot-upper-arm {
-        background: linear-gradient(145deg, #ffffff, #d6dce3 45%, #8f98a5);
-        border: 1px solid rgba(17, 24, 39, 0.12);
-        border-radius: 999px;
-        box-shadow: inset 6px 6px 12px rgba(255, 255, 255, 0.72), inset -7px -9px 13px rgba(17, 24, 39, 0.14);
-        height: 70px;
-        left: 24px;
-        position: absolute;
-        top: 26px;
-        width: 24px;
-      }
-
-      .robot-forearm {
-        background: linear-gradient(145deg, #f9fafb, #c3cad3 52%, #717b88);
-        border: 1px solid rgba(17, 24, 39, 0.12);
-        border-radius: 999px;
-        bottom: -43px;
-        box-shadow: inset 5px 5px 10px rgba(255, 255, 255, 0.68), inset -6px -8px 12px rgba(17, 24, 39, 0.15);
-        height: 58px;
-        left: 3px;
-        position: absolute;
-        transform-origin: 50% 4px;
-        transition: transform 0.16s ease-out;
-        width: 18px;
-      }
-
-      .robot-arm.left .robot-forearm {
-        transform: rotate(var(--left-forearm-rot));
-      }
-
-      .robot-arm.right .robot-forearm {
-        transform: rotate(var(--right-forearm-rot));
-      }
-
-      .robot-hand {
-        background:
-          radial-gradient(circle at 35% 26%, rgba(255, 255, 255, 0.95), transparent 22%),
-          linear-gradient(145deg, #f8fafc, #9ca3af);
-        border: 1px solid rgba(17, 24, 39, 0.12);
-        border-radius: 55% 55% 48% 48%;
-        bottom: -16px;
-        box-shadow: inset -5px -6px 10px rgba(17, 24, 39, 0.14), 0 10px 18px rgba(17, 24, 39, 0.12);
-        height: 24px;
-        left: -7px;
-        position: absolute;
-        width: 32px;
-      }
-
-      @media (max-width: 900px) {
-        .topbar {
-          padding: 0 22px;
-        }
-
-        .topbar nav {
-          display: none;
-        }
-
-        .shell {
-          padding: 42px 18px 72px;
+      @media (max-width: 1040px) {
+        .hero,
+        .launch-section {
+          grid-template-columns: 1fr;
         }
 
         .hero {
+          min-height: auto;
+          padding-top: 54px;
+        }
+
+        .hero-visual {
+          min-height: 520px;
+        }
+
+        .visual-card {
+          left: 50%;
+          right: auto;
+          transform: translateX(-50%);
+          width: min(100%, 660px);
+        }
+
+      }
+
+      @media (max-width: 720px) {
+        .topbar {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 12px;
+          padding-bottom: 14px;
+          padding-top: 14px;
+          position: relative;
+        }
+
+        .page {
+          padding-inline: 18px;
+        }
+
+        .hero h1,
+        .launch-copy h2 {
+          font-size: clamp(2.52rem, 12vw, 3.2rem);
+        }
+
+        .hero-visual {
+          min-height: 470px;
+        }
+
+        .visual-card {
+          min-height: 440px;
+        }
+
+        .robot-portrait {
+          height: 410px;
+          transform: translateX(-50%) scale(0.82);
+          transform-origin: bottom center;
+        }
+
+        .field-grid,
+        .segmented {
           grid-template-columns: 1fr;
         }
 
-        .choice-grid {
-          grid-template-columns: 1fr;
+        .choice {
+          grid-template-columns: 44px 1fr;
+          padding: 16px;
         }
 
-        .field-grid {
-          grid-template-columns: 1fr;
+        .choice-icon {
+          height: 42px;
+          width: 42px;
         }
 
-        .welcome-layout {
-          grid-template-columns: 1fr;
-        }
-
-        .welcome-card {
-          border-radius: 28px;
-        }
-
-        .robot-scene {
-          min-height: 280px;
+        .status-strip {
+          align-items: stretch;
+          flex-direction: column;
         }
       }
     </style>
   </head>
   <body>
     <div id="root"></div>
+    <div class="robot-video-assets" aria-hidden="true">
+      <div class="eye-video w-embed">
+        <video id="eye-video" crossorigin="anonymous" playsinline autoplay muted loop width="100%" style="display: none;">
+          <source src="https://web-assets.chaingpt.org/assets/video/animations/eyes_video-transcode.mp4" />
+          <source src="https://web-assets.chaingpt.org/assets/video/animations/eyes_video-transcode.webm" />
+        </video>
+      </div>
+      <div class="touch-video w-embed">
+        <video id="click-video" crossorigin="anonymous" playsinline muted width="100%" style="display: none;">
+          <source src="https://web-assets.chaingpt.org/assets/video/animations/touch_video-transcode.mp4" />
+          <source src="https://web-assets.chaingpt.org/assets/video/animations/touch_video-transcode.webm" />
+        </video>
+      </div>
+    </div>
+    <div class="shader-assets" aria-hidden="true">
+      <script id="vertexShader" type="x-shader/x-vertex">
+        varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }
+      </script>
+      <script id="fragmentShader" type="x-shader/x-fragment">
+        #ifdef GL_ES precision highp float; #endif uniform sampler2D videoTexture; varying vec2 vUv; void main( void ) { vec4 textColor = texture(videoTexture, vUv); gl_FragColor = vec4(textColor.rgb, textColor.r + textColor.g + textColor.b); }
+      </script>
+    </div>
+    <div class="robot-script-hooks" aria-hidden="true">
+      <div class="pupils"></div>
+      <div class="unlimited-solutions"></div>
+    </div>
     <script>
       const { useEffect, useMemo, useRef, useState } = React;
-      const WELCOME_SEEN_KEY = "ey-studio-audit-welcome-seen-this-session";
+      const e = React.createElement;
 
-      function defaultScreenshotLabel(file, index) {
-        const fallback = `Screenshot ${index + 1}`;
-        const rawName = file?.name || fallback;
-        const stem = rawName.replace(/\.[^/.]+$/, "").replace(/[_-]+/g, " ").trim();
-        return stem || fallback;
+      function Icon({ name }) {
+        const paths = {
+          arrow: "M4 12h14M13 6l6 6-6 6",
+          chart: "M5 17V9M12 17V5M19 17v-6",
+          check: "M5 12l4 4L19 6",
+          close: "M6 6l12 12M18 6L6 18",
+          doc: "M7 3h7l4 4v14H7zM14 3v5h5M9 13h6M9 17h6",
+          globe: "M12 3a9 9 0 100 18 9 9 0 000-18zM3 12h18M12 3c2.4 2.5 3.6 5.5 3.6 9S14.4 18.5 12 21c-2.4-2.5-3.6-5.5-3.6-9S9.6 5.5 12 3z",
+          image: "M5 5h14v14H5zM8 15l3-3 2 2 3-4 3 5M8.5 9.5h.01",
+          phone: "M9 3h6a2 2 0 012 2v14a2 2 0 01-2 2H9a2 2 0 01-2-2V5a2 2 0 012-2zM11 18h2",
+          spark: "M12 3l1.7 5.2L19 10l-5.3 1.8L12 17l-1.7-5.2L5 10l5.3-1.8L12 3z",
+          upload: "M12 16V5M7 10l5-5 5 5M5 19h14",
+        };
+        return e(
+          "svg",
+          {
+            className: "icon",
+            viewBox: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            strokeWidth: "2",
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+            "aria-hidden": "true",
+          },
+          e("path", { d: paths[name] || paths.spark })
+        );
       }
 
       function screenshotRecordId(file, index) {
-        if (window.crypto?.randomUUID) {
-          return window.crypto.randomUUID();
-        }
-        return `${Date.now()}-${index}-${file.name}-${file.size}-${file.lastModified}`;
+        return `${file.name}-${file.size}-${file.lastModified}-${index}`;
+      }
+
+      function defaultScreenshotLabel(file, index) {
+        const stem = (file.name || "").replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
+        return stem || `Screenshot ${index + 1}`;
+      }
+
+      function formatFileSize(bytes) {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      }
+
+      function BrandLockup() {
+        return e(
+          "div",
+          { className: "brand", "aria-label": "EY Studio+" },
+          e(
+            "svg",
+            {
+              className: "brand-logo",
+              viewBox: "0 0 527 226",
+              fill: "none",
+              xmlns: "http://www.w3.org/2000/svg",
+              "aria-hidden": "true",
+              focusable: "false",
+            },
+            e("path", { d: "M61 87L210 35V64L61 87Z", fill: "#FFE600" }),
+            e("text", { x: "58", y: "170", fill: "#FFFFFF", fontFamily: "Arial Black, Arial, sans-serif", fontSize: "88", fontWeight: "900", letterSpacing: "-6" }, "EY"),
+            e("text", { x: "207", y: "169", fill: "#FFFFFF", fontFamily: "Arial, Helvetica, sans-serif", fontSize: "70", fontWeight: "700", letterSpacing: "-4" }, "Studio"),
+            e("rect", { x: "447", y: "127", width: "17", height: "51", fill: "#F72585" }),
+            e("rect", { x: "430", y: "144", width: "17", height: "17", fill: "#FFE600" }),
+            e("rect", { x: "447", y: "144", width: "17", height: "17", fill: "#8A2DFF" }),
+            e("rect", { x: "464", y: "144", width: "17", height: "17", fill: "#00A7B5" })
+          )
+        );
+      }
+
+      function pageFromHash() {
+        return window.location.hash === "#audit" ? "audit" : "home";
       }
 
       function App() {
-        const [showWelcome, setShowWelcome] = useState(() => {
-          try {
-            return window.sessionStorage.getItem(WELCOME_SEEN_KEY) !== "1";
-          } catch (err) {
-            return true;
-          }
-        });
         const [auditType, setAuditType] = useState("website");
         const [mode, setMode] = useState("gtm");
         const [url, setUrl] = useState("");
-        const [siteName, setSiteName] = useState("Screenshot Audit");
+        const [siteName, setSiteName] = useState("Client UX screenshots");
         const [mobileAppLabel, setMobileAppLabel] = useState("Android App Audit");
         const [mobileAppPackage, setMobileAppPackage] = useState("");
         const [mobileAppActivity, setMobileAppActivity] = useState("");
@@ -1121,48 +1146,26 @@
         const [mobileDeviceName, setMobileDeviceName] = useState("Android Emulator");
         const [mobilePlatformVersion, setMobilePlatformVersion] = useState("");
         const [mobileUdid, setMobileUdid] = useState("");
-        const [screenshotFiles, setScreenshotFiles] = useState([]);
-        const screenshotFilesRef = useRef([]);
-        const [error, setError] = useState("");
+        const [screenshotFiles, setScreenshotFilesState] = useState([]);
         const [job, setJob] = useState(null);
+        const [error, setError] = useState("");
         const [isModalOpen, setIsModalOpen] = useState(false);
+        const [isSubmitting, setIsSubmitting] = useState(false);
+        const [isStopping, setIsStopping] = useState(false);
+        const [activePage, setActivePage] = useState(pageFromHash);
+        const screenshotFilesRef = useRef([]);
 
-        const hasRunningJob = job && ["queued", "running"].includes(job.status);
-        const canStart =
-          !hasRunningJob &&
-          (
-            (auditType === "website" && url.trim().length > 3) ||
-            (auditType === "screenshot" && screenshotFiles.length > 0) ||
-            (auditType === "mobile" && mobileAppPackage.trim().length > 1 && mobileAppActivity.trim().length > 1)
-          );
+        const canStart = useMemo(() => {
+          if (isSubmitting) return false;
+          if (auditType === "website") return url.trim().length > 3;
+          if (auditType === "screenshot") return screenshotFiles.length > 0;
+          return mobileAppPackage.trim().length > 1 && mobileAppActivity.trim().length > 1;
+        }, [auditType, isSubmitting, mobileAppActivity, mobileAppPackage, screenshotFiles.length, url]);
 
-        useEffect(() => {
-          if (!job || !["queued", "running"].includes(job.status)) return;
-          const timer = window.setInterval(async () => {
-            const response = await fetch(`/api/audits/${job.id}`);
-            if (!response.ok) return;
-            const nextJob = await response.json();
-            setJob(nextJob);
-            if (["completed", "failed"].includes(nextJob.status)) {
-              window.clearInterval(timer);
-            }
-          }, 1400);
-          return () => window.clearInterval(timer);
-        }, [job?.id, job?.status]);
-
-        useEffect(() => {
-          function preventFileDropNavigation(event) {
-            if (!event.dataTransfer?.types?.includes("Files")) return;
-            event.preventDefault();
-          }
-
-          window.addEventListener("dragover", preventFileDropNavigation);
-          window.addEventListener("drop", preventFileDropNavigation);
-          return () => {
-            window.removeEventListener("dragover", preventFileDropNavigation);
-            window.removeEventListener("drop", preventFileDropNavigation);
-          };
-        }, []);
+        const completionText = useMemo(() => {
+          if (auditType === "mobile") return "Review the generated first-screen artifacts and structured mobile evidence.";
+          return "Open the deployed report with evidence, confidence, status, and supporting detail.";
+        }, [auditType]);
 
         useEffect(() => {
           screenshotFilesRef.current = screenshotFiles;
@@ -1174,58 +1177,101 @@
           };
         }, []);
 
-        function setImageFiles(fileList) {
-          const files = Array.from(fileList || []).filter((file) => file.type.startsWith("image/"));
-          if (files.length === 0) {
-            setError("Choose at least one image file to add.");
-            return;
+        useEffect(() => {
+          function syncPageFromHash() {
+            setActivePage(pageFromHash());
           }
-          const nextFiles = files.map((file, index) => ({
-            id: screenshotRecordId(file, index),
-            file,
-            label: defaultScreenshotLabel(file, index),
-            previewUrl: window.URL.createObjectURL(file),
-          }));
-          setScreenshotFiles((previous) => [...previous, ...nextFiles]);
-          setError("");
+
+          window.addEventListener("hashchange", syncPageFromHash);
+          window.addEventListener("popstate", syncPageFromHash);
+          return () => {
+            window.removeEventListener("hashchange", syncPageFromHash);
+            window.removeEventListener("popstate", syncPageFromHash);
+          };
+        }, []);
+
+        useEffect(() => {
+          if (!job || !["queued", "running"].includes(job.status)) return undefined;
+          let cancelled = false;
+          const poll = async () => {
+            try {
+              const response = await fetch(`/api/audits/${job.id}`);
+              const payload = await response.json();
+              if (!cancelled && response.ok) {
+                setJob(payload);
+              }
+            } catch (pollError) {
+              if (!cancelled) setError("Unable to refresh the audit status.");
+            }
+          };
+          const timer = window.setInterval(poll, 2000);
+          poll();
+          return () => {
+            cancelled = true;
+            window.clearInterval(timer);
+          };
+        }, [job?.id, job?.status]);
+
+        function showPage(page) {
+          const hash = page === "audit" ? "#audit" : "#home";
+          setActivePage(page);
+          if (window.location.hash !== hash) {
+            window.history.pushState(null, "", hash);
+          }
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        function setImageFiles(fileList) {
+          const incoming = Array.from(fileList || []).filter((file) => file.type.startsWith("image/"));
+          if (!incoming.length) return;
+          setScreenshotFilesState((current) => {
+            const existing = new Set(current.map((item) => `${item.file.name}-${item.file.size}-${item.file.lastModified}`));
+            const additions = incoming
+              .filter((file) => !existing.has(`${file.name}-${file.size}-${file.lastModified}`))
+              .map((file, index) => ({
+                id: screenshotRecordId(file, current.length + index),
+                file,
+                label: defaultScreenshotLabel(file, current.length + index),
+                previewUrl: window.URL.createObjectURL(file),
+              }));
+            return current.concat(additions);
+          });
+        }
+
+        function removeScreenshotFile(id) {
+          setScreenshotFilesState((current) => {
+            const match = current.find((item) => item.id === id);
+            if (match) window.URL.revokeObjectURL(match.previewUrl);
+            return current.filter((item) => item.id !== id);
+          });
+        }
+
+        function updateScreenshotLabel(id, label) {
+          setScreenshotFilesState((current) => current.map((item) => (item.id === id ? { ...item, label } : item)));
         }
 
         function handleUploadDrop(event) {
           event.preventDefault();
-          event.stopPropagation();
-          setImageFiles(event.dataTransfer?.files);
+          setImageFiles(event.dataTransfer.files);
         }
 
-        function updateScreenshotLabel(id, label) {
-          setScreenshotFiles((previous) => previous.map((item) => (item.id === id ? { ...item, label } : item)));
-        }
-
-        function removeScreenshotFile(id) {
-          setScreenshotFiles((previous) => {
-            const removed = previous.find((item) => item.id === id);
-            if (removed) {
-              window.URL.revokeObjectURL(removed.previewUrl);
-            }
-            return previous.filter((item) => item.id !== id);
-          });
-        }
-
-        async function startAudit(event) {
+        async function handleSubmit(event) {
           event.preventDefault();
+          if (!canStart) return;
           setError("");
-          setIsModalOpen(true);
+          setIsSubmitting(true);
           try {
             let response;
             if (auditType === "screenshot") {
               const formData = new FormData();
               formData.append("auditType", "screenshot");
               formData.append("siteName", siteName.trim() || "Screenshot Audit");
-              formData.append("screenshotLabels", JSON.stringify(screenshotFiles.map((item, index) => item.label.trim() || defaultScreenshotLabel(item.file, index))));
+              formData.append(
+                "screenshotLabels",
+                JSON.stringify(screenshotFiles.map((item, index) => item.label.trim() || defaultScreenshotLabel(item.file, index)))
+              );
               screenshotFiles.forEach((item) => formData.append("screenshots", item.file));
-              response = await fetch("/api/audits", {
-                method: "POST",
-                body: formData,
-              });
+              response = await fetch("/api/audits", { method: "POST", body: formData });
             } else if (auditType === "mobile") {
               response = await fetch("/api/audits", {
                 method: "POST",
@@ -1245,388 +1291,445 @@
               response = await fetch("/api/audits", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ auditType, mode, url }),
+                body: JSON.stringify({ auditType: "website", mode, url: url.trim() }),
               });
             }
+
             const payload = await response.json();
             if (!response.ok) {
-              const message = payload.error || "Unable to start the audit.";
-              if (auditType === "screenshot" && message.toLowerCase().includes("valid json")) {
-                throw new Error("Screenshot uploads need the updated backend route. Restart the UI server, then try again.");
-              }
-              throw new Error(message);
+              throw new Error(payload.error || "Unable to start the audit.");
             }
             setJob(payload);
-          } catch (err) {
-            setError(err.message);
-            setJob(null);
+            setIsModalOpen(true);
+          } catch (submitError) {
+            setError(submitError.message || "Unable to start the audit.");
+          } finally {
+            setIsSubmitting(false);
           }
         }
 
-        const processText = useMemo(() => {
-          if (auditType === "screenshot") {
-            return "Upload screenshots, run the same 7-axis GTM vision review, generate the report, package assets, and deploy it to Vercel.";
-          }
-          if (auditType === "mobile") {
-            return "Connect to Appium, launch the Android app, capture the first screen, dump the hierarchy, parse visible elements, and save structured mobile artifacts.";
-          }
-          return mode === "gtm"
-            ? "Crawl, extract, run checks, synthesize the 7-axis GTM audit, package assets, and deploy the final report to Vercel."
-            : "Crawl, extract, run detailed sheet checks, generate the workbook-style report, package assets, and deploy it to Vercel.";
-        }, [auditType, mode]);
-
-        const completionText = useMemo(() => {
-          if (auditType === "mobile") {
-            return "When the extraction finishes, the launcher returns the local artifact directory for inspection.";
-          }
-          return "When the scan finishes, the launcher exposes the Vercel report link directly.";
-        }, [auditType]);
-
-        function proceedFromWelcome() {
+        async function handleStopAudit() {
+          if (!job || !["queued", "running"].includes(job.status) || isStopping) return;
+          setError("");
+          setIsStopping(true);
           try {
-            window.sessionStorage.setItem(WELCOME_SEEN_KEY, "1");
-          } catch (err) {
-            // The interface should still proceed if storage is blocked.
+            const response = await fetch(`/api/audits/${job.id}/cancel`, { method: "POST" });
+            const payload = await response.json();
+            if (!response.ok) {
+              throw new Error(payload.error || "Unable to stop the audit.");
+            }
+            setJob(payload);
+            setIsModalOpen(true);
+          } catch (stopError) {
+            setError(stopError.message || "Unable to stop the audit.");
+          } finally {
+            setIsStopping(false);
           }
-          setShowWelcome(false);
         }
 
-        function reopenWelcome() {
-          try {
-            window.sessionStorage.removeItem(WELCOME_SEEN_KEY);
-          } catch (err) {
-            // The intro can still be shown if storage is blocked.
-          }
-          setShowWelcome(true);
-        }
-
-        if (showWelcome) {
-          return React.createElement(WelcomeScreen, { onProceed: proceedFromWelcome });
-        }
-
-        return React.createElement(
-          React.Fragment,
-          null,
-          React.createElement(
+        return e(
+          "div",
+          { className: `app-shell view-${activePage}` },
+          e(
             "header",
             { className: "topbar" },
-            React.createElement(BrandLockup, null),
-            React.createElement("nav", null, React.createElement("button", { className: "nav-button", type: "button", onClick: reopenWelcome }, "Intro"), React.createElement("span", null, "Audit Launcher"), React.createElement("span", null, "Vercel Deployment"))
+            e(BrandLockup)
           ),
-          React.createElement(
+          e(
             "main",
-            { className: "shell" },
-            React.createElement(
+            { className: "page" },
+            e(Hero, { onLaunch: () => showPage("audit") }),
+            e(
               "section",
-              { className: "hero" },
-              React.createElement(
+              { className: "launch-section", id: "audit", "aria-labelledby": "launch-heading" },
+              e(
                 "div",
-                null,
-                React.createElement("div", { className: "ey-pill" }, React.createElement("span", { className: "ey-dot" }), "UX/UI Audit Console"),
-                React.createElement("h1", null, "Launch a client-ready audit."),
-                React.createElement("p", { className: "hero-copy" }, "Choose the audit type, provide the required website, screenshot, or Android app inputs, and let the existing pipeline collect evidence, analyze it, and surface the final output."),
-                React.createElement(
+                { className: "launch-copy" },
+                e(
+                  "h2",
+                  { id: "launch-heading" },
+                  "Launch a ",
+                  e("span", { className: "accent" }, "client-ready"),
+                  " audit"
+                ),
+                e("p", null, "Provide inputs, run the engine, and get structured UX insights."),
+                e(
                   "div",
                   { className: "process-list" },
-                  React.createElement("div", { className: "process-step" }, React.createElement("span", null, "1"), React.createElement("div", null, React.createElement("strong", null, "Select the mission"), React.createElement("p", null, "Choose website audit, screenshot audit, or Android mobile extraction depending on the evidence source you want to inspect."))),
-                  React.createElement("div", { className: "process-step" }, React.createElement("span", null, "2"), React.createElement("div", null, React.createElement("strong", null, "Run the existing engine"), React.createElement("p", null, processText))),
-                  React.createElement("div", { className: "process-step" }, React.createElement("span", null, "3"), React.createElement("div", null, React.createElement("strong", null, auditType === "mobile" ? "Inspect the extracted artifacts" : "Open the deployed result"), React.createElement("p", null, completionText)))
+                  e(ProcessStep, { number: "1", title: "Select the mission", text: "Choose between website, screenshot, or mobile audit." }),
+                  e(ProcessStep, { number: "2", title: "Run the audit engine", text: "The pipeline extracts evidence and evaluates UX/UI quality." }),
+                  e(ProcessStep, { number: "3", title: auditType === "mobile" ? "Inspect artifacts" : "View results", text: completionText })
                 )
               ),
-              React.createElement(
+              e(
                 "form",
-                { className: "hero-panel", onSubmit: startAudit },
-                React.createElement("div", { className: "panel-head" }, React.createElement("span", { className: "dot" }), React.createElement("span", { className: "dot" }), React.createElement("span", { className: "dot" })),
-                React.createElement(
+                { className: "audit-panel", onSubmit: handleSubmit },
+                e("h2", null, "Start here"),
+                e("p", { className: "panel-subtitle" }, "Configure your audit parameters"),
+                e("div", { className: "field-legend" }, "Select Audit Type"),
+                e(
                   "div",
-                  { className: "panel-body" },
-                  React.createElement("div", { className: "ey-pill" }, "Start here"),
-                  React.createElement(
-                    "div",
-                    { className: "choice-grid" },
-                    React.createElement("button", { type: "button", className: `choice ${auditType === "website" ? "active" : ""}`, onClick: () => setAuditType("website") }, React.createElement("strong", null, "Website audit"), React.createElement("small", null, "Run the current crawler, extraction, audit, report, and Vercel deployment flow.")),
-                    React.createElement("button", { type: "button", className: `choice ${auditType === "screenshot" ? "active" : ""}`, onClick: () => setAuditType("screenshot") }, React.createElement("strong", null, "Screenshot audit"), React.createElement("small", null, "Upload interface screenshots for the same 7-axis GTM audit and Vercel report flow.")),
-                    React.createElement("button", { type: "button", className: `choice ${auditType === "mobile" ? "active" : ""}`, onClick: () => setAuditType("mobile") }, React.createElement("strong", null, "Mobile app audit"), React.createElement("small", null, "Connect to Appium and capture the first Android app screen, hierarchy, and structured UI evidence."))
-                  ),
-                  auditType === "website" &&
-                    React.createElement(
-                      React.Fragment,
-                      null,
-                      React.createElement("div", { className: "field" }, React.createElement("label", { htmlFor: "website-url" }, "Website URL"), React.createElement("input", { id: "website-url", value: url, placeholder: "https://example.com", onChange: (event) => setUrl(event.target.value), autoComplete: "url" })),
-                      React.createElement(
-                        "div",
-                        { className: "field" },
-                        React.createElement("label", null, "Audit mode"),
-                        React.createElement("div", { className: "segmented" }, React.createElement("button", { type: "button", className: mode === "detailed" ? "active" : "", onClick: () => setMode("detailed") }, "Detailed audit"), React.createElement("button", { type: "button", className: mode === "gtm" ? "active" : "", onClick: () => setMode("gtm") }, "GTM audit"))
-                      )
-                    ),
-                  auditType === "screenshot" &&
-                    React.createElement(
-                      React.Fragment,
-                      null,
-                      React.createElement("div", { className: "field" }, React.createElement("label", { htmlFor: "screenshot-site-name" }, "Audit label"), React.createElement("input", { id: "screenshot-site-name", value: siteName, placeholder: "Client app screenshots", onChange: (event) => setSiteName(event.target.value) })),
-                      React.createElement(
-                        "div",
-                        { className: "field" },
-                        React.createElement("label", { htmlFor: "screenshot-files" }, "Screenshots"),
-                        React.createElement(
-                          "label",
-                          { className: "upload-zone", htmlFor: "screenshot-files", onDragOver: (event) => event.preventDefault(), onDrop: handleUploadDrop },
-                          React.createElement("strong", null, "Upload as many images as needed"),
-                          React.createElement("span", null, "Click to add more files, or drag images here. PNG, JPG, JPEG, WebP, and GIF screenshots are supported."),
-                          React.createElement("input", { id: "screenshot-files", type: "file", accept: "image/png,image/jpeg,image/webp,image/gif", multiple: true, onChange: (event) => { setImageFiles(event.target.files); event.target.value = ""; } })
-                        ),
-                        screenshotFiles.length > 0 &&
-                          React.createElement(
-                            "div",
-                            { className: "screenshot-grid" },
-                            screenshotFiles.map((item, index) =>
-                              React.createElement(
-                                "article",
-                                { className: "screenshot-card", key: item.id },
-                                React.createElement("div", { className: "screenshot-thumb" }, React.createElement("img", { src: item.previewUrl, alt: item.label || `Screenshot ${index + 1}` })),
-                                React.createElement(
-                                  "div",
-                                  { className: "screenshot-meta" },
-                                  React.createElement(
-                                    "div",
-                                    { className: "screenshot-name-row" },
-                                    React.createElement("small", { title: item.file.name }, `${item.file.name} (${Math.round(item.file.size / 1024)} KB)`),
-                                    React.createElement("button", { className: "remove-screenshot", type: "button", onClick: () => removeScreenshotFile(item.id), "aria-label": `Remove ${item.label || item.file.name}` }, "X")
-                                  ),
-                                  React.createElement("input", {
-                                    className: "screenshot-label-input",
-                                    value: item.label,
-                                    placeholder: `Screenshot ${index + 1} label`,
-                                    onChange: (event) => updateScreenshotLabel(item.id, event.target.value),
-                                    "aria-label": `Meaningful name for screenshot ${index + 1}`,
-                                  })
-                                )
-                              )
-                            )
-                          )
-                      )
-                    ),
-                  auditType === "mobile" &&
-                    React.createElement(
-                      React.Fragment,
-                      null,
-                      React.createElement("div", { className: "field" }, React.createElement("label", { htmlFor: "mobile-app-label" }, "Audit label"), React.createElement("input", { id: "mobile-app-label", value: mobileAppLabel, placeholder: "Android App Audit", onChange: (event) => setMobileAppLabel(event.target.value) })),
-                      React.createElement(
-                        "div",
-                        { className: "field-grid" },
-                        React.createElement("div", { className: "field" }, React.createElement("label", { htmlFor: "mobile-app-package" }, "App package"), React.createElement("input", { id: "mobile-app-package", value: mobileAppPackage, placeholder: "com.example.app", onChange: (event) => setMobileAppPackage(event.target.value), autoComplete: "off" })),
-                        React.createElement("div", { className: "field" }, React.createElement("label", { htmlFor: "mobile-app-activity" }, "Launch activity"), React.createElement("input", { id: "mobile-app-activity", value: mobileAppActivity, placeholder: "com.example.app.MainActivity", onChange: (event) => setMobileAppActivity(event.target.value), autoComplete: "off" }))
-                      ),
-                      React.createElement(
-                        "div",
-                        { className: "field-grid" },
-                        React.createElement("div", { className: "field" }, React.createElement("label", { htmlFor: "mobile-appium-url" }, "Appium URL"), React.createElement("input", { id: "mobile-appium-url", value: mobileAppiumUrl, placeholder: "http://127.0.0.1:4723", onChange: (event) => setMobileAppiumUrl(event.target.value), autoComplete: "off" })),
-                        React.createElement("div", { className: "field" }, React.createElement("label", { htmlFor: "mobile-device-name" }, "Device name"), React.createElement("input", { id: "mobile-device-name", value: mobileDeviceName, placeholder: "Android Emulator", onChange: (event) => setMobileDeviceName(event.target.value), autoComplete: "off" }))
-                      ),
-                      React.createElement(
-                        "div",
-                        { className: "field-grid" },
-                        React.createElement("div", { className: "field" }, React.createElement("label", { htmlFor: "mobile-platform-version" }, "Platform version"), React.createElement("input", { id: "mobile-platform-version", value: mobilePlatformVersion, placeholder: "Optional", onChange: (event) => setMobilePlatformVersion(event.target.value), autoComplete: "off" })),
-                        React.createElement("div", { className: "field" }, React.createElement("label", { htmlFor: "mobile-udid" }, "UDID"), React.createElement("input", { id: "mobile-udid", value: mobileUdid, placeholder: "Optional emulator/device id", onChange: (event) => setMobileUdid(event.target.value), autoComplete: "off" }))
-                      )
-                    ),
-                  error && React.createElement("div", { className: "error" }, error),
-                  React.createElement("button", { className: "primary", type: "submit", disabled: !canStart }, auditType === "screenshot" ? "Start screenshot audit" : auditType === "mobile" ? "Start mobile extraction" : "Start audit")
-                )
+                  { className: "choice-stack", role: "radiogroup", "aria-label": "Audit type" },
+                  e(AuditChoice, {
+                    active: auditType === "website",
+                    icon: "globe",
+                    onClick: () => setAuditType("website"),
+                    title: "Website audit",
+                    text: "Analyze a live website URL for UX/UI issues",
+                  }),
+                  e(AuditChoice, {
+                    active: auditType === "screenshot",
+                    icon: "image",
+                    onClick: () => setAuditType("screenshot"),
+                    title: "Screenshot audit",
+                    text: "Upload screenshots for detailed visual analysis",
+                  }),
+                  e(AuditChoice, {
+                    active: auditType === "mobile",
+                    icon: "phone",
+                    onClick: () => setAuditType("mobile"),
+                    title: "Mobile app audit",
+                    text: "Audit mobile app designs and interactions",
+                  })
+                ),
+                auditType === "website" &&
+                  e(WebsiteFields, {
+                    mode,
+                    setMode,
+                    url,
+                    setUrl,
+                  }),
+                auditType === "screenshot" &&
+                  e(ScreenshotFields, {
+                    handleUploadDrop,
+                    removeScreenshotFile,
+                    screenshotFiles,
+                    setImageFiles,
+                    setSiteName,
+                    siteName,
+                    updateScreenshotLabel,
+                  }),
+                auditType === "mobile" &&
+                  e(MobileFields, {
+                    mobileAppActivity,
+                    mobileAppLabel,
+                    mobileAppPackage,
+                    mobileAppiumUrl,
+                    mobileDeviceName,
+                    mobilePlatformVersion,
+                    mobileUdid,
+                    setMobileAppActivity,
+                    setMobileAppLabel,
+                    setMobileAppPackage,
+                    setMobileAppiumUrl,
+                    setMobileDeviceName,
+                    setMobilePlatformVersion,
+                    setMobileUdid,
+                  }),
+                error && e("div", { className: "error" }, error),
+                e(
+                  "button",
+                  { className: "primary start-button", type: "submit", disabled: !canStart },
+                  isSubmitting ? "Starting audit..." : auditType === "screenshot" ? "Start Screenshot Audit" : auditType === "mobile" ? "Start Mobile Extraction" : "Start Audit",
+                  e(Icon, { name: "arrow" })
+                ),
+                job && e(StatusStrip, { job, isStopping, onOpen: () => setIsModalOpen(true), onStop: handleStopAudit })
               )
             )
           ),
-          isModalOpen && React.createElement(ProgressModal, { job, error, onClose: () => setIsModalOpen(false) })
+          e("footer", { className: "footer-mark" }, e(BrandLockup)),
+          isModalOpen && job && e(ProgressModal, { job, error, isStopping, onClose: () => setIsModalOpen(false), onStop: handleStopAudit })
         );
       }
 
-      function BrandLockup({ className = "" }) {
-        return React.createElement(
-          "div",
-          { className: `brand ${className}`.trim(), "aria-label": "EY Studio+" },
-          React.createElement("span", { className: "ey-mark", "aria-hidden": "true" }, "EY"),
-          React.createElement("span", { className: "brand-name" }, React.createElement("strong", null, "Studio"), React.createElement("span", { className: "brand-plus" }, "+"))
-        );
-      }
-
-      function WelcomeScreen({ onProceed }) {
-        const screenRef = useRef(null);
-        const robotRef = useRef(null);
-
-        useEffect(() => {
-          function clamp(value, min, max) {
-            return Math.min(Math.max(value, min), max);
-          }
-
-          function handlePointerMove(event) {
-            const screen = screenRef.current;
-            const robot = robotRef.current;
-            if (screen) {
-              const x = clamp((event.clientX / Math.max(window.innerWidth, 1)) * 100, 0, 100);
-              const y = clamp((event.clientY / Math.max(window.innerHeight, 1)) * 100, 0, 100);
-              screen.style.setProperty("--cursor-x", `${x}%`);
-              screen.style.setProperty("--cursor-y", `${y}%`);
-            }
-            if (!robot) return;
-
-            const rect = robot.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            const dx = clamp((event.clientX - centerX) / 32, -8, 8);
-            const dy = clamp((event.clientY - centerY) / 42, -6, 6);
-            const armX = clamp((event.clientX - centerX) / 18, -22, 22);
-            const armY = clamp((centerY - event.clientY) / 16, -18, 24);
-
-            robot.style.setProperty("--head-x", `${dx * 0.55}px`);
-            robot.style.setProperty("--head-y", `${dy * 0.55}px`);
-            robot.style.setProperty("--eye-x", `${dx}px`);
-            robot.style.setProperty("--eye-y", `${dy}px`);
-            robot.style.setProperty("--left-arm-rot", `${18 + armX * 0.42 - armY * 0.18}deg`);
-            robot.style.setProperty("--right-arm-rot", `${-18 + armX * 0.42 + armY * 0.18}deg`);
-            robot.style.setProperty("--left-forearm-rot", `${-24 + armX * 0.35 - armY * 0.46}deg`);
-            robot.style.setProperty("--right-forearm-rot", `${24 + armX * 0.35 + armY * 0.46}deg`);
-          }
-
-          function resetRobot() {
-            const screen = screenRef.current;
-            const robot = robotRef.current;
-            if (screen) {
-              screen.style.setProperty("--cursor-x", "72%");
-              screen.style.setProperty("--cursor-y", "22%");
-            }
-            if (!robot) return;
-            robot.style.setProperty("--head-x", "0px");
-            robot.style.setProperty("--head-y", "0px");
-            robot.style.setProperty("--eye-x", "0px");
-            robot.style.setProperty("--eye-y", "0px");
-            robot.style.setProperty("--left-arm-rot", "18deg");
-            robot.style.setProperty("--right-arm-rot", "-18deg");
-            robot.style.setProperty("--left-forearm-rot", "-24deg");
-            robot.style.setProperty("--right-forearm-rot", "24deg");
-          }
-
-          window.addEventListener("pointermove", handlePointerMove);
-          window.addEventListener("pointerleave", resetRobot);
-          return () => {
-            window.removeEventListener("pointermove", handlePointerMove);
-            window.removeEventListener("pointerleave", resetRobot);
-          };
-        }, []);
-
-        return React.createElement(
-          "main",
-          { className: "welcome-screen", ref: screenRef },
-          React.createElement(
-            "section",
-            { className: "welcome-card", "aria-labelledby": "welcome-title" },
-            React.createElement(BrandLockup, { className: "welcome-brand" }),
-            React.createElement(
+      function Hero({ onLaunch }) {
+        return e(
+          "section",
+          { className: "hero", "aria-labelledby": "hero-title" },
+          e(
+            "div",
+            null,
+            e("div", { className: "ey-pill" }, "UX/UI AUDITOR"),
+            e(
+              "h1",
+              { id: "hero-title" },
+              "Audit UX. ",
+              e("span", { className: "accent" }, "Fix Faster."),
+              " Scale Better."
+            ),
+            e("p", { className: "hero-copy" }, "AI-powered UX/UI analysis that extracts evidence, evaluates quality, and delivers client-ready reports."),
+            e(
               "div",
-              { className: "welcome-layout" },
-              React.createElement(
-                "div",
-                null,
-                React.createElement("div", { className: "ey-pill" }, React.createElement("span", { className: "ey-dot" }), "UX/UI Audit Console"),
-                React.createElement("h1", { id: "welcome-title", className: "welcome-title" }, "Welcome to the audit launcher."),
-                React.createElement("p", { className: "welcome-copy" }, "Start a client-ready UX/UI scan, track report generation, and open the deployed Vercel result from one focused workspace."),
-                React.createElement(
-                  "div",
-                  { className: "welcome-actions" },
-                  React.createElement("button", { className: "primary", type: "button", onClick: onProceed }, "Enter audit console"),
-                  React.createElement("span", { className: "welcome-note" }, "This intro appears only on first visit.")
-                )
-              ),
-              React.createElement(RobotGuide, { robotRef })
+              { className: "hero-actions" },
+              e("button", { className: "primary", type: "button", onClick: onLaunch }, "Launch Audit", e(Icon, { name: "arrow" })),
+              e("button", { className: "secondary", type: "button", onClick: onLaunch }, "View Demo")
+            )
+          ),
+          e(
+            "div",
+            { className: "hero-visual", "aria-label": "Audit assistant preview" },
+            e(
+              "div",
+              { className: "visual-card chaingpt-robot-card" },
+              e("div", { className: "webgl", "aria-hidden": "true" }),
+              e("div", { className: "webgl-fallback", "aria-hidden": "true" }, "Loading 3D robot")
             )
           )
         );
       }
 
-      function RobotGuide({ robotRef }) {
-        return React.createElement(
+      function ProcessStep({ number, title, text }) {
+        return e(
           "div",
-          { className: "robot-scene", ref: robotRef, "aria-label": "Friendly AI robot guide" },
-          React.createElement("div", { className: "robot-bubble" }, "Hi, I am your AI audit guide. Move your cursor and I will follow."),
-          React.createElement(
+          { className: "process-step" },
+          e("span", { className: "process-step-number" }, number),
+          e("div", null, e("strong", null, title), e("p", null, text))
+        );
+      }
+
+      function AuditChoice({ active, icon, onClick, title, text }) {
+        return e(
+          "button",
+          {
+            type: "button",
+            className: `choice ${active ? "active" : ""}`,
+            onClick,
+            role: "radio",
+            "aria-checked": active ? "true" : "false",
+          },
+          e("span", { className: "choice-icon" }, e(Icon, { name: icon })),
+          e("span", null, e("strong", null, title), e("small", null, text))
+        );
+      }
+
+      function WebsiteFields({ mode, setMode, url, setUrl }) {
+        return e(
+          React.Fragment,
+          null,
+          e(
             "div",
-            { className: "robot", "aria-hidden": "true" },
-            React.createElement(
-              "span",
-              { className: "robot-arm left" },
-              React.createElement("span", { className: "robot-shoulder" }),
-              React.createElement("span", { className: "robot-upper-arm" }, React.createElement("span", { className: "robot-forearm" }, React.createElement("span", { className: "robot-hand" })))
-            ),
-            React.createElement(
-              "span",
-              { className: "robot-arm right" },
-              React.createElement("span", { className: "robot-shoulder" }),
-              React.createElement("span", { className: "robot-upper-arm" }, React.createElement("span", { className: "robot-forearm" }, React.createElement("span", { className: "robot-hand" })))
-            ),
-            React.createElement(
+            { className: "field" },
+            e("label", { htmlFor: "website-url" }, "Website URL"),
+            e("input", { id: "website-url", value: url, placeholder: "https://example.com", onChange: (event) => setUrl(event.target.value), autoComplete: "url" })
+          ),
+          e(
+            "div",
+            { className: "field" },
+            e("div", { className: "field-legend" }, "Audit Mode"),
+            e(
               "div",
-              { className: "robot-head" },
-              React.createElement("span", { className: "robot-ear left" }),
-              React.createElement("span", { className: "robot-ear right" }),
-              React.createElement(
-                "div",
-                { className: "robot-visor" },
-                React.createElement("div", { className: "robot-eye-row" }, React.createElement("span", { className: "robot-eye" }), React.createElement("span", { className: "robot-eye" })),
-                React.createElement("span", { className: "robot-mouth" })
-              )
-            ),
-            React.createElement("div", { className: "robot-neck" }),
-            React.createElement("div", { className: "robot-body" })
+              { className: "segmented" },
+              e("button", { type: "button", className: mode === "detailed" ? "active" : "", onClick: () => setMode("detailed") }, "Detailed audit"),
+              e("button", { type: "button", className: mode === "gtm" ? "active" : "", onClick: () => setMode("gtm") }, e(Icon, { name: "check" }), "GTM audit")
+            )
           )
         );
       }
 
-      function ProgressModal({ job, error, onClose }) {
+      function ScreenshotFields({ handleUploadDrop, removeScreenshotFile, screenshotFiles, setImageFiles, setSiteName, siteName, updateScreenshotLabel }) {
+        return e(
+          React.Fragment,
+          null,
+          e(
+            "div",
+            { className: "field" },
+            e("label", { htmlFor: "screenshot-site-name" }, "Audit label"),
+            e("input", { id: "screenshot-site-name", value: siteName, placeholder: "Client app screenshots", onChange: (event) => setSiteName(event.target.value) })
+          ),
+          e(
+            "div",
+            { className: "field" },
+            e("label", { htmlFor: "screenshot-files" }, "Screenshots"),
+            e(
+              "label",
+              { className: "upload-zone", htmlFor: "screenshot-files", onDragOver: (event) => event.preventDefault(), onDrop: handleUploadDrop },
+              e("strong", null, "Upload interface screenshots"),
+              e("span", null, "Click to add files, or drag images here. PNG, JPG, JPEG, WebP, and GIF are supported."),
+              e("input", {
+                id: "screenshot-files",
+                type: "file",
+                accept: "image/png,image/jpeg,image/webp,image/gif",
+                multiple: true,
+                onChange: (event) => {
+                  setImageFiles(event.target.files);
+                  event.target.value = "";
+                },
+              })
+            ),
+            screenshotFiles.length > 0 &&
+              e(
+                "div",
+                { className: "screenshot-grid" },
+                screenshotFiles.map((item, index) =>
+                  e(
+                    "article",
+                    { className: "screenshot-card", key: item.id },
+                    e("div", { className: "screenshot-thumb" }, e("img", { src: item.previewUrl, alt: item.label || `Screenshot ${index + 1}` })),
+                    e(
+                      "div",
+                      { className: "screenshot-meta" },
+                      e(
+                        "div",
+                        { className: "screenshot-name-row" },
+                        e("small", { title: item.file.name }, `${item.file.name} (${formatFileSize(item.file.size)})`),
+                        e("button", { className: "remove-screenshot", type: "button", onClick: () => removeScreenshotFile(item.id), "aria-label": `Remove ${item.label || item.file.name}` }, "X")
+                      ),
+                      e("input", {
+                        className: "screenshot-label-input",
+                        value: item.label,
+                        placeholder: `Screenshot ${index + 1} label`,
+                        onChange: (event) => updateScreenshotLabel(item.id, event.target.value),
+                        "aria-label": `Meaningful name for screenshot ${index + 1}`,
+                      })
+                    )
+                  )
+                )
+              )
+          )
+        );
+      }
+
+      function MobileFields(props) {
+        return e(
+          React.Fragment,
+          null,
+          e(
+            "div",
+            { className: "field" },
+            e("label", { htmlFor: "mobile-app-label" }, "Audit label"),
+            e("input", { id: "mobile-app-label", value: props.mobileAppLabel, placeholder: "Android App Audit", onChange: (event) => props.setMobileAppLabel(event.target.value) })
+          ),
+          e(
+            "div",
+            { className: "field-grid" },
+            e(
+              "div",
+              { className: "field" },
+              e("label", { htmlFor: "mobile-app-package" }, "App package"),
+              e("input", { id: "mobile-app-package", value: props.mobileAppPackage, placeholder: "com.example.app", onChange: (event) => props.setMobileAppPackage(event.target.value), autoComplete: "off" })
+            ),
+            e(
+              "div",
+              { className: "field" },
+              e("label", { htmlFor: "mobile-app-activity" }, "Launch activity"),
+              e("input", { id: "mobile-app-activity", value: props.mobileAppActivity, placeholder: "com.example.app.MainActivity", onChange: (event) => props.setMobileAppActivity(event.target.value), autoComplete: "off" })
+            )
+          ),
+          e(
+            "div",
+            { className: "field-grid" },
+            e(
+              "div",
+              { className: "field" },
+              e("label", { htmlFor: "mobile-appium-url" }, "Appium URL"),
+              e("input", { id: "mobile-appium-url", value: props.mobileAppiumUrl, placeholder: "http://127.0.0.1:4723", onChange: (event) => props.setMobileAppiumUrl(event.target.value), autoComplete: "off" })
+            ),
+            e(
+              "div",
+              { className: "field" },
+              e("label", { htmlFor: "mobile-device-name" }, "Device name"),
+              e("input", { id: "mobile-device-name", value: props.mobileDeviceName, placeholder: "Android Emulator", onChange: (event) => props.setMobileDeviceName(event.target.value), autoComplete: "off" })
+            )
+          ),
+          e(
+            "div",
+            { className: "field-grid" },
+            e(
+              "div",
+              { className: "field" },
+              e("label", { htmlFor: "mobile-platform-version" }, "Platform version"),
+              e("input", { id: "mobile-platform-version", value: props.mobilePlatformVersion, placeholder: "Optional", onChange: (event) => props.setMobilePlatformVersion(event.target.value), autoComplete: "off" })
+            ),
+            e(
+              "div",
+              { className: "field" },
+              e("label", { htmlFor: "mobile-udid" }, "UDID"),
+              e("input", { id: "mobile-udid", value: props.mobileUdid, placeholder: "Optional emulator/device id", onChange: (event) => props.setMobileUdid(event.target.value), autoComplete: "off" })
+            )
+          )
+        );
+      }
+
+      function StatusStrip({ job, isStopping, onOpen, onStop }) {
+        const progress = job?.progress || 0;
+        const canStop = ["queued", "running"].includes(job?.status);
+        return e(
+          "div",
+          { className: "status-strip" },
+          e("div", null, e("strong", null, `${job.type || "audit"}: ${job.status || "queued"}`), e("div", null, job.stage || "Preparing process")),
+          e("div", { className: "progress-wrap", "aria-label": `Progress ${progress}%` }, e("div", { className: "progress", style: { width: `${progress}%` } })),
+          e(
+            "div",
+            { className: "success-actions", style: { marginTop: 0 } },
+            canStop && e("button", { className: "ghost stop-button", type: "button", onClick: onStop, disabled: isStopping }, isStopping ? "Stopping..." : "Stop"),
+            e("button", { className: "ghost", type: "button", onClick: onOpen }, "Details")
+          )
+        );
+      }
+
+      function ProgressModal({ job, error, isStopping, onClose, onStop }) {
         const progress = job?.progress || 0;
         const status = job?.status || (error ? "failed" : "queued");
-        const logs = job?.logs || [];
-        const shouldShowLog = status === "failed" && logs.length > 0;
         const isMobileJob = job?.type === "mobile";
+        const isActiveJob = ["queued", "running"].includes(status);
         const completedEyebrow = isMobileJob ? "Artifacts ready" : "Deployment ready";
         const completedHeading = isMobileJob ? "Mobile extraction is complete." : "Your report is deployed.";
         const completedMessage = isMobileJob
-          ? (job?.stage || "The first Android screen, hierarchy, and structured extraction artifacts are ready.")
-          : (job?.stage || "Deployment completed.");
-        return React.createElement(
+          ? job?.stage || "The first Android screen, hierarchy, and structured extraction artifacts are ready."
+          : job?.stage || "Deployment completed.";
+        const eyebrow = status === "completed" ? completedEyebrow : status === "cancelled" ? "Stopped" : status === "failed" ? "Action needed" : "Audit running";
+        const heading =
+          status === "completed"
+            ? completedHeading
+            : status === "cancelled"
+              ? "The audit was stopped."
+              : status === "failed"
+                ? "The audit could not finish."
+                : isMobileJob
+                  ? "Running the Android extraction."
+                  : "Building the audit report.";
+        const message = status === "completed" ? completedMessage : status === "cancelled" ? "Audit stopped by user." : error || job?.error || job?.stage || "Preparing process...";
+
+        return e(
           "div",
           { className: "modal-backdrop" },
-          React.createElement(
+          e(
             "section",
             { className: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Audit progress" },
-            React.createElement(
+            e(
               "div",
-              { className: "modal-main" },
-              React.createElement("div", { className: "ey-pill" }, status === "completed" ? completedEyebrow : status === "failed" ? "Action needed" : "Audit running"),
-              React.createElement("h2", null, status === "completed" ? completedHeading : status === "failed" ? "The audit could not finish." : isMobileJob ? "Running the Android extraction." : "Building the audit report."),
-              React.createElement("p", { className: "stage" }, status === "completed" ? completedMessage : error || job?.error || job?.stage || "Preparing process..."),
-              React.createElement("div", { className: "progress-wrap" }, React.createElement("div", { className: "progress", style: { width: `${progress}%` } })),
-              status === "completed" &&
-                React.createElement(
-                  "div",
-                  { className: "success-actions" },
-                  !isMobileJob && React.createElement("a", { className: "primary", href: job.resultUrl, target: "_blank", rel: "noreferrer" }, "Open Vercel report"),
-                  React.createElement("button", { className: "ghost", onClick: onClose }, "Close")
-                ),
-              status === "completed" && isMobileJob && job?.outputDir &&
-                React.createElement(
-                  "div",
-                  { className: "artifact-summary" },
-                  React.createElement("strong", null, "Saved artifact directory"),
-                  React.createElement("div", { className: "artifact-path" }, job.outputDir)
-                ),
-              status === "failed" && React.createElement("div", { className: "success-actions" }, React.createElement("button", { className: "ghost", onClick: onClose }, "Close")),
-              shouldShowLog && React.createElement("pre", { className: "log debug-only" }, logs.join("\n"))
-            )
+              { className: "modal-head" },
+              e("div", { className: "ey-pill" }, eyebrow),
+              e("button", { className: "ghost", type: "button", onClick: onClose, "aria-label": "Close audit progress" }, e(Icon, { name: "close" }))
+            ),
+            e("h2", null, heading),
+            e("p", { className: "stage" }, message),
+            e("div", { className: "progress-wrap", "aria-label": `Progress ${progress}%` }, e("div", { className: "progress", style: { width: `${progress}%` } })),
+            isActiveJob &&
+              e(
+                "div",
+                { className: "success-actions" },
+                e("button", { className: "ghost stop-button", type: "button", onClick: onStop, disabled: isStopping }, isStopping ? "Stopping audit..." : "Stop audit"),
+                e("button", { className: "ghost", type: "button", onClick: onClose }, "Hide")
+              ),
+            status === "completed" &&
+              e(
+                "div",
+                { className: "success-actions" },
+                !isMobileJob && job.resultUrl && e("a", { className: "primary", href: job.resultUrl, target: "_blank", rel: "noreferrer" }, "Open Vercel Report", e(Icon, { name: "arrow" })),
+                e("button", { className: "ghost", type: "button", onClick: onClose }, "Close")
+              ),
+            status === "completed" &&
+              isMobileJob &&
+              job?.outputDir &&
+              e("div", { className: "artifact-summary" }, e("strong", null, "Saved artifact directory"), e("div", { className: "artifact-path" }, job.outputDir)),
+            ["failed", "cancelled"].includes(status) && e("div", { className: "success-actions" }, e("button", { className: "ghost", type: "button", onClick: onClose }, "Close"))
           )
         );
       }
 
-      ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+      ReactDOM.createRoot(document.getElementById("root")).render(e(App));
     </script>
+    <script src="https://chaingpt-web.s3.us-east-2.amazonaws.com/assets/js/main-script-no-reviews.js" type="module" async></script>
   </body>
 </html>

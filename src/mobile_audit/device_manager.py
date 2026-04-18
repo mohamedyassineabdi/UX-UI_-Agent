@@ -6,10 +6,11 @@ import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from appium import webdriver
 from appium.options.android import UiAutomator2Options
+from appium.webdriver.webdriver import WebDriver
 from selenium.common.exceptions import WebDriverException
 
 
@@ -45,36 +46,69 @@ class AndroidSessionConfig:
 class AndroidDeviceManager:
     def __init__(self, config: AndroidSessionConfig):
         self.config = config
-        self.driver: Optional[webdriver.Remote] = None
+        self.driver: Optional[WebDriver] = None
         self._resolved_adb_path: Optional[str] = None
 
     def _resolve_adb_path(self) -> str:
         if self._resolved_adb_path:
             return self._resolved_adb_path
 
-        candidates: list[Path] = []
-        configured_adb_path = str(self.config.adb_path or "").strip()
-        configured_sdk_root = str(self.config.android_sdk_root or "").strip()
-        env_sdk_root = str(os.getenv("ANDROID_SDK_ROOT") or "").strip()
-        env_android_home = str(os.getenv("ANDROID_HOME") or "").strip()
+        candidates: List[Path] = []
+
+        configured_adb_path = str(getattr(self.config, "adb_path", "") or "").strip()
+        configured_sdk_root = str(getattr(self.config, "android_sdk_root", "") or "").strip()
+
+        env_candidates = [
+            os.getenv("MOBILE_AUDIT_ADB_PATH"),
+            os.getenv("MOBILE_AUDIT_ANDROID_SDK_ROOT"),
+            os.getenv("ANDROID_SDK_ROOT"),
+            os.getenv("ANDROID_HOME"),
+            os.getenv("LOCALAPPDATA"),
+            os.getenv("USERPROFILE"),
+        ]
 
         if configured_adb_path:
-            candidates.append(Path(configured_adb_path))
+            candidates.append(Path(configured_adb_path.strip('"')))
         if configured_sdk_root:
-            candidates.append(Path(configured_sdk_root) / "platform-tools" / "adb.exe")
-            candidates.append(Path(configured_sdk_root) / "platform-tools" / "adb")
-        if env_sdk_root:
-            candidates.append(Path(env_sdk_root) / "platform-tools" / "adb.exe")
-            candidates.append(Path(env_sdk_root) / "platform-tools" / "adb")
-        if env_android_home:
-            candidates.append(Path(env_android_home) / "platform-tools" / "adb.exe")
-            candidates.append(Path(env_android_home) / "platform-tools" / "adb")
+            self._add_sdk_candidates(configured_sdk_root, candidates)
 
+        for raw in env_candidates:
+            if not raw:
+                continue
+            raw = str(raw).strip().strip('"')
+
+            if raw == os.getenv("LOCALAPPDATA"):
+                self._add_sdk_candidates(str(Path(raw) / "Android" / "Sdk"), candidates)
+                continue
+            if raw == os.getenv("USERPROFILE"):
+                self._add_sdk_candidates(str(Path(raw) / "AppData" / "Local" / "Android" / "Sdk"), candidates)
+                continue
+
+            self._add_sdk_candidates(raw, candidates)
+
+        windows_fallbacks = [
+            Path.home() / "AppData" / "Local" / "Android" / "Sdk" / "platform-tools" / "adb.exe",
+            Path.home() / "AppData" / "Local" / "Android" / "Sdk" / "platform-tools" / "adb",
+        ]
+        candidates.extend(windows_fallbacks)
+
+        seen: Set[str] = set()
+        unique_candidates: List[Path] = []
         for candidate in candidates:
-            if candidate.exists():
-                self._resolved_adb_path = str(candidate.resolve())
-                print(f"[mobile] Using adb executable: {self._resolved_adb_path}")
-                return self._resolved_adb_path
+            key = str(candidate).lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            unique_candidates.append(candidate)
+
+        for candidate in unique_candidates:
+            try:
+                if candidate.exists():
+                    self._resolved_adb_path = str(candidate.resolve())
+                    print(f"[mobile] Using adb executable: {self._resolved_adb_path}")
+                    return self._resolved_adb_path
+            except OSError:
+                continue
 
         path_fallback = shutil.which("adb")
         if path_fallback:
@@ -83,17 +117,41 @@ class AndroidDeviceManager:
             return self._resolved_adb_path
 
         raise RuntimeError(
-            "adb could not be resolved. Configure mobileAudit.appium.adbPath, "
-            "mobileAudit.appium.androidSdkRoot, ANDROID_SDK_ROOT, or ANDROID_HOME."
+            "adb could not be resolved. Checked config adb_path/android_sdk_root, "
+            "MOBILE_AUDIT_ADB_PATH, MOBILE_AUDIT_ANDROID_SDK_ROOT, ANDROID_SDK_ROOT, "
+            "ANDROID_HOME, LOCALAPPDATA Android SDK, USERPROFILE Android SDK, and PATH."
         )
 
-    def _adb_base_command(self) -> list[str]:
+    @staticmethod
+    def _add_sdk_candidates(raw_path: str, candidates: List[Path]) -> None:
+        value = str(raw_path or "").strip().strip('"')
+        if not value:
+            return
+
+        base = Path(value)
+        base_name = base.name.lower()
+
+        # If the user/config already points directly to adb(.exe)
+        if base_name in {"adb", "adb.exe"}:
+            candidates.append(base)
+            return
+
+        # Normal SDK root
+        candidates.append(base / "platform-tools" / "adb.exe")
+        candidates.append(base / "platform-tools" / "adb")
+
+        # In case the provided path is already the platform-tools folder
+        if base_name == "platform-tools":
+            candidates.append(base / "adb.exe")
+            candidates.append(base / "adb")
+
+    def _adb_base_command(self) -> List[str]:
         command = [self._resolve_adb_path()]
         if self.config.udid:
             command.extend(["-s", self.config.udid])
         return command
 
-    def _run_adb(self, *args: str, timeout_ms: int = 15000) -> subprocess.CompletedProcess[str]:
+    def _run_adb(self, *args: str, timeout_ms: int = 15000) -> subprocess.CompletedProcess:
         command = [*self._adb_base_command(), *args]
         return subprocess.run(
             command,
@@ -238,7 +296,7 @@ class AndroidDeviceManager:
         print(f"[mobile]   disableWindowAnimation: {self.config.disable_window_animation}")
         print(f"[mobile]   noReset: {self.config.no_reset}")
 
-    def connect(self) -> webdriver.Remote:
+    def connect(self) -> WebDriver:
         options = self._build_options()
         self._wait_for_emulator_ready()
         self._log_session_request()
@@ -275,7 +333,14 @@ class AndroidDeviceManager:
             f"{self.config.app_package}/{self.config.app_activity}"
         )
         try:
-            self.driver.start_activity(self.config.app_package, self.config.app_activity)
+            self.driver.execute_script(
+                "mobile: startActivity",
+                {
+                    "appPackage": self.config.app_package,
+                    "appActivity": self.config.app_activity,
+                    "appWaitActivity": self.config.app_wait_activity,
+                },
+            )
         except Exception:
             self.driver.activate_app(self.config.app_package)
         self.wait_for_app_focus(self.config.launch_timeout_ms)
@@ -327,7 +392,7 @@ class AndroidDeviceManager:
         except Exception:
             return ""
 
-    def build_app_info(self) -> dict[str, Any]:
+    def build_app_info(self) -> Dict[str, Any]:
         if not self.driver:
             raise RuntimeError("Android driver session is not initialized.")
 

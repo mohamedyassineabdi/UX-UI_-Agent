@@ -65,6 +65,13 @@ def ensure_file_exists(file_path: Path) -> None:
         raise RuntimeError(f"Expected file was not created: {file_path}")
 
 
+def env_flag(name: str, default: bool = False) -> bool:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+    return raw_value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def latest_audit_results_file() -> Optional[Path]:
     candidates = sorted(
         RESULTS_DIR.glob("audit-results_*.json"),
@@ -229,7 +236,7 @@ def main() -> None:
         "--json-out",
         WEBSITE_MENU_JSON,
     ]
-    if os.getenv("OLLAMA_MODEL") or os.getenv("OLLAMA_BASE_URL") or os.getenv("OLLAMA_HOST"):
+    if env_flag("CRAWLER_USE_AI_NAV") or env_flag("USE_AI_NAV"):
         crawler_args.append("--use-ai-nav")
 
     run_command(crawler_args, cwd=GENERATED_DIR)

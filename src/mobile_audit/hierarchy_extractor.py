@@ -5,6 +5,8 @@ import re
 import xml.etree.ElementTree as ET
 from typing import Any
 
+from .screen_classifier import classify_screen
+
 
 BOUNDS_RE = re.compile(r"\[(?P<x1>\d+),(?P<y1>\d+)\]\[(?P<x2>\d+),(?P<y2>\d+)\]")
 
@@ -82,7 +84,7 @@ def _collect_candidate_strings(element: dict[str, Any]) -> list[str]:
     ordered: list[str] = []
     for candidate in values:
         value = _normalize_text(candidate)
-        if not value or len(value) > 160:
+        if not value or len(value) > 220:
             continue
         if value in seen:
             continue
@@ -111,15 +113,47 @@ def _contains_long_form_text(visible_text: list[str]) -> bool:
     return any(len(str(value or "").strip()) >= 40 for value in visible_text)
 
 
-def _meta_flags(elements: list[dict[str, Any]], visible_text: list[str], screen_width: int, screen_height: int) -> dict[str, bool]:
+def _has_webview_signal(elements: list[dict[str, Any]]) -> bool:
+    for element in elements:
+        class_name = str(element.get("class_name") or "").lower()
+        resource_id = str(element.get("resource_id") or "").lower()
+        content_desc = str(element.get("content_desc") or "").strip().lower()
+        label = str(element.get("label") or "").strip().lower()
+        if "webview" in class_name or "web_view" in class_name:
+            return True
+        if "webview" in resource_id or "web_view" in resource_id:
+            return True
+        if content_desc == "web view" or label == "web view":
+            return True
+    return False
+
+
+def _bottom_nav_score(elements: list[dict[str, Any]]) -> int:
+    clickable = [element for element in elements if element.get("clickable") and element.get("visible")]
+    if not clickable:
+        return 0
+    max_bottom = max((element["bounds"][3] for element in clickable if len(element.get("bounds", [])) == 4), default=0)
+    if max_bottom <= 0:
+        return 0
+    threshold = max_bottom * 0.72
+    return sum(1 for element in clickable if element["bounds"][1] >= threshold)
+
+
+def _meta_flags(
+    elements: list[dict[str, Any]],
+    visible_text: list[str],
+    screen_width: int,
+    screen_height: int,
+) -> dict[str, Any]:
     clickable = [element for element in elements if element.get("clickable") and element.get("visible")]
     visible_elements = [element for element in elements if element.get("visible")]
     class_names = [str(element.get("class_name") or "").lower() for element in visible_elements]
     resource_ids = [str(element.get("resource_id") or "").lower() for element in visible_elements]
     text_values = [str(value or "").strip().lower() for value in visible_text if str(value or "").strip()]
-    max_bottom = max((element["bounds"][3] for element in elements if len(element.get("bounds", [])) == 4), default=0)
-    bottom_threshold = max_bottom * 0.72 if max_bottom else 0
-    has_bottom_nav = sum(1 for element in clickable if element["bounds"][1] >= bottom_threshold) >= 2
+
+    bottom_nav_score = _bottom_nav_score(elements)
+    has_bottom_nav = bottom_nav_score >= 2
+
     has_back_button = any(
         "back" in " ".join(
             [
@@ -130,11 +164,13 @@ def _meta_flags(elements: list[dict[str, Any]], visible_text: list[str], screen_
         ).lower()
         for element in clickable
     )
+
     explicit_modal = any(
         token in class_name or token in resource_id
         for class_name, resource_id in zip(class_names, resource_ids)
         for token in ("dialog", "modal", "popup", "list_menu", "app_menu", "sheet")
     )
+
     union_bounds = _visible_bounds_union(elements)
     union_width, union_height = _bounds_size(union_bounds)
     compact_overlay = False
@@ -142,13 +178,20 @@ def _meta_flags(elements: list[dict[str, Any]], visible_text: list[str], screen_
         width_ratio = union_width / screen_width
         height_ratio = union_height / screen_height
         compact_overlay = (
-            width_ratio <= 0.45
-            and height_ratio <= 0.32
-            and len(visible_text) <= 8
-            and len(clickable) <= 8
+            width_ratio <= 0.75
+            and height_ratio <= 0.75
+            and len(visible_text) <= 24
+            and len(clickable) <= 18
         )
-    has_webview = any("webview" in class_name for class_name in class_names)
+
+    has_webview = _has_webview_signal(elements)
     has_address_bar = any("url_bar" in resource_id or "location_bar" in resource_id for resource_id in resource_ids)
+    has_search_box = any(
+        token in resource_id
+        for resource_id in resource_ids
+        for token in ("search_box", "search_src_text", "omnibox")
+    ) or any("search or type web address" in value for value in text_values)
+
     has_page_controls = any(
         value in text_values
         for value in ("main menu", "search help center", "sign in", "google chrome help")
@@ -156,23 +199,48 @@ def _meta_flags(elements: list[dict[str, Any]], visible_text: list[str], screen_
     has_help_or_article_structure = any(
         token in text
         for text in text_values
-        for token in ("help", "support", "customize your new tab page", "helpcenter sections")
+        for token in ("help", "support", "customize your new tab page", "helpcenter sections", "support.google.com")
     ) or _contains_long_form_text(visible_text)
+
     is_page_like = (
         (has_webview and has_address_bar)
-        or (has_webview and len(visible_text) >= 8)
+        or (has_webview and len(visible_text) >= 3)
         or (has_address_bar and has_page_controls)
-        or (has_help_or_article_structure and len(visible_text) >= 6)
+        or (has_help_or_article_structure and len(visible_text) >= 4)
+        or (has_address_bar and len(visible_text) >= 4)
     )
+
     has_modal = compact_overlay or (explicit_modal and not is_page_like)
+
+    clickable_count = len(clickable)
+    scrollable_count = sum(1 for element in visible_elements if element.get("scrollable"))
+    visible_text_count = len(visible_text)
+    input_count = sum(1 for element in visible_elements if "edittext" in str(element.get("class_name") or "").lower())
+    list_count = sum(
+        1
+        for element in visible_elements
+        if any(
+            token in str(element.get("class_name") or "").lower()
+            for token in ("listview", "recyclerview")
+        )
+    )
+
     return {
         "has_bottom_nav": has_bottom_nav,
+        "bottom_nav_score": bottom_nav_score,
         "has_back_button": has_back_button,
         "has_modal": has_modal,
         "has_webview": has_webview,
         "has_address_bar": has_address_bar,
+        "has_search_box": has_search_box,
         "is_page_like": is_page_like,
         "has_help_or_article_structure": has_help_or_article_structure,
+        "visible_text_count": visible_text_count,
+        "clickable_count": clickable_count,
+        "scrollable_count": scrollable_count,
+        "input_count": input_count,
+        "list_count": list_count,
+        "screen_bounds_union": union_bounds,
     }
 
 
@@ -187,7 +255,7 @@ def _visible_text(elements: list[dict[str, Any]]) -> list[str]:
                 continue
             seen.add(value)
             ordered.append(value)
-    return ordered[:40]
+    return ordered[:60]
 
 
 def _screen_title_guess(elements: list[dict[str, Any]]) -> str:
@@ -195,7 +263,7 @@ def _screen_title_guess(elements: list[dict[str, Any]]) -> str:
         if not element.get("visible"):
             continue
         for candidate in _collect_candidate_strings(element):
-            if 2 <= len(candidate) <= 80:
+            if 2 <= len(candidate) <= 120:
                 return candidate
     return ""
 
@@ -208,13 +276,13 @@ def build_screen_fingerprint(
 ) -> str:
     class_signature = "|".join(
         f"{element.get('class_name')}:{element.get('resource_id')}:{element.get('bounds')}"
-        for element in elements[:60]
+        for element in elements[:80]
     )
     payload = "\n".join(
         [
             package_name or "",
             activity_name or "",
-            " | ".join(visible_text[:15]),
+            " | ".join(visible_text[:20]),
             class_signature,
         ]
     )
@@ -270,7 +338,12 @@ def _extract_node(node: ET.Element, index: int) -> dict[str, Any]:
     }
 
 
-def extract_hierarchy(xml_source: str) -> dict[str, Any]:
+def extract_hierarchy(
+    xml_source: str,
+    *,
+    package_name: str = "",
+    activity_name: str = "",
+) -> dict[str, Any]:
     root = ET.fromstring(xml_source)
     screen_width = int(str(root.attrib.get("width") or "0") or "0")
     screen_height = int(str(root.attrib.get("height") or "0") or "0")
@@ -286,7 +359,6 @@ def extract_hierarchy(xml_source: str) -> dict[str, Any]:
         if dedupe_key in seen:
             continue
 
-        # Skip completely empty, non-visible structural wrappers.
         if not any(
             [
                 element["text"],
@@ -305,9 +377,33 @@ def extract_hierarchy(xml_source: str) -> dict[str, Any]:
         elements.append(element)
 
     visible_text = _visible_text(elements)
+    screen_title_guess = _screen_title_guess(elements)
+    meta = _meta_flags(elements, visible_text, screen_width, screen_height)
+    semantic = classify_screen(
+        elements=elements,
+        visible_text=visible_text,
+        meta=meta,
+        package_name=package_name or (elements[0].get("package_name") if elements else ""),
+        activity_name=activity_name,
+        screen_title_guess=screen_title_guess,
+    )
+
+    meta.update(
+        {
+            "screen_type": semantic["screen_type"],
+            "ui_patterns": semantic["ui_patterns"],
+            "interaction_model": semantic["interaction_model"],
+            "content_density": semantic["content_density"],
+            "navigation_complexity": semantic["navigation_complexity"],
+            "ux_signals": semantic["ux_signals"],
+            "classifier_signals": semantic["signals"],
+        }
+    )
+
     return {
         "elements": elements,
         "visible_text": visible_text,
-        "screen_title_guess": _screen_title_guess(elements),
-        "meta": _meta_flags(elements, visible_text, screen_width, screen_height),
+        "screen_title_guess": screen_title_guess,
+        "meta": meta,
+        "semantic": semantic,
     }

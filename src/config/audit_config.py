@@ -221,7 +221,7 @@ AUDIT_CONFIG = {
     "execution": {
         "pageConcurrency": 5,
     },
-        "mobileAudit": {
+    "mobileAudit": {
         "appium": {
             "url": "http://127.0.0.1:4723",
             "platformName": "Android",
@@ -263,6 +263,23 @@ AUDIT_CONFIG = {
             "maxBacktrackSteps": 2,
             "scrollPostDelayMs": 900,
             "scrollPercent": 0.82,
+        },
+        "semantic": {
+            "webviewContentDescValues": ["web view"],
+            "homeFeedSignals": [
+                "search or type web address",
+                "discover",
+                "options for discover",
+            ],
+            "browserMenuSignals": [
+                "new tab",
+                "history",
+                "downloads",
+                "bookmarks",
+                "settings",
+                "help & feedback",
+                "find in page",
+            ],
         },
         "paths": {
             "outputRoot": "shared/generated/mobile-audits",

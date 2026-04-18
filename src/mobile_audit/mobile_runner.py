@@ -45,14 +45,19 @@ class MobileRunner:
     def inspect_current_screen(self, screen_id: str = "probe", include_screenshot: bool = True) -> dict[str, Any]:
         hierarchy_xml = self.wait_for_stabilization()
         screenshot_png = self.driver.get_screenshot_as_png() if include_screenshot else b""
-        parsed = extract_hierarchy(hierarchy_xml)
-        tappables = build_tappables(parsed["elements"])
 
         package_name = str(getattr(self.driver, "current_package", "") or "").strip()
         try:
             activity_name = str(getattr(self.driver, "current_activity", "") or "").strip()
         except Exception:
             activity_name = ""
+
+        parsed = extract_hierarchy(
+            hierarchy_xml,
+            package_name=package_name,
+            activity_name=activity_name,
+        )
+        tappables = build_tappables(parsed["elements"])
 
         screen_record = {
             "screen_id": screen_id,
@@ -71,6 +76,7 @@ class MobileRunner:
             "elements": parsed["elements"],
             "tappables": tappables,
             "meta": parsed["meta"],
+            "semantic": parsed["semantic"],
         }
 
         return {
@@ -167,6 +173,9 @@ class MobileRunner:
     def _looks_like_compact_modal_menu(self, screen: dict[str, Any], expected_package: str) -> bool:
         if str(screen.get("package_name") or "").strip() != expected_package:
             return False
+        semantic = screen.get("semantic", {})
+        if semantic.get("screen_type") == "modal_menu":
+            return True
         if not bool(screen.get("meta", {}).get("has_modal")):
             return False
 
@@ -216,6 +225,10 @@ class MobileRunner:
         if str(screen.get("package_name") or "").strip() != expected_package:
             return False
 
+        semantic = screen.get("semantic", {})
+        if semantic.get("screen_type") == "webview_page":
+            return True
+
         meta = screen.get("meta", {})
         title = str(screen.get("screen_title_guess") or "").strip().lower()
         labels = self._screen_labels(screen)
@@ -249,6 +262,9 @@ class MobileRunner:
     def _looks_like_chrome_home_surface(self, screen: dict[str, Any], expected_package: str) -> bool:
         if str(screen.get("package_name") or "").strip() != expected_package:
             return False
+        semantic = screen.get("semantic", {})
+        if semantic.get("screen_type") == "home_feed":
+            return True
         if bool(screen.get("meta", {}).get("has_modal")):
             return False
         if self._looks_like_help_or_support_destination(screen, expected_package):
@@ -280,6 +296,7 @@ class MobileRunner:
         title = str(screen.get("screen_title_guess") or "").strip().lower()
         meta = screen.get("meta", {})
         address_bar_text = self._address_bar_text(screen).strip().lower()
+        semantic = screen.get("semantic", {})
 
         positive_signals: list[str] = []
         ignored_noise: list[str] = []
@@ -322,8 +339,10 @@ class MobileRunner:
             rejection_reasons.append("modal_surface")
         if self._looks_like_help_or_support_destination(screen, expected_package):
             rejection_reasons.append("help_or_support_destination")
-        elif meta.get("is_page_like") and meta.get("has_webview"):
-            rejection_reasons.append("page_like_webview_destination")
+        elif semantic.get("screen_type") == "browser_menu":
+            rejection_reasons.append("browser_menu_surface")
+        elif meta.get("is_page_like") and (meta.get("has_webview") or meta.get("has_address_bar")):
+            rejection_reasons.append("page_like_destination")
 
         is_baseline = not rejection_reasons and self._looks_like_chrome_home_surface(screen, expected_package)
 
@@ -335,6 +354,7 @@ class MobileRunner:
             "ignored_noise": ignored_noise,
             "title": title,
             "address_bar_text": address_bar_text,
+            "screen_type": semantic.get("screen_type") or meta.get("screen_type") or "unknown",
             "rejection_reasons": rejection_reasons,
         }
 
@@ -359,9 +379,10 @@ class MobileRunner:
             screen = probe["screen"]
             last_screen = screen
             title = screen.get("screen_title_guess") or "(untitled)"
+            semantic_type = screen.get("semantic", {}).get("screen_type") or screen.get("meta", {}).get("screen_type") or "unknown"
             print(
                 "[mobile] Normalization probe: "
-                f"title={title}, modal={screen.get('meta', {}).get('has_modal')}, "
+                f"title={title}, type={semantic_type}, modal={screen.get('meta', {}).get('has_modal')}, "
                 f"visible_text={screen.get('visible_text', [])[:4]}"
             )
 
@@ -386,6 +407,7 @@ class MobileRunner:
             if diagnostics["positive_signals"] or diagnostics["rejection_reasons"]:
                 print(
                     "[mobile] Baseline rejected. "
+                    f"type={diagnostics['screen_type']}, "
                     f"reasons={diagnostics['rejection_reasons']}, "
                     f"positive_signals={diagnostics['positive_signals']}, "
                     f"ignored_noise={diagnostics['ignored_noise'][:4]}"
@@ -418,6 +440,7 @@ class MobileRunner:
             print(
                 "[mobile] Baseline normalization failed. "
                 f"Last observed title={last_screen.get('screen_title_guess') or '(untitled)'}, "
+                f"type={last_screen.get('semantic', {}).get('screen_type') or 'unknown'}, "
                 f"visible_text={last_screen.get('visible_text', [])[:4]}."
             )
         raise RuntimeError("Could not normalize Chrome to a baseline state before entry capture.")

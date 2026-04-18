@@ -87,7 +87,8 @@ class BoundedScreenExplorer:
         return capture["screen"], True
 
     def _entry_context(self, screen: dict[str, Any]) -> tuple[dict[str, Any], str]:
-        if screen.get("meta", {}).get("has_modal"):
+        semantic_type = str(screen.get("semantic", {}).get("screen_type") or screen.get("meta", {}).get("screen_type") or "")
+        if semantic_type in {"modal_menu", "browser_menu"} or screen.get("meta", {}).get("has_modal"):
             return (
                 {"phase": "modal_followup"},
                 "Entry modal",
@@ -105,10 +106,10 @@ class BoundedScreenExplorer:
             if str(tappable.get("label") or tappable.get("text") or tappable.get("content_desc") or "").strip()
         }
         resolved["available_labels"] = sorted(labels)
+        resolved["screen_type"] = screen.get("semantic", {}).get("screen_type") or screen.get("meta", {}).get("screen_type") or "unknown"
         if (
             resolved.get("phase", "initial") == "initial"
-            and not screen.get("meta", {}).get("has_modal")
-            and any(label in labels for label in ("search or type web address", "discover", "options for discover"))
+            and resolved["screen_type"] == "home_feed"
         ):
             resolved["surface_profile"] = "chrome_home"
         return resolved
@@ -145,11 +146,20 @@ class BoundedScreenExplorer:
         except Exception as exc:
             raise RuntimeError(f"Unable to execute tap gesture at ({x}, {y}).") from exc
 
+    def _screen_type(self, screen: dict[str, Any]) -> str:
+        return str(screen.get("semantic", {}).get("screen_type") or screen.get("meta", {}).get("screen_type") or "unknown")
+
     def _is_modal_surface(self, screen: dict[str, Any]) -> bool:
+        screen_type = self._screen_type(screen)
+        if screen_type in {"modal_menu", "browser_menu"}:
+            return True
         meta = screen.get("meta", {})
         return bool(meta.get("has_modal")) and not bool(meta.get("is_page_like"))
 
     def _is_page_surface(self, screen: dict[str, Any]) -> bool:
+        screen_type = self._screen_type(screen)
+        if screen_type in {"webview_page", "home_feed", "content_feed", "scrollable_collection"}:
+            return True
         meta = screen.get("meta", {})
         if meta.get("is_page_like"):
             return True
@@ -162,6 +172,30 @@ class BoundedScreenExplorer:
                 or len(visible_text) >= 8
             )
         )
+
+    def _result_details(
+        self,
+        source_screen: dict[str, Any],
+        target_screen: dict[str, Any],
+        result_type: str,
+        action_type: str,
+        candidate: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
+        source_type = self._screen_type(source_screen)
+        target_type = self._screen_type(target_screen)
+        details = {
+            "type": result_type,
+            "action_type": action_type,
+            "source_screen_type": source_type,
+            "target_screen_type": target_type,
+            "source_fingerprint": str(source_screen.get("screen_fingerprint") or ""),
+            "target_fingerprint": str(target_screen.get("screen_fingerprint") or ""),
+            "trigger_label": self._label(candidate) if candidate else "",
+            "trigger_resource_id": str((candidate or {}).get("resource_id") or ""),
+            "is_overlay_transition": target_type in {"modal_menu", "browser_menu"},
+            "contains_external_content": bool(target_screen.get("meta", {}).get("ux_signals", {}).get("contains_external_content")),
+        }
+        return details
 
     def _detect_result(self, source_screen: dict[str, Any], target_screen: dict[str, Any]) -> str:
         source_fingerprint = source_screen.get("screen_fingerprint")
@@ -210,6 +244,7 @@ class BoundedScreenExplorer:
         notes: str,
         candidate: Optional[dict[str, Any]] = None,
         target_screen_id: str = "",
+        target_screen: Optional[dict[str, Any]] = None,
     ) -> dict[str, Any]:
         interaction = {
             "interaction_id": self._next_interaction_id(),
@@ -218,6 +253,13 @@ class BoundedScreenExplorer:
             "action_type": action_type,
             "action_safety": (candidate or {}).get("safe_action") or "safe",
             "result": result,
+            "result_details": self._result_details(
+                source_screen=source_screen,
+                target_screen=target_screen or source_screen,
+                result_type=result,
+                action_type=action_type,
+                candidate=candidate,
+            ),
             "target_screen_id": target_screen_id,
             "notes": notes,
         }
@@ -295,6 +337,7 @@ class BoundedScreenExplorer:
                     notes=notes,
                     candidate=candidate,
                     target_screen_id=target_screen_id,
+                    target_screen=follow_up_capture["screen"],
                 )
                 if result in {"navigation", "modal_open"}:
                     if is_new and not self._should_stop():
@@ -310,6 +353,7 @@ class BoundedScreenExplorer:
                     notes=f"Safe tap failed for '{self._label(candidate)}': {exc}",
                     candidate=candidate,
                     target_screen_id="",
+                    target_screen=source_screen,
                 )
                 if not self._return_to_screen(str(source_screen.get("screen_fingerprint") or "")):
                     print("[mobile] State recovery failed after tap error. Stopping this branch.")
@@ -348,6 +392,7 @@ class BoundedScreenExplorer:
                     notes="Performed a bounded forward scroll but no new UI state was detected.",
                     candidate=None,
                     target_screen_id=source_screen.get("screen_id") or "",
+                    target_screen=source_screen,
                 )
                 return
 
@@ -361,6 +406,7 @@ class BoundedScreenExplorer:
                 notes=notes,
                 candidate=None,
                 target_screen_id=target_screen.get("screen_id") or "",
+                target_screen=follow_up_capture["screen"],
             )
             if is_new and not self._should_stop():
                 self._explore_capture(follow_up_capture, scroll_depth=scroll_depth + 1)
@@ -372,6 +418,7 @@ class BoundedScreenExplorer:
                 notes=f"Scroll discovery failed: {exc}",
                 candidate=None,
                 target_screen_id="",
+                target_screen=source_screen,
             )
 
     def _explore_capture(self, capture: dict[str, Any], scroll_depth: int) -> None:

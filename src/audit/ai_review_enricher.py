@@ -9,7 +9,6 @@ from collections import defaultdict
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Set, Tuple
-
 from dotenv import load_dotenv
 
 from src.audit.ai_review_client import AIReviewClient
