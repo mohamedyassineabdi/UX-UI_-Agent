@@ -1,0 +1,19 @@
+[Unit]
+Description=UX/UI Auditor
+After=network.target
+
+[Service]
+Type=simple
+User=uxauditor
+Group=uxauditor
+WorkingDirectory=/opt/ux-ui-auditor
+EnvironmentFile=-/etc/ux-ui-auditor.env
+Environment=PATH=/opt/ux-ui-auditor/.venv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/opt/ux-ui-auditor/.venv/bin/python -m src.ui.server --host 127.0.0.1 --port 8787
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
