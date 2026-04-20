@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import cgi
 import json
+import mimetypes
 import os
 import re
 import shutil
@@ -618,6 +619,12 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: Any) -> None:
         sys.stdout.write("%s - - [%s] %s\n" % (self.address_string(), self.log_date_time_string(), format % args))
 
+    def end_headers(self) -> None:
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        super().end_headers()
+
     def _send_json(self, payload: Any, status: HTTPStatus = HTTPStatus.OK) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
@@ -630,7 +637,10 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
         if not file_path.exists() or not file_path.is_file():
             self.send_error(HTTPStatus.NOT_FOUND, "File not found")
             return
-        content_type = "text/html; charset=utf-8" if file_path.suffix == ".html" else "application/octet-stream"
+        guessed_type, _encoding = mimetypes.guess_type(str(file_path))
+        content_type = guessed_type or "application/octet-stream"
+        if content_type.startswith("text/") or content_type in {"application/javascript", "application/json"}:
+            content_type = f"{content_type}; charset=utf-8"
         body = file_path.read_bytes()
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", content_type)
@@ -648,6 +658,11 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
         if not isinstance(data, dict):
             raise ValueError("Request body must be a JSON object.")
         return data
+
+    def do_OPTIONS(self) -> None:
+        self.send_response(HTTPStatus.NO_CONTENT)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
@@ -683,6 +698,18 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
                 return
             self._send_file(target)
             return
+        if not parsed.path.startswith("/api/"):
+            rel = unquote(parsed.path.lstrip("/"))
+            if rel:
+                target = (STATIC_DIR / rel).resolve()
+                try:
+                    target.relative_to(STATIC_DIR.resolve())
+                except ValueError:
+                    self.send_error(HTTPStatus.FORBIDDEN, "Forbidden")
+                    return
+                if target.exists() and target.is_file():
+                    self._send_file(target)
+                    return
         self.send_error(HTTPStatus.NOT_FOUND, "Not found")
 
     def do_POST(self) -> None:

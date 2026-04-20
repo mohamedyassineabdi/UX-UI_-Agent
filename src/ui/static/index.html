@@ -17,6 +17,7 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/gsap@3.11.5/dist/gsap.min.js"></script>
     <script src="https://unpkg.com/gsap@3.11.5/dist/ScrollTrigger.min.js"></script>
+    <script src="./config.js"></script>
     <style>
       :root {
         --bg: #05050a;
@@ -1134,6 +1135,25 @@
         return window.location.hash === "#audit" ? "audit" : "home";
       }
 
+      function normalizeApiBaseUrl(value) {
+        return String(value || "").trim().replace(/\/+$/, "");
+      }
+
+      function readInjectedConfig() {
+        const rawConfig = window.__UX_UI_AUDITOR_CONFIG__;
+        if (!rawConfig || typeof rawConfig !== "object") return {};
+        return rawConfig;
+      }
+
+      const APP_CONFIG = readInjectedConfig();
+      const API_BASE_URL = normalizeApiBaseUrl(APP_CONFIG.apiBaseUrl || "");
+
+      function buildApiUrl(path) {
+        if (!API_BASE_URL) return path;
+        if (!path.startsWith("/")) return `${API_BASE_URL}/${path}`;
+        return `${API_BASE_URL}${path}`;
+      }
+
       function App() {
         const [auditType, setAuditType] = useState("website");
         const [mode, setMode] = useState("gtm");
@@ -1195,7 +1215,7 @@
           let cancelled = false;
           const poll = async () => {
             try {
-              const response = await fetch(`/api/audits/${job.id}`);
+              const response = await fetch(buildApiUrl(`/api/audits/${job.id}`));
               const payload = await response.json();
               if (!cancelled && response.ok) {
                 setJob(payload);
@@ -1271,9 +1291,9 @@
                 JSON.stringify(screenshotFiles.map((item, index) => item.label.trim() || defaultScreenshotLabel(item.file, index)))
               );
               screenshotFiles.forEach((item) => formData.append("screenshots", item.file));
-              response = await fetch("/api/audits", { method: "POST", body: formData });
+              response = await fetch(buildApiUrl("/api/audits"), { method: "POST", body: formData });
             } else if (auditType === "mobile") {
-              response = await fetch("/api/audits", {
+              response = await fetch(buildApiUrl("/api/audits"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -1288,7 +1308,7 @@
                 }),
               });
             } else {
-              response = await fetch("/api/audits", {
+              response = await fetch(buildApiUrl("/api/audits"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ auditType: "website", mode, url: url.trim() }),
@@ -1313,7 +1333,7 @@
           setError("");
           setIsStopping(true);
           try {
-            const response = await fetch(`/api/audits/${job.id}/cancel`, { method: "POST" });
+            const response = await fetch(buildApiUrl(`/api/audits/${job.id}/cancel`), { method: "POST" });
             const payload = await response.json();
             if (!response.ok) {
               throw new Error(payload.error || "Unable to stop the audit.");
