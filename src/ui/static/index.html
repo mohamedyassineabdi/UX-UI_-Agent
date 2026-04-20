@@ -1148,10 +1148,33 @@
       const APP_CONFIG = readInjectedConfig();
       const API_BASE_URL = normalizeApiBaseUrl(APP_CONFIG.apiBaseUrl || "");
 
+      function isCrossOriginApi() {
+        if (!API_BASE_URL) return false;
+        try {
+          return new URL(API_BASE_URL).origin !== window.location.origin;
+        } catch (_error) {
+          return false;
+        }
+      }
+
+      function buildApiHeaders(extraHeaders) {
+        const headers = new Headers(extraHeaders || {});
+        if (isCrossOriginApi() && API_BASE_URL.includes("ngrok")) {
+          headers.set("ngrok-skip-browser-warning", "true");
+        }
+        return headers;
+      }
+
       function buildApiUrl(path) {
         if (!API_BASE_URL) return path;
         if (!path.startsWith("/")) return `${API_BASE_URL}/${path}`;
         return `${API_BASE_URL}${path}`;
+      }
+
+      async function apiFetch(path, options) {
+        const requestOptions = { ...(options || {}) };
+        requestOptions.headers = buildApiHeaders(requestOptions.headers);
+        return fetch(buildApiUrl(path), requestOptions);
       }
 
       function App() {
@@ -1215,7 +1238,7 @@
           let cancelled = false;
           const poll = async () => {
             try {
-              const response = await fetch(buildApiUrl(`/api/audits/${job.id}`));
+              const response = await apiFetch(`/api/audits/${job.id}`);
               const payload = await response.json();
               if (!cancelled && response.ok) {
                 setJob(payload);
@@ -1291,9 +1314,9 @@
                 JSON.stringify(screenshotFiles.map((item, index) => item.label.trim() || defaultScreenshotLabel(item.file, index)))
               );
               screenshotFiles.forEach((item) => formData.append("screenshots", item.file));
-              response = await fetch(buildApiUrl("/api/audits"), { method: "POST", body: formData });
+              response = await apiFetch("/api/audits", { method: "POST", body: formData });
             } else if (auditType === "mobile") {
-              response = await fetch(buildApiUrl("/api/audits"), {
+              response = await apiFetch("/api/audits", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -1308,7 +1331,7 @@
                 }),
               });
             } else {
-              response = await fetch(buildApiUrl("/api/audits"), {
+              response = await apiFetch("/api/audits", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ auditType: "website", mode, url: url.trim() }),
@@ -1333,7 +1356,7 @@
           setError("");
           setIsStopping(true);
           try {
-            const response = await fetch(buildApiUrl(`/api/audits/${job.id}/cancel`), { method: "POST" });
+            const response = await apiFetch(`/api/audits/${job.id}/cancel`, { method: "POST" });
             const payload = await response.json();
             if (!response.ok) {
               throw new Error(payload.error || "Unable to stop the audit.");
