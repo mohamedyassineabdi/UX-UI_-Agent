@@ -20,26 +20,29 @@
     <script src="./config.js"></script>
     <style>
       :root {
-        --bg: #05050a;
-        --bg-2: #090814;
-        --panel: rgba(22, 21, 30, 0.86);
-        --panel-strong: rgba(31, 27, 43, 0.92);
-        --panel-soft: rgba(255, 255, 255, 0.08);
-        --line: rgba(255, 255, 255, 0.12);
-        --line-strong: rgba(255, 255, 255, 0.22);
-        --text: #fbf9ff;
-        --muted: #b9b5c8;
-        --faint: #88839a;
-        --purple: #a421ff;
-        --violet: #7c3cff;
-        --pink: #e6008a;
-        --magenta: #f43f9d;
-        --orange: #ff5a14;
+        --bg: #1a1a24;
+        --bg-2: #2d2e38;
+        --panel: rgba(26, 26, 36, 0.9);
+        --panel-strong: rgba(45, 46, 56, 0.94);
+        --panel-soft: rgba(255, 255, 255, 0.06);
+        --line: rgba(196, 196, 208, 0.22);
+        --line-strong: rgba(255, 230, 0, 0.28);
+        --text: #ffffff;
+        --muted: #c4c4d0;
+        --faint: #747480;
+        --purple: #8400ff;
+        --violet: #4966ff;
+        --pink: #ff32ff;
+        --magenta: #ff32ff;
+        --orange: #f77d1e;
+        --red: #ff3c00;
         --yellow: #ffe600;
-        --teal: #00a7b5;
-        --blue: #1162ff;
-        --danger: #ff6b6b;
-        --success: #37d67a;
+        --lime: #b4ff00;
+        --green: #00cb64;
+        --teal: #32ffff;
+        --blue: #4966ff;
+        --danger: #ff4136;
+        --success: #2db757;
         --shadow: 0 28px 90px rgba(0, 0, 0, 0.45);
       }
 
@@ -74,13 +77,14 @@
 
       .app-shell {
         background:
-          linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-          radial-gradient(ellipse at 8% 12%, rgba(0, 167, 181, 0.28), transparent 22rem),
-          radial-gradient(ellipse at 72% 2%, rgba(164, 33, 255, 0.32), transparent 30rem),
-          radial-gradient(ellipse at 92% 14%, rgba(230, 0, 138, 0.34), transparent 25rem),
-          radial-gradient(ellipse at 86% 5%, rgba(255, 230, 0, 0.34), transparent 21rem),
-          linear-gradient(180deg, #05050a 0%, #070711 48%, #0a0712 100%);
+          linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+          radial-gradient(ellipse at 12% 12%, rgba(50, 255, 255, 0.14), transparent 18rem),
+          radial-gradient(circle at 78% 4%, rgba(132, 0, 255, 0.32), transparent 19rem),
+          radial-gradient(circle at 90% 12%, rgba(247, 125, 30, 0.42), transparent 22rem),
+          radial-gradient(circle at 98% 8%, rgba(255, 230, 0, 0.55), transparent 18rem),
+          radial-gradient(circle at 88% 18%, rgba(255, 50, 255, 0.34), transparent 19rem),
+          linear-gradient(180deg, #07070d 0%, #11111a 46%, #1a1a24 100%);
         background-size: 64px 64px, 64px 64px, auto, auto, auto, auto, auto;
         isolation: isolate;
         min-height: 100vh;
@@ -90,25 +94,25 @@
 
       .app-shell::before {
         background:
-          linear-gradient(110deg, rgba(0, 0, 0, 0) 0%, rgba(17, 98, 255, 0.24) 32%, rgba(164, 33, 255, 0.34) 51%, rgba(255, 90, 20, 0.28) 72%, rgba(255, 230, 0, 0.22) 100%);
+          linear-gradient(110deg, rgba(0, 0, 0, 0) 0%, rgba(50, 255, 255, 0.16) 16%, rgba(132, 0, 255, 0.24) 36%, rgba(247, 125, 30, 0.3) 68%, rgba(255, 230, 0, 0.28) 100%);
         content: "";
         filter: blur(54px);
         height: 240px;
-        left: 8%;
-        opacity: 0.72;
+        left: 20%;
+        opacity: 0.66;
         pointer-events: none;
         position: absolute;
-        right: -10%;
-        top: -110px;
-        transform: rotate(5deg);
+        right: -14%;
+        top: -100px;
+        transform: rotate(6deg);
         z-index: -1;
       }
 
       .topbar {
         align-items: center;
         backdrop-filter: blur(22px);
-        background: rgba(5, 5, 10, 0.7);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        background: rgba(17, 17, 26, 0.86);
+        border-bottom: 1px solid rgba(255, 230, 0, 0.16);
         display: flex;
         justify-content: space-between;
         min-height: 76px;
@@ -147,10 +151,10 @@
 
       .ey-pill {
         align-items: center;
-        background: linear-gradient(90deg, rgba(124, 60, 255, 0.34), rgba(230, 0, 138, 0.22));
-        border: 1px solid rgba(226, 84, 255, 0.35);
+        background: rgba(255, 230, 0, 0.1);
+        border: 1px solid rgba(255, 230, 0, 0.42);
         border-radius: 999px;
-        color: #fff4ff;
+        color: var(--yellow);
         display: inline-flex;
         font-size: 0.83rem;
         font-weight: 800;
@@ -171,7 +175,7 @@
       }
 
       .accent {
-        background: linear-gradient(90deg, #f56cff 0%, #e6008a 48%, #ff5a14 100%);
+        background: linear-gradient(90deg, var(--yellow) 0%, var(--orange) 42%, var(--pink) 72%, var(--purple) 100%);
         -webkit-background-clip: text;
         background-clip: text;
         color: transparent;
@@ -179,7 +183,7 @@
 
       .hero-copy,
       .launch-copy p {
-        color: #d5d1df;
+        color: #e6e6ea;
         font-size: clamp(1.05rem, 1.35vw, 1.22rem);
         line-height: 1.58;
         margin: 0;
@@ -210,10 +214,10 @@
       }
 
       .primary {
-        background: linear-gradient(100deg, var(--purple) 0%, var(--pink) 58%, var(--orange) 100%);
+        background: linear-gradient(100deg, var(--yellow) 0%, var(--orange) 42%, var(--pink) 74%, var(--purple) 100%);
         border: 0;
-        box-shadow: 0 18px 42px rgba(230, 0, 138, 0.25);
-        color: white;
+        box-shadow: 0 18px 42px rgba(247, 125, 30, 0.22);
+        color: #1a1a24;
       }
 
       .primary:hover,
@@ -230,13 +234,13 @@
 
       .secondary,
       .ghost {
-        background: rgba(5, 5, 10, 0.34);
-        border: 1px solid rgba(164, 33, 255, 0.55);
+        background: rgba(26, 26, 36, 0.72);
+        border: 1px solid rgba(255, 230, 0, 0.32);
         color: white;
       }
 
       .ghost {
-        border-color: rgba(255, 255, 255, 0.16);
+        border-color: rgba(196, 196, 208, 0.22);
         min-height: 46px;
         padding: 0 18px;
       }
@@ -265,11 +269,12 @@
 
       .visual-card {
         background:
-          linear-gradient(180deg, rgba(9, 14, 28, 0.42), rgba(5, 5, 10, 0.82)),
-          radial-gradient(ellipse at 42% 0%, rgba(17, 98, 255, 0.36), transparent 32rem),
-          radial-gradient(ellipse at 88% 34%, rgba(230, 0, 138, 0.18), transparent 28rem),
-          #05070a;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+          linear-gradient(180deg, rgba(26, 26, 36, 0.54), rgba(17, 17, 24, 0.92)),
+          radial-gradient(circle at 82% 14%, rgba(255, 230, 0, 0.16), transparent 11rem),
+          radial-gradient(circle at 70% 0%, rgba(132, 0, 255, 0.18), transparent 20rem),
+          radial-gradient(circle at 90% 28%, rgba(247, 125, 30, 0.16), transparent 18rem),
+          #0d0d14;
+        border: 1px solid rgba(255, 230, 0, 0.12);
         border-radius: 24px;
         box-shadow: var(--shadow);
         height: min(68vh, 620px);
@@ -511,9 +516,10 @@
 
       .process-step-number {
         align-items: center;
-        background: linear-gradient(135deg, var(--purple), var(--pink));
+        background: linear-gradient(135deg, var(--yellow), var(--orange));
         border-radius: 999px;
         display: flex;
+        color: #1a1a24;
         font-size: 0.86rem;
         font-weight: 900;
         height: 34px;
@@ -536,9 +542,10 @@
       .audit-panel {
         backdrop-filter: blur(24px);
         background:
-          radial-gradient(ellipse at 90% 0%, rgba(164, 33, 255, 0.16), transparent 25rem),
-          rgba(17, 17, 24, 0.9);
-        border: 1px solid rgba(255, 255, 255, 0.14);
+          radial-gradient(circle at 92% 0%, rgba(255, 230, 0, 0.12), transparent 14rem),
+          radial-gradient(circle at 84% 8%, rgba(247, 125, 30, 0.12), transparent 18rem),
+          rgba(26, 26, 36, 0.94);
+        border: 1px solid rgba(196, 196, 208, 0.18);
         border-radius: 18px;
         box-shadow: var(--shadow);
         padding: clamp(24px, 3vw, 34px);
@@ -563,14 +570,14 @@
 
       .field label,
       .field-legend {
-        color: #c9c5d6;
+        color: #f6f6fa;
         font-size: 0.94rem;
         font-weight: 850;
       }
 
       .field input {
-        background: rgba(24, 24, 35, 0.78);
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(45, 46, 56, 0.62);
+        border: 1px solid rgba(196, 196, 208, 0.18);
         border-radius: 18px;
         color: var(--text);
         min-height: 58px;
@@ -580,12 +587,12 @@
       }
 
       .field input::placeholder {
-        color: rgba(210, 205, 224, 0.46);
+        color: rgba(196, 196, 208, 0.44);
       }
 
       .field input:focus {
-        border-color: rgba(188, 72, 255, 0.88);
-        box-shadow: 0 0 0 4px rgba(164, 33, 255, 0.18);
+        border-color: rgba(255, 230, 0, 0.8);
+        box-shadow: 0 0 0 4px rgba(255, 230, 0, 0.12);
       }
 
       .field-grid {
@@ -602,8 +609,8 @@
 
       .choice {
         align-items: center;
-        background: rgba(255, 255, 255, 0.12);
-        border: 1px solid rgba(255, 255, 255, 0.13);
+        background: rgba(45, 46, 56, 0.52);
+        border: 1px solid rgba(196, 196, 208, 0.18);
         border-radius: 18px;
         cursor: pointer;
         display: grid;
@@ -617,14 +624,16 @@
       }
 
       .choice:hover {
-        border-color: rgba(188, 72, 255, 0.54);
+        border-color: rgba(255, 230, 0, 0.42);
         transform: translateY(-1px);
       }
 
       .choice.active {
-        background: rgba(105, 36, 127, 0.58);
-        border-color: rgba(188, 72, 255, 0.95);
-        box-shadow: 0 0 0 1px rgba(188, 72, 255, 0.32), 0 18px 48px rgba(164, 33, 255, 0.18);
+        background:
+          linear-gradient(90deg, rgba(255, 230, 0, 0.08), rgba(247, 125, 30, 0.08)),
+          rgba(45, 46, 56, 0.72);
+        border-color: rgba(255, 230, 0, 0.86);
+        box-shadow: 0 0 0 1px rgba(255, 230, 0, 0.18), 0 18px 48px rgba(247, 125, 30, 0.12);
       }
 
       .choice-icon {
@@ -638,7 +647,8 @@
       }
 
       .choice.active .choice-icon {
-        background: linear-gradient(135deg, var(--purple), var(--pink));
+        background: linear-gradient(135deg, var(--yellow), var(--orange), var(--pink));
+        color: #1a1a24;
       }
 
       .choice strong {
@@ -648,7 +658,7 @@
       }
 
       .choice small {
-        color: #c8c3d0;
+        color: #d7d7df;
         display: block;
         font-size: 0.91rem;
         font-weight: 700;
@@ -663,8 +673,8 @@
 
       .segmented button {
         align-items: center;
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.11);
+        background: rgba(45, 46, 56, 0.58);
+        border: 1px solid rgba(196, 196, 208, 0.18);
         border-radius: 18px;
         color: var(--muted);
         cursor: pointer;
@@ -676,14 +686,14 @@
       }
 
       .segmented button.active {
-        background: linear-gradient(100deg, var(--purple), var(--pink));
+        background: linear-gradient(100deg, var(--yellow), var(--orange), var(--pink));
         border-color: transparent;
-        color: white;
+        color: #1a1a24;
       }
 
       .upload-zone {
-        background: rgba(255, 255, 255, 0.08);
-        border: 1.5px dashed rgba(255, 255, 255, 0.24);
+        background: rgba(45, 46, 56, 0.48);
+        border: 1.5px dashed rgba(196, 196, 208, 0.28);
         border-radius: 18px;
         cursor: pointer;
         display: grid;
@@ -693,8 +703,8 @@
 
       .upload-zone:hover,
       .upload-zone:focus-within {
-        border-color: rgba(188, 72, 255, 0.95);
-        box-shadow: 0 0 0 4px rgba(164, 33, 255, 0.16);
+        border-color: rgba(255, 230, 0, 0.9);
+        box-shadow: 0 0 0 4px rgba(255, 230, 0, 0.12);
       }
 
       .upload-zone strong {
@@ -721,8 +731,8 @@
       }
 
       .screenshot-card {
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(45, 46, 56, 0.56);
+        border: 1px solid rgba(196, 196, 208, 0.18);
         border-radius: 14px;
         flex: 0 0 170px;
         overflow: hidden;
@@ -805,8 +815,8 @@
 
       .status-strip {
         align-items: center;
-        background: rgba(255, 255, 255, 0.07);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(45, 46, 56, 0.56);
+        border: 1px solid rgba(196, 196, 208, 0.18);
         border-radius: 16px;
         color: var(--muted);
         display: flex;
@@ -821,7 +831,7 @@
       }
 
       .progress-wrap {
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.08);
         border-radius: 999px;
         height: 11px;
         overflow: hidden;
@@ -829,7 +839,7 @@
       }
 
       .progress {
-        background: linear-gradient(90deg, var(--purple), var(--pink), var(--orange));
+        background: linear-gradient(90deg, var(--yellow) 0%, var(--orange) 38%, var(--pink) 74%, var(--purple) 100%);
         height: 100%;
         transition: width 0.35s ease;
       }
@@ -848,9 +858,10 @@
 
       .modal {
         background:
-          radial-gradient(ellipse at 82% 0%, rgba(164, 33, 255, 0.22), transparent 22rem),
-          rgba(17, 17, 24, 0.98);
-        border: 1px solid rgba(255, 255, 255, 0.14);
+          radial-gradient(circle at 86% 0%, rgba(255, 230, 0, 0.12), transparent 12rem),
+          radial-gradient(circle at 74% 8%, rgba(247, 125, 30, 0.14), transparent 16rem),
+          rgba(26, 26, 36, 0.98);
+        border: 1px solid rgba(196, 196, 208, 0.18);
         border-radius: 18px;
         box-shadow: var(--shadow);
         max-height: min(760px, 88vh);
@@ -929,7 +940,7 @@
 
       .footer-mark {
         align-items: center;
-        color: white;
+        color: var(--yellow);
         display: flex;
         justify-content: flex-end;
         padding: 18px clamp(22px, 7vw, 88px) 28px;
