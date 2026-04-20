@@ -44,6 +44,18 @@ JOB_PROCESSES_LOCK = threading.Lock()
 CANCELLED_RETURN_CODE = -999
 
 
+def _env_host(default: str = "0.0.0.0") -> str:
+    return str(os.getenv("HOST") or default).strip() or default
+
+
+def _env_port(default: int = 8787) -> int:
+    raw = str(os.getenv("PORT") or default).strip()
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
 def _now() -> float:
     return time.time()
 
@@ -639,6 +651,15 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path == "/health":
+            self._send_json(
+                {
+                    "status": "ok",
+                    "service": "ux-ui-auditor",
+                    "port": getattr(self.server, "server_port", None),
+                }
+            )
+            return
         if parsed.path == "/":
             self._send_file(STATIC_DIR / "index.html")
             return
@@ -757,8 +778,8 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the local React audit launcher UI.")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8787)
+    parser.add_argument("--host", default=_env_host())
+    parser.add_argument("--port", type=int, default=_env_port())
     args = parser.parse_args()
 
     server = ThreadingHTTPServer((args.host, args.port), AuditRequestHandler)
