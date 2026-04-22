@@ -120,6 +120,7 @@ def _chat_json_with_images(
 
 
 def _build_prompt(site_context: Dict[str, Any], screenshots: List[Dict[str, Any]]) -> str:
+    experience_type = clean_text(site_context.get("experience_type")).lower() or "website"
     schema = {
         "site_summary": "string",
         "axes": {
@@ -212,6 +213,23 @@ def _build_prompt(site_context: Dict[str, Any], screenshots: List[Dict[str, Any]
     }
 
     axis_contracts = [axis_prompt_contract(axis) for axis in AXIS_DEFINITIONS]
+    experience_guidance = (
+        """
+Experience-specific guidance for mobile app screenshots:
+- Treat each screenshot as an in-app screen, not as a marketing page.
+- Judge hierarchy, task flow, and trust through mobile-first cues such as touch targets, dense layouts, bottom/tab navigation, screen titles, permission or account prompts, and in-app next steps.
+- Do not expect website conventions such as global footers, SEO-style hero sections, or page URLs.
+- When discussing conversion or next-step readiness, think in terms of activation, onboarding, purchase, booking, support, or in-app completion rather than only website lead generation.
+- Use screen names and visible mobile UI elements in evidence wherever possible.
+""".strip()
+        if experience_type == "mobile_app"
+        else """
+Experience-specific guidance for website screenshots:
+- Treat each screenshot as a website page or section in a commercial web journey.
+- Pay close attention to page-level hierarchy, navigation scent, proof placement, CTA visibility, and how the page moves a visitor toward evaluation or conversion.
+- Use page labels, visible headings, section names, proof elements, and CTA text as evidence whenever possible.
+""".strip()
+    )
 
     return f"""
 You are a senior UX/UI strategist preparing a persuasive go-to-market audit.
@@ -266,6 +284,8 @@ Operating rules:
 
 Axis contracts:
 {json.dumps(axis_contracts, ensure_ascii=False, indent=2)}
+
+{experience_guidance}
 
 Site context:
 {json.dumps(site_context, ensure_ascii=False, indent=2)}

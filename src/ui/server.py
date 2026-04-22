@@ -65,6 +65,8 @@ def _new_job(url: str, mode: str) -> dict[str, Any]:
     job = {
         "id": uuid.uuid4().hex[:12],
         "type": "website",
+        "surfaceType": "website",
+        "inputType": "url",
         "url": url,
         "mode": mode,
         "status": "queued",
@@ -80,10 +82,18 @@ def _new_job(url: str, mode: str) -> dict[str, Any]:
     return job
 
 
-def _new_screenshot_job(site_name: str, screenshot_paths: list[Path], screenshot_labels: list[str]) -> dict[str, Any]:
+def _normalize_surface_type(value: str) -> str:
+    normalized = str(value or "").strip().lower()
+    return "mobile_app" if normalized in {"mobile", "mobile_app", "app", "mobile-app"} else "website"
+
+
+def _new_screenshot_job(site_name: str, screenshot_paths: list[Path], screenshot_labels: list[str], surface_type: str = "website") -> dict[str, Any]:
+    normalized_surface = _normalize_surface_type(surface_type)
     return {
         "id": uuid.uuid4().hex[:12],
-        "type": "screenshot",
+        "type": "mobile" if normalized_surface == "mobile_app" else "website",
+        "surfaceType": normalized_surface,
+        "inputType": "screenshot",
         "url": "",
         "mode": "gtm",
         "siteName": site_name,
@@ -113,6 +123,8 @@ def _new_mobile_job(
     return {
         "id": uuid.uuid4().hex[:12],
         "type": "mobile",
+        "surfaceType": "mobile_app",
+        "inputType": "interactive",
         "url": "",
         "mode": "interactive",
         "appLabel": app_label,
@@ -454,13 +466,15 @@ def _run_screenshot_audit_job(job_id: str) -> None:
         screenshot_paths = [Path(path) for path in job.get("screenshotPaths", [])]
         site_name = str(job.get("siteName") or "Screenshot Audit")
         screenshot_labels = [str(label).strip() for label in job.get("screenshotLabels", []) if str(label).strip()]
+        surface_type = _normalize_surface_type(str(job.get("surfaceType") or "website"))
 
     job_dir = SCREENSHOT_AUDIT_DIR / job_id
     audit_json = job_dir / "screenshot_gtm_audit.json"
     report_dir = job_dir / "gtm-report"
     vercel_dir = job_dir / "vercel-gtm-report"
+    surface_label = "mobile app screenshots" if surface_type == "mobile_app" else "website screenshots"
 
-    _set_job(job_id, status="running", stage="Analyzing uploaded screenshots", progress=5)
+    _set_job(job_id, status="running", stage=f"Analyzing uploaded {surface_label}", progress=5)
     analysis_command = [
         sys.executable,
         "-m",
@@ -469,19 +483,21 @@ def _run_screenshot_audit_job(job_id: str) -> None:
         str(audit_json),
         "--site-name",
         site_name,
+        "--surface-type",
+        surface_type,
         "--screenshots",
         *[str(path) for path in screenshot_paths],
     ]
     if screenshot_labels:
         analysis_command.extend(["--screenshot-names-json", json.dumps(screenshot_labels, ensure_ascii=False)])
-    analysis_code = _run_command(job_id, analysis_command, stage="Running screenshot GTM audit", progress=10)
+    analysis_code = _run_command(job_id, analysis_command, stage=f"Running {surface_label} GTM audit", progress=10)
     if analysis_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
         return
     if analysis_code != 0:
         _set_job(
             job_id,
             status="failed",
-            error=f"Screenshot audit failed with exit code {analysis_code}.",
+            error=f"{surface_label.title()} audit failed with exit code {analysis_code}.",
         )
         return
 
@@ -496,7 +512,7 @@ def _run_screenshot_audit_job(job_id: str) -> None:
             "--output-dir",
             str(report_dir),
         ],
-        stage="Generating screenshot audit report",
+        stage=f"Generating {surface_label} report",
         progress=70,
     )
     if report_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
@@ -517,7 +533,7 @@ def _run_screenshot_audit_job(job_id: str) -> None:
             str(vercel_dir),
             "--deploy",
         ],
-        stage="Deploying screenshot audit to Vercel",
+        stage=f"Deploying {surface_label} report to Vercel",
         progress=90,
     )
     if deploy_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
@@ -734,6 +750,7 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
                 if audit_type != "screenshot":
                     raise ValueError("Multipart upload is only supported for screenshot audits.")
                 site_name = _field_value(form, "siteName", "Screenshot Audit") or "Screenshot Audit"
+                surface_type = _normalize_surface_type(_field_value(form, "surfaceType", "website"))
                 screenshot_labels = _field_json_array(form, "screenshotLabels")
                 pending_job_id = uuid.uuid4().hex[:12]
                 with JOBS_LOCK:
@@ -750,7 +767,7 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
                     for index, path in enumerate(screenshot_paths)
                 ]
                 with JOBS_LOCK:
-                    job = _new_screenshot_job(site_name, screenshot_paths, screenshot_labels)
+                    job = _new_screenshot_job(site_name, screenshot_paths, screenshot_labels, surface_type=surface_type)
                     job["id"] = pending_job_id
                     JOBS[job["id"]] = job
                 worker = threading.Thread(target=_run_screenshot_audit_job, args=(job["id"],), daemon=True)

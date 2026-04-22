@@ -17,6 +17,15 @@ GENERATED_DIR = ROOT_DIR / "shared" / "generated"
 DEFAULT_OUTPUT = GENERATED_DIR / "screenshot_gtm_audit.json"
 
 
+def _normalize_surface_type(value: Any) -> str:
+    normalized = clean_text(value).lower()
+    return "mobile_app" if normalized in {"mobile", "mobile_app", "app", "mobile-app"} else "website"
+
+
+def _surface_label(surface_type: str) -> str:
+    return "mobile app" if surface_type == "mobile_app" else "website"
+
+
 def load_json(path: Path) -> Dict[str, Any]:
     with path.open("r", encoding="utf-8") as file:
         return json.load(file)
@@ -257,8 +266,9 @@ def _image_dimensions(path: Path) -> tuple[int, int]:
         return 0, 0
 
 
-def _screenshot_metadata(paths: List[Path], names: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+def _screenshot_metadata(paths: List[Path], names: Optional[List[str]] = None, surface_type: str = "website") -> List[Dict[str, Any]]:
     out = []
+    normalized_surface = _normalize_surface_type(surface_type)
     for index, path in enumerate(paths, start=1):
         width, height = _image_dimensions(path)
         custom_name = clean_text((names or [])[index - 1] if names and index - 1 < len(names) else "")
@@ -271,12 +281,16 @@ def _screenshot_metadata(paths: List[Path], names: Optional[List[str]] = None) -
                 "page_name": display_name,
                 "page_url": "",
                 "title": title,
-                "source_type": "uploaded_screenshot",
+                "source_type": "uploaded_mobile_screenshot" if normalized_surface == "mobile_app" else "uploaded_website_screenshot",
                 "file_name": path.name,
                 "image_width": width,
                 "image_height": height,
                 "aspect_ratio": round(width / height, 3) if width and height else None,
-                "reason": "User-uploaded screenshot for GTM UX/UI review",
+                "reason": (
+                    "User-uploaded mobile app screen for GTM UX/UI review"
+                    if normalized_surface == "mobile_app"
+                    else "User-uploaded website screenshot for GTM UX/UI review"
+                ),
                 "screenshot_path": str(path),
             }
         )
@@ -423,12 +437,19 @@ Return strict JSON only matching the requested schema.
         }
 
 
-def build_payload(screenshot_paths: List[Path], site_name: str = "Screenshot Audit", screenshot_names: Optional[List[str]] = None) -> Dict[str, Any]:
-    screenshots = _screenshot_metadata(screenshot_paths, screenshot_names)
+def build_payload(
+    screenshot_paths: List[Path],
+    site_name: str = "Screenshot Audit",
+    screenshot_names: Optional[List[str]] = None,
+    surface_type: str = "website",
+) -> Dict[str, Any]:
+    normalized_surface = _normalize_surface_type(surface_type)
+    surface_label = _surface_label(normalized_surface)
+    screenshots = _screenshot_metadata(screenshot_paths, screenshot_names, surface_type=normalized_surface)
     site_context = {
         "site": {
             "homepage": "",
-            "domain": "uploaded-screenshots",
+            "domain": "uploaded-mobile-app-screenshots" if normalized_surface == "mobile_app" else "uploaded-website-screenshots",
             "display_name": clean_text(site_name) or "Screenshot Audit",
             "language": "",
         },
@@ -437,8 +458,13 @@ def build_payload(screenshot_paths: List[Path], site_name: str = "Screenshot Aud
             "topLevelNavigation": 0,
             "navigationItems": 0,
         },
-        "source": "uploaded screenshots",
-        "visual_review_goal": "Evaluate uploaded UI screenshots against the same seven GTM UX/UI audit axes used by the website audit mode.",
+        "source": f"uploaded {surface_label} screenshots",
+        "experience_type": normalized_surface,
+        "visual_review_goal": (
+            "Evaluate uploaded mobile app screens against the GTM UX/UI axes with mobile-first interaction, hierarchy, and trust expectations."
+            if normalized_surface == "mobile_app"
+            else "Evaluate uploaded website screenshots against the same seven GTM UX/UI audit axes used by the website audit mode."
+        ),
     }
     vision = run_gtm_vision_review(site_context=site_context, screenshots=screenshots)
     vision_result = vision.get("result") if isinstance(vision.get("result"), dict) else {}
@@ -471,17 +497,36 @@ def build_payload(screenshot_paths: List[Path], site_name: str = "Screenshot Aud
         "version": 1,
         "mode": "screenshot",
         "generator": "src.gtm_audit.generate_screenshot_gtm_audit",
+        "surfaceType": normalized_surface,
         "site": site_context["site"],
         "context": {
-            "siteType": "Screenshot audit",
+            "siteType": "Mobile app screenshot audit" if normalized_surface == "mobile_app" else "Website screenshot audit",
             "pagesAudited": len(screenshots),
             "topLevelNavigation": "N/A",
             "auditAxes": len(AXIS_DEFINITIONS),
-            "approach": "User-uploaded screenshots reviewed by the multimodal GTM synthesis layer against the same seven UX/UI audit axes.",
+            "approach": (
+                "User-uploaded mobile app screens reviewed by the multimodal GTM synthesis layer with mobile-first context and the shared seven UX/UI audit axes."
+                if normalized_surface == "mobile_app"
+                else "User-uploaded website screenshots reviewed by the multimodal GTM synthesis layer against the same seven UX/UI audit axes."
+            ),
         },
         "methodology": [
-            {"step": "Upload", "description": "Screenshots are uploaded directly by the user and preserved as report evidence."},
-            {"step": "Vision Review", "description": "A multimodal model reviews visible UI evidence against seven GTM UX/UI axes."},
+            {
+                "step": "Upload",
+                "description": (
+                    "Mobile app screens are uploaded directly by the user and preserved as report evidence."
+                    if normalized_surface == "mobile_app"
+                    else "Website screenshots are uploaded directly by the user and preserved as report evidence."
+                ),
+            },
+            {
+                "step": "Vision Review",
+                "description": (
+                    "A multimodal model reviews visible mobile UI evidence with touch-first and in-app flow assumptions."
+                    if normalized_surface == "mobile_app"
+                    else "A multimodal model reviews visible website UI evidence against seven GTM UX/UI axes."
+                ),
+            },
             {"step": "LLM Synthesis", "description": "A text model refines the visual review into sharper GTM priorities when available, without inventing new visual evidence."},
             {"step": "Prioritization", "description": "The highest-impact issues are translated into sales-facing recommendations and a static report."},
         ],
@@ -496,7 +541,11 @@ def build_payload(screenshot_paths: List[Path], site_name: str = "Screenshot Aud
             "strongestAxis": strongest,
             "weakestAxis": weakest,
             "summary": summary,
-            "positioningHook": clean_text(vision_result.get("market_positioning")) or "Use the uploaded screenshots to clarify the product story, trust signals, and conversion path before launch.",
+            "positioningHook": clean_text(vision_result.get("market_positioning")) or (
+                "Use the uploaded app screens to clarify task flow, trust signals, and the in-app path before launch."
+                if normalized_surface == "mobile_app"
+                else "Use the uploaded screenshots to clarify the product story, trust signals, and conversion path before launch."
+            ),
             "topPriorities": priorities,
         },
         "recommendations": _recommendations(priorities),
@@ -515,6 +564,7 @@ def main() -> None:
     parser.add_argument("--screenshot-names", nargs="*", default=[], help="Optional display names matching the uploaded screenshots.")
     parser.add_argument("--screenshot-names-json", default="", help="Optional JSON array of display names matching the uploaded screenshots.")
     parser.add_argument("--site-name", default="Screenshot Audit")
+    parser.add_argument("--surface-type", default="website", choices=["website", "mobile_app"], help="Whether the uploaded screenshots represent website pages or mobile app screens.")
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
     args = parser.parse_args()
 
@@ -532,7 +582,7 @@ def main() -> None:
         except Exception:
             screenshot_names = args.screenshot_names
 
-    payload = build_payload(screenshot_paths, site_name=args.site_name, screenshot_names=screenshot_names)
+    payload = build_payload(screenshot_paths, site_name=args.site_name, screenshot_names=screenshot_names, surface_type=args.surface_type)
     output_path = to_path(args.output, DEFAULT_OUTPUT)
     save_json(output_path, payload)
     print(f"Screenshot GTM audit written to: {output_path}")

@@ -1186,10 +1186,12 @@
       }
 
       function App() {
-        const [auditType, setAuditType] = useState("website");
+        const [experienceType, setExperienceType] = useState("website");
+        const [websiteInputType, setWebsiteInputType] = useState("url");
+        const [mobileInputType, setMobileInputType] = useState("live");
         const [mode, setMode] = useState("gtm");
         const [url, setUrl] = useState("");
-        const [siteName, setSiteName] = useState("Client UX screenshots");
+        const [siteName, setSiteName] = useState("Client Website Screenshots");
         const [mobileAppLabel, setMobileAppLabel] = useState("Android App Audit");
         const [mobileAppPackage, setMobileAppPackage] = useState("");
         const [mobileAppActivity, setMobileAppActivity] = useState("");
@@ -1206,21 +1208,36 @@
         const [activePage, setActivePage] = useState(pageFromHash);
         const screenshotFilesRef = useRef([]);
 
+        const isWebsiteUrlAudit = experienceType === "website" && websiteInputType === "url";
+        const isScreenshotAudit = (experienceType === "website" && websiteInputType === "screenshot") || (experienceType === "mobile" && mobileInputType === "screenshot");
+        const isMobileLiveAudit = experienceType === "mobile" && mobileInputType === "live";
+        const screenshotSurfaceType = experienceType === "mobile" ? "mobile_app" : "website";
+
         const canStart = useMemo(() => {
           if (isSubmitting) return false;
-          if (auditType === "website") return url.trim().length > 3;
-          if (auditType === "screenshot") return screenshotFiles.length > 0;
+          if (isWebsiteUrlAudit) return url.trim().length > 3;
+          if (isScreenshotAudit) return screenshotFiles.length > 0;
           return mobileAppPackage.trim().length > 1 && mobileAppActivity.trim().length > 1;
-        }, [auditType, isSubmitting, mobileAppActivity, mobileAppPackage, screenshotFiles.length, url]);
+        }, [isMobileLiveAudit, isScreenshotAudit, isSubmitting, isWebsiteUrlAudit, mobileAppActivity, mobileAppPackage, screenshotFiles.length, url]);
 
         const completionText = useMemo(() => {
-          if (auditType === "mobile") return "Review the generated first-screen artifacts and structured mobile evidence.";
+          if (isMobileLiveAudit) return "Review the generated first-screen artifacts and structured mobile evidence.";
           return "Open the deployed report with evidence, confidence, status, and supporting detail.";
-        }, [auditType]);
+        }, [isMobileLiveAudit]);
 
         useEffect(() => {
           screenshotFilesRef.current = screenshotFiles;
         }, [screenshotFiles]);
+
+        useEffect(() => {
+          setSiteName((current) => {
+            const clean = (current || "").trim();
+            if (!clean || clean === "Client Website Screenshots" || clean === "Client App Screenshots") {
+              return experienceType === "mobile" ? "Client App Screenshots" : "Client Website Screenshots";
+            }
+            return current;
+          });
+        }, [experienceType]);
 
         useEffect(() => {
           return () => {
@@ -1313,17 +1330,18 @@
           setIsSubmitting(true);
           try {
             let response;
-            if (auditType === "screenshot") {
+            if (isScreenshotAudit) {
               const formData = new FormData();
               formData.append("auditType", "screenshot");
-              formData.append("siteName", siteName.trim() || "Screenshot Audit");
+              formData.append("surfaceType", screenshotSurfaceType);
+              formData.append("siteName", siteName.trim() || (screenshotSurfaceType === "mobile_app" ? "Mobile App Screenshot Audit" : "Website Screenshot Audit"));
               formData.append(
                 "screenshotLabels",
                 JSON.stringify(screenshotFiles.map((item, index) => item.label.trim() || defaultScreenshotLabel(item.file, index)))
               );
               screenshotFiles.forEach((item) => formData.append("screenshots", item.file));
               response = await apiFetch("/api/audits", { method: "POST", body: formData });
-            } else if (auditType === "mobile") {
+            } else if (isMobileLiveAudit) {
               response = await apiFetch("/api/audits", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -1407,9 +1425,9 @@
                 e(
                   "div",
                   { className: "process-list" },
-                  e(ProcessStep, { number: "1", title: "Select the mission", text: "Choose between website, screenshot, or mobile audit." }),
+                  e(ProcessStep, { number: "1", title: "Select the mission", text: "Choose website or mobile app first, then select URL/live app or screenshots." }),
                   e(ProcessStep, { number: "2", title: "Run the audit engine", text: "The pipeline extracts evidence and evaluates UX/UI quality." }),
-                  e(ProcessStep, { number: "3", title: auditType === "mobile" ? "Inspect artifacts" : "View results", text: completionText })
+                  e(ProcessStep, { number: "3", title: isMobileLiveAudit ? "Inspect artifacts" : "View results", text: completionText })
                 )
               ),
               e(
@@ -1417,41 +1435,83 @@
                 { className: "audit-panel", onSubmit: handleSubmit },
                 e("h2", null, "Start here"),
                 e("p", { className: "panel-subtitle" }, "Configure your audit parameters"),
-                e("div", { className: "field-legend" }, "Select Audit Type"),
+                e("div", { className: "field-legend" }, "Choose Experience"),
                 e(
                   "div",
-                  { className: "choice-stack", role: "radiogroup", "aria-label": "Audit type" },
+                  { className: "choice-stack", role: "radiogroup", "aria-label": "Experience type" },
                   e(AuditChoice, {
-                    active: auditType === "website",
+                    active: experienceType === "website",
                     icon: "globe",
-                    onClick: () => setAuditType("website"),
+                    onClick: () => setExperienceType("website"),
                     title: "Website audit",
-                    text: "Analyze a live website URL for UX/UI issues",
+                    text: "Audit a live website URL or uploaded website screenshots",
                   }),
                   e(AuditChoice, {
-                    active: auditType === "screenshot",
-                    icon: "image",
-                    onClick: () => setAuditType("screenshot"),
-                    title: "Screenshot audit",
-                    text: "Upload screenshots for detailed visual analysis",
-                  }),
-                  e(AuditChoice, {
-                    active: auditType === "mobile",
+                    active: experienceType === "mobile",
                     icon: "phone",
-                    onClick: () => setAuditType("mobile"),
+                    onClick: () => setExperienceType("mobile"),
                     title: "Mobile app audit",
-                    text: "Audit mobile app designs and interactions",
+                    text: "Audit a live mobile app session or uploaded app screenshots",
                   })
                 ),
-                auditType === "website" &&
+                experienceType === "website" &&
+                  e(
+                    React.Fragment,
+                    null,
+                    e("div", { className: "field-legend", style: { marginTop: "24px" } }, "Website Input"),
+                    e(
+                      "div",
+                      { className: "choice-stack", role: "radiogroup", "aria-label": "Website input type" },
+                      e(AuditChoice, {
+                        active: websiteInputType === "url",
+                        icon: "globe",
+                        onClick: () => setWebsiteInputType("url"),
+                        title: "Live URL",
+                        text: "Run the full crawl and evidence pipeline from a website URL",
+                      }),
+                      e(AuditChoice, {
+                        active: websiteInputType === "screenshot",
+                        icon: "image",
+                        onClick: () => setWebsiteInputType("screenshot"),
+                        title: "Website screenshots",
+                        text: "Review uploaded website pages and flows as static screenshots",
+                      })
+                    )
+                  ),
+                experienceType === "mobile" &&
+                  e(
+                    React.Fragment,
+                    null,
+                    e("div", { className: "field-legend", style: { marginTop: "24px" } }, "Mobile Input"),
+                    e(
+                      "div",
+                      { className: "choice-stack", role: "radiogroup", "aria-label": "Mobile input type" },
+                      e(AuditChoice, {
+                        active: mobileInputType === "live",
+                        icon: "phone",
+                        onClick: () => setMobileInputType("live"),
+                        title: "Live app session",
+                        text: "Connect through Appium and extract structured mobile artifacts",
+                      }),
+                      e(AuditChoice, {
+                        active: mobileInputType === "screenshot",
+                        icon: "image",
+                        onClick: () => setMobileInputType("screenshot"),
+                        title: "App screenshots",
+                        text: "Review uploaded mobile app screens separately from website screenshots",
+                      })
+                    )
+                  ),
+                isWebsiteUrlAudit &&
                   e(WebsiteFields, {
                     mode,
                     setMode,
                     url,
                     setUrl,
                   }),
-                auditType === "screenshot" &&
+                isScreenshotAudit &&
                   e(ScreenshotFields, {
+                    experienceType,
                     handleUploadDrop,
                     removeScreenshotFile,
                     screenshotFiles,
@@ -1460,7 +1520,7 @@
                     siteName,
                     updateScreenshotLabel,
                   }),
-                auditType === "mobile" &&
+                isMobileLiveAudit &&
                   e(MobileFields, {
                     mobileAppActivity,
                     mobileAppLabel,
@@ -1481,7 +1541,15 @@
                 e(
                   "button",
                   { className: "primary start-button", type: "submit", disabled: !canStart },
-                  isSubmitting ? "Starting audit..." : auditType === "screenshot" ? "Start Screenshot Audit" : auditType === "mobile" ? "Start Mobile Extraction" : "Start Audit",
+                  isSubmitting
+                    ? "Starting audit..."
+                    : isScreenshotAudit
+                      ? experienceType === "mobile"
+                        ? "Start App Screenshot Audit"
+                        : "Start Website Screenshot Audit"
+                      : isMobileLiveAudit
+                        ? "Start Mobile Extraction"
+                        : "Start Website Audit",
                   e(Icon, { name: "arrow" })
                 ),
                 job && e(StatusStrip, { job, isStopping, onOpen: () => setIsModalOpen(true), onStop: handleStopAudit })
@@ -1577,15 +1645,22 @@
         );
       }
 
-      function ScreenshotFields({ handleUploadDrop, removeScreenshotFile, screenshotFiles, setImageFiles, setSiteName, siteName, updateScreenshotLabel }) {
+      function ScreenshotFields({ experienceType, handleUploadDrop, removeScreenshotFile, screenshotFiles, setImageFiles, setSiteName, siteName, updateScreenshotLabel }) {
+        const isMobileScreens = experienceType === "mobile";
+        const auditLabel = isMobileScreens ? "Mobile app screenshot audit label" : "Website screenshot audit label";
+        const auditPlaceholder = isMobileScreens ? "Client App Screenshots" : "Client Website Screenshots";
+        const uploadTitle = isMobileScreens ? "Upload mobile app screens" : "Upload website screenshots";
+        const uploadHint = isMobileScreens
+          ? "Add mobile app screens that represent onboarding, conversion, account, or key in-app journeys."
+          : "Add website pages or flows that represent homepage, proof, pricing, conversion, or other key journeys.";
         return e(
           React.Fragment,
           null,
           e(
             "div",
             { className: "field" },
-            e("label", { htmlFor: "screenshot-site-name" }, "Audit label"),
-            e("input", { id: "screenshot-site-name", value: siteName, placeholder: "Client app screenshots", onChange: (event) => setSiteName(event.target.value) })
+            e("label", { htmlFor: "screenshot-site-name" }, auditLabel),
+            e("input", { id: "screenshot-site-name", value: siteName, placeholder: auditPlaceholder, onChange: (event) => setSiteName(event.target.value) })
           ),
           e(
             "div",
@@ -1594,8 +1669,8 @@
             e(
               "label",
               { className: "upload-zone", htmlFor: "screenshot-files", onDragOver: (event) => event.preventDefault(), onDrop: handleUploadDrop },
-              e("strong", null, "Upload interface screenshots"),
-              e("span", null, "Click to add files, or drag images here. PNG, JPG, JPEG, WebP, and GIF are supported."),
+              e("strong", null, uploadTitle),
+              e("span", null, uploadHint),
               e("input", {
                 id: "screenshot-files",
                 type: "file",
@@ -1701,13 +1776,24 @@
         );
       }
 
+      function jobDescriptor(job) {
+        if (!job) return "audit";
+        const type = String(job.type || "").toLowerCase();
+        const inputType = String(job.inputType || "").toLowerCase();
+        if (type === "mobile" && inputType === "screenshot") return "mobile screenshots";
+        if (type === "mobile") return "mobile app";
+        if (type === "website" && inputType === "screenshot") return "website screenshots";
+        if (type === "website" && inputType === "url") return "website url";
+        return type || "audit";
+      }
+
       function StatusStrip({ job, isStopping, onOpen, onStop }) {
         const progress = job?.progress || 0;
         const canStop = ["queued", "running"].includes(job?.status);
         return e(
           "div",
           { className: "status-strip" },
-          e("div", null, e("strong", null, `${job.type || "audit"}: ${job.status || "queued"}`), e("div", null, job.stage || "Preparing process")),
+          e("div", null, e("strong", null, `${jobDescriptor(job)}: ${job.status || "queued"}`), e("div", null, job.stage || "Preparing process")),
           e("div", { className: "progress-wrap", "aria-label": `Progress ${progress}%` }, e("div", { className: "progress", style: { width: `${progress}%` } })),
           e(
             "div",
@@ -1721,11 +1807,11 @@
       function ProgressModal({ job, error, isStopping, onClose, onStop }) {
         const progress = job?.progress || 0;
         const status = job?.status || (error ? "failed" : "queued");
-        const isMobileJob = job?.type === "mobile";
+        const isMobileLiveJob = job?.type === "mobile" && job?.inputType !== "screenshot";
         const isActiveJob = ["queued", "running"].includes(status);
-        const completedEyebrow = isMobileJob ? "Artifacts ready" : "Deployment ready";
-        const completedHeading = isMobileJob ? "Mobile extraction is complete." : "Your report is deployed.";
-        const completedMessage = isMobileJob
+        const completedEyebrow = isMobileLiveJob ? "Artifacts ready" : "Deployment ready";
+        const completedHeading = isMobileLiveJob ? "Mobile extraction is complete." : "Your report is deployed.";
+        const completedMessage = isMobileLiveJob
           ? job?.stage || "The first Android screen, hierarchy, and structured extraction artifacts are ready."
           : job?.stage || "Deployment completed.";
         const eyebrow = status === "completed" ? completedEyebrow : status === "cancelled" ? "Stopped" : status === "failed" ? "Action needed" : "Audit running";
@@ -1736,7 +1822,7 @@
               ? "The audit was stopped."
               : status === "failed"
                 ? "The audit could not finish."
-                : isMobileJob
+                : isMobileLiveJob
                   ? "Running the Android extraction."
                   : "Building the audit report.";
         const message = status === "completed" ? completedMessage : status === "cancelled" ? "Audit stopped by user." : error || job?.error || job?.stage || "Preparing process...";
@@ -1767,11 +1853,11 @@
               e(
                 "div",
                 { className: "success-actions" },
-                !isMobileJob && job.resultUrl && e("a", { className: "primary", href: job.resultUrl, target: "_blank", rel: "noreferrer" }, "Open Vercel Report", e(Icon, { name: "arrow" })),
+                !isMobileLiveJob && job.resultUrl && e("a", { className: "primary", href: job.resultUrl, target: "_blank", rel: "noreferrer" }, "Open Vercel Report", e(Icon, { name: "arrow" })),
                 e("button", { className: "ghost", type: "button", onClick: onClose }, "Close")
               ),
             status === "completed" &&
-              isMobileJob &&
+              isMobileLiveJob &&
               job?.outputDir &&
               e("div", { className: "artifact-summary" }, e("strong", null, "Saved artifact directory"), e("div", { className: "artifact-path" }, job.outputDir)),
             ["failed", "cancelled"].includes(status) && e("div", { className: "success-actions" }, e("button", { className: "ghost", type: "button", onClick: onClose }, "Close"))
