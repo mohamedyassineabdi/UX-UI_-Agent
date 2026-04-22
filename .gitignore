@@ -95,6 +95,8 @@ shared/generated/*.pdf
 *.jpg
 *.jpeg
 *.webp
+!docs/screenshots/
+!docs/screenshots/*.png
 
 # =========================
 # Local databases / caches
