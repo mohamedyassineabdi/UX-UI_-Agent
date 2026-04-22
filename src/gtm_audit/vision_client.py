@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 import requests
 from dotenv import load_dotenv
 
-from .common import AXIS_DEFINITIONS, clean_text
+from .common import AXIS_DEFINITIONS, axis_prompt_contract, clean_text
 
 
 DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
@@ -125,6 +125,9 @@ def _build_prompt(site_context: Dict[str, Any], screenshots: List[Dict[str, Any]
         "axes": {
             axis["id"]: {
                 "observation": "string",
+                "what_is_working": ["string"],
+                "proof_points": ["string"],
+                "missing_context": "string",
                 "score": 0,
                 "severity": "low | medium | high",
                 "confidence": 0.0,
@@ -140,8 +143,10 @@ def _build_prompt(site_context: Dict[str, Any], screenshots: List[Dict[str, Any]
                 "page_name": "string",
                 "page_url": "string",
                 "screenshot_index": 0,
+                "visible_signals": ["string"],
                 "reason": "string",
                 "evidence": "string",
+                "commercial_risk": "string",
                 "recommendation": "string",
                 "visual_region": {
                     "x": 0.0,
@@ -163,6 +168,7 @@ def _build_prompt(site_context: Dict[str, Any], screenshots: List[Dict[str, Any]
                 "page_name": "string",
                 "page_url": "string",
                 "screenshot_index": 0,
+                "visible_signals": ["string"],
                 "evidence": "string",
                 "why_it_matters": "string",
                 "recommendation": "string",
@@ -186,6 +192,7 @@ def _build_prompt(site_context: Dict[str, Any], screenshots: List[Dict[str, Any]
                 "page_name": "string",
                 "page_url": "string",
                 "screenshot_index": 0,
+                "visible_signals": ["string"],
                 "evidence": "string",
                 "why_it_matters": "string",
                 "recommendation": "string",
@@ -204,45 +211,61 @@ def _build_prompt(site_context: Dict[str, Any], screenshots: List[Dict[str, Any]
         "market_positioning": "string",
     }
 
+    axis_contracts = [axis_prompt_contract(axis) for axis in AXIS_DEFINITIONS]
+
     return f"""
 You are a senior UX/UI strategist preparing a persuasive go-to-market audit.
 
-You will review a small set of representative website screenshots and return a compact,
-decision-oriented synthesis for a B2B sales context.
+You will review representative website screenshots and return a compact, decision-oriented synthesis for a B2B sales context.
 
-Rules:
-- Focus on the seven axes below.
+Operating rules:
+- Focus on the seven axes below. Treat each axis as an evaluation contract, not as a vague theme.
 - Score every axis from 0 to 100, where 100 is launch-ready and 0 is commercially risky. Use the score field inside `axes`.
-- Calibrate severity from commercial GTM risk: high means likely to hurt comprehension, trust, or conversion; medium means meaningful friction; low means polish or secondary risk.
-- Do not limit yourself to the spreadsheet/workbook criteria. If screenshots reveal a more important GTM UX/UI issue, add it to `criteria_discoveries`.
-- Actively inspect for visual trust risks that workbook criteria may miss, especially:
-  - AI-generated-looking or heavily AI-enhanced people/team photos.
-  - Generic stock imagery that weakens authenticity.
-  - Broken images, partial renders, clipping, overlapped UI, corrupted text, or obvious screenshot/rendering artifacts.
-  - Visual credibility problems in founder/team/proof/client sections.
-  - Brand imagery that feels inconsistent with the product promise or target buyer.
-- Put those visual credibility issues in `visual_trust_findings`.
-- Do not claim a person is AI-generated as a fact. Use careful wording such as "appears heavily AI-enhanced" or "may read as synthetic" and explain the visible signals.
-- Use `priority_issues` for the most important issues overall, whether they come from workbook logic or your own visual/strategic review.
-- Return 3 to 8 `priority_issues` total. Prefer fewer precise, evidence-backed findings over many generic ones.
-- For each axis, make `observation` specific to visible evidence. If an axis cannot be confidently assessed from the screenshots, say what is not visible and lower confidence.
+- Use these score anchors:
+  - 85-100: strong launch-ready signal; only minor issues remain.
+  - 70-84: solid but still leaves noticeable friction or missing support.
+  - 55-69: workable, but commercial UX friction is visible and should be fixed before scale.
+  - 35-54: major friction or trust gaps likely to slow comprehension, trust, or conversion.
+  - 0-34: severe commercial breakdown on visible evidence.
+- Calibrate severity from commercial GTM risk:
+  - high: likely to hurt comprehension, trust, buyer confidence, or conversion readiness.
+  - medium: meaningful visible friction that slows evaluation or adds doubt.
+  - low: secondary friction or polish issue that does not block understanding.
+- Choose one primary axis per issue. Do not clone the same issue across multiple axes unless the screenshots show clearly separate problems.
 - Stay grounded in what is visible in the screenshots and the provided site context.
+- Do not invent backend behavior, hidden states, accessibility support, or flows that are not visible.
+- If an axis cannot be judged well from the screenshots, say exactly what context is missing in `missing_context` and lower confidence.
 - Prefer concise, specific observations over generic design language.
-- Cite exact visible text, CTA labels, section names, or UI elements when relevant.
-- Include page_name/page_url or screenshot_index when you can identify where the issue appears.
+- Cite exact visible text, CTA labels, section names, proof signals, or UI elements when relevant.
+- Every issue must explain:
+  1. what is visibly happening,
+  2. why it matters commercially,
+  3. what to change next.
+- Populate `visible_signals` with 1 to 4 short evidence bullets grounded in the screenshot, such as quoted CTA text, section names, component types, or visual problems.
+- Use `priority_issues` only for the highest-impact issues overall.
+- Return 3 to 8 `priority_issues` total. Prefer fewer precise, evidence-backed findings over many generic ones.
+- Use `criteria_discoveries` for additional evidence-grounded issues that are meaningful but not top priority.
+- Actively inspect for visual trust risks that workbook criteria may miss, especially:
+  - AI-enhanced-looking or synthetic-looking people imagery.
+  - Generic stock imagery that weakens authenticity.
+  - Broken images, clipping, overlapping UI, corrupted text, or obvious rendering artifacts.
+  - Visual credibility problems in founder, team, proof, client, or pricing sections.
+  - Brand imagery that feels inconsistent with the product promise or target buyer.
+- Put those credibility issues in `visual_trust_findings`.
+- Do not claim a person is AI-generated as a fact. Use careful wording such as "appears heavily AI-enhanced" or "may read as synthetic" and explain the visible signals.
+- Include page_name, page_url, or screenshot_index when you can identify where the issue appears.
 - Use zero-based `screenshot_index` matching the Screenshot metadata array order.
-- Every issue must explain: what is visible, why it matters commercially, and what to change next.
 - For every issue in `priority_issues`, `criteria_discoveries`, and `visual_trust_findings`, include `visual_region` when the affected area is visible.
-- `visual_region` must be an approximate bounding box around the concerned visible area in normalized 0-1 screenshot coordinates: x, y, width, height.
-- If the issue affects the whole screen, use a broad visual_region covering the primary affected area rather than omitting it.
-- If a visual issue is high impact but not part of the workbook, still return it with `outside_workbook: true`.
+- `visual_region` must be an approximate bounding box around the visible area in normalized 0-1 screenshot coordinates: x, y, width, height.
+- If the issue affects most of the screen, use a broad visual_region covering the primary affected area rather than omitting it.
+- If a visual issue is high impact but outside the workbook logic, still return it with `outside_workbook: true`.
 - If uncertain, lower confidence instead of overstating.
 - Return STRICT JSON ONLY matching this schema:
 
 {json.dumps(schema, ensure_ascii=False, indent=2)}
 
-Seven axes:
-{json.dumps([{k: v for k, v in axis.items() if k in {'id', 'name', 'description'}} for axis in AXIS_DEFINITIONS], ensure_ascii=False, indent=2)}
+Axis contracts:
+{json.dumps(axis_contracts, ensure_ascii=False, indent=2)}
 
 Site context:
 {json.dumps(site_context, ensure_ascii=False, indent=2)}
@@ -306,6 +329,7 @@ def run_gtm_vision_review(
 
         usable_screenshots.append(
             {
+                "screenshot_index": len(usable_screenshots),
                 "page_name": clean_text(item.get("page_name")),
                 "page_url": clean_text(item.get("page_url")),
                 "title": clean_text(item.get("title")),

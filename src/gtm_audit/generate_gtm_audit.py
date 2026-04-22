@@ -10,10 +10,12 @@ from urllib.parse import urlparse
 
 from .common import (
     AXIS_DEFINITIONS,
+    AXIS_IMPACT,
     AXIS_KEYWORDS,
+    AXIS_USER_IMPACT,
     clamp,
     clean_text,
-    contains_keyword,
+    count_keyword_hits,
     dedupe_strings,
     mean,
     normalize_status,
@@ -34,8 +36,8 @@ DEFAULT_CHECKS = GENERATED_DIR / "sheet_checks.json"
 DEFAULT_OUTPUT = GENERATED_DIR / "gtm_audit.json"
 
 ACTION_WORDS = {"contact", "demander", "demo", "discover", "en savoir plus", "learn", "planifier", "request", "start", "talk", "try"}
-AUDIENCE_WORDS = {"b2b", "e-commerce", "enterprise", "equipes", "fabricants", "grossistes", "professionnel", "teams"}
-TRUST_WORDS = {"bpi", "client", "clients", "french tech", "partner", "partenaire", "partners", "testimonial", "vision"}
+AUDIENCE_WORDS = {"b2b", "brand", "brands", "e-commerce", "enterprise", "equipes", "fabricants", "grossistes", "merchant", "merchants", "operations", "professionnel", "retailer", "retailers", "supply chain", "teams", "wholesale"}
+TRUST_WORDS = {"bpi", "case study", "certified", "client", "clients", "french tech", "gdpr", "partner", "partenaire", "partners", "privacy", "review", "reviews", "secure", "security", "soc 2", "testimonial", "testimonials", "trusted by", "vision"}
 VISION_TRUST_PAGE_WORDS = {
     "about",
     "apropos",
@@ -54,26 +56,6 @@ VISION_TRUST_PAGE_WORDS = {
 }
 PROOF_PATTERNS = [r"\b\d+\s*%\b", r"\b\d+\s*(minutes|min|jours|days|hours|heures)\b", r"\b-\d+\s*%\b"]
 LOCALE_NOISE = {"deutsch", "english", "espanol", "español", "francais", "français", "français▼", "italiano", "nederlands", "portugues", "português"}
-AXIS_IMPACT = {
-    "task_execution": "Friction in key tasks increases drop-off and weakens the product story in a live sales context.",
-    "flow_architecture": "Weak architecture slows comprehension and makes the offer feel less mature.",
-    "trust_accessibility": "Trust and accessibility gaps create perceived risk and narrow the reachable audience.",
-    "ui_consistency": "Inconsistent UI signals reduce perceived product maturity and scalability.",
-    "visual_brand": "A weak visual narrative lowers memorability and product differentiation.",
-    "content_microcopy": "Unclear messaging makes the value proposition harder to understand and repeat.",
-    "market_alignment": "Weak GTM alignment makes it harder for prospects to see why this product fits them now.",
-}
-AXIS_USER_IMPACT = {
-    "task_execution": "core tasks demand more effort than they should",
-    "flow_architecture": "people struggle to understand where they are, what comes next, or how the product is organized",
-    "trust_accessibility": "parts of the experience may not feel safe, inclusive, or reliable enough",
-    "ui_consistency": "recurring patterns do not behave or look consistently, which makes the product feel less mature",
-    "visual_brand": "the interface does not project enough confidence, polish, or brand distinctiveness at first glance",
-    "content_microcopy": "the value proposition and interaction cues are harder to understand than they should be",
-    "market_alignment": "prospects may not immediately understand why this product is relevant for their context or market",
-}
-
-
 def load_json(path: Path) -> Dict[str, Any]:
     with path.open("r", encoding="utf-8") as file:
         return json.load(file)
@@ -120,6 +102,24 @@ def nav_count(items: Iterable[Dict[str, Any]]) -> int:
         total += 1
         total += nav_count(item.get("children") or [])
     return total
+
+
+def nav_labels(items: Iterable[Dict[str, Any]]) -> List[str]:
+    labels: List[str] = []
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        labels.extend(
+            text
+            for text in (
+                clean_text(item.get("label")),
+                clean_text(item.get("title")),
+                clean_text(item.get("text")),
+            )
+            if text
+        )
+        labels.extend(nav_labels(item.get("children") or []))
+    return dedupe_strings(labels, limit=24)
 
 
 def page_meta(page: Dict[str, Any]) -> Dict[str, Any]:
@@ -193,6 +193,11 @@ def build_profile(website_menu: Dict[str, Any], cleaned_data: Dict[str, Any], re
     rendered_pages = rendered_data.get("pages") or []
     homepage = homepage_page(cleaned_data) or {}
     meta = page_meta(homepage)
+    navigation_labels = nav_labels(website_menu.get("navigation") or [])
+    page_titles = dedupe_strings(
+        clean_text(page_meta(page).get("title")) or clean_text(page.get("name"))
+        for page in cleaned_pages[:10]
+    )
     home_headings = headings(homepage)[:5]
     home_paragraphs = page_texts(homepage, "paragraphs")[:6]
     home_ctas = [
@@ -202,7 +207,7 @@ def build_profile(website_menu: Dict[str, Any], cleaned_data: Dict[str, Any], re
         and text.lower() not in {"menu", "search"}
         and any(word in text.lower() for word in ACTION_WORDS)
     ][:8]
-    text_pool = dedupe_strings(home_headings + home_paragraphs + home_ctas, limit=24)
+    text_pool = dedupe_strings(home_headings + home_paragraphs + home_ctas + navigation_labels + page_titles, limit=40)
     summary = (results_data or {}).get("summary") or {}
     interactions_tested = safe_int(summary.get("testedInteractions"))
     interactions_ok = safe_int(summary.get("successfulInteractions"))
@@ -227,6 +232,8 @@ def build_profile(website_menu: Dict[str, Any], cleaned_data: Dict[str, Any], re
             "heroHeadings": home_headings,
             "heroParagraphs": home_paragraphs,
             "heroCtas": home_ctas,
+            "navigationLabels": navigation_labels,
+            "pageTitles": page_titles,
             "textPool": text_pool,
             "audienceSignals": count_matches(text_pool, AUDIENCE_WORDS),
             "trustSignals": count_matches(text_pool, TRUST_WORDS),
@@ -261,6 +268,8 @@ def select_focus_screenshots(cleaned_data: Dict[str, Any]) -> List[Dict[str, Any
         score = 100 if clean_text(meta.get("sourceType")).lower() == "homepage" else 0
         if "contact" in name.lower() or "contact" in url.lower():
             score += 30
+        if any(word in f"{name} {url}".lower() for word in ("pricing", "tarif", "demo", "trial", "contact", "about", "team", "customer", "client")):
+            score += 28
         if "solution" in name.lower() or "commerce" in " ".join(clean_text(item) for item in meta.get("pageTypeClues") or []).lower():
             score += 20
         candidates.append((score, {"page_name": name, "page_url": url, "title": clean_text(meta.get("title")), "reason": "Representative page", "screenshot_path": shot}))
@@ -322,11 +331,14 @@ def select_vision_screenshots(scanned_pages: List[Dict[str, Any]], focus_screens
             score += 90
         if "contact" in text:
             score += 35
-        if any(word in text for word in ("solution", "product", "produit", "fashion", "pro")):
+        if any(word in text for word in ("solution", "product", "produit", "fashion", "pro", "pricing", "tarif", "demo", "trial", "customer", "client", "case study")):
             score += 30
         candidates.append((score, -order, item))
     candidates.sort(key=lambda value: (value[0], value[1]), reverse=True)
-    return [item for _, _, item in candidates[: max(1, limit)]]
+    selected = []
+    for index, (_, _, item) in enumerate(candidates[: max(1, limit)]):
+        selected.append({**item, "screenshot_index": index})
+    return selected
 
 
 def row_weight(row: Dict[str, Any]) -> float:
@@ -340,8 +352,11 @@ def axis_rows(flat_rows: List[Dict[str, Any]], axis: Dict[str, Any]) -> List[Dic
     out = []
     for row in flat_rows:
         texts = [row.get("criterion"), row.get("rationale")] + (row.get("evidence") or [])
-        if clean_text(row.get("sheet")).lower() in focus or contains_keyword(texts, keywords):
-            out.append(row)
+        sheet_match = clean_text(row.get("sheet")).lower() in focus
+        keyword_hits = count_keyword_hits(texts, keywords)
+        criterion_hits = count_keyword_hits([row.get("criterion")], keywords)
+        if sheet_match or criterion_hits >= 1 or keyword_hits >= 2:
+            out.append({**row, "_axis_relevance": round((2.0 if sheet_match else 0.0) + min(keyword_hits, 4) * 0.35, 2)})
     return out
 
 
@@ -457,10 +472,53 @@ def _polish_issue_text(text: str) -> str:
     return _detail_sentence(cleaned)
 
 
+def _visual_region_from_row(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    bundle = row.get("evidence_bundle")
+    if not isinstance(bundle, dict):
+        return None
+    target = bundle.get("target")
+    if not isinstance(target, dict):
+        return None
+    rect = target.get("rect")
+    if not isinstance(rect, dict):
+        return None
+    return {
+        "x": safe_float(rect.get("x")),
+        "y": safe_float(rect.get("y")),
+        "width": safe_float(rect.get("width")),
+        "height": safe_float(rect.get("height")),
+        "coordinate_system": "pixels",
+        "description": clean_text(target.get("component_text") or target.get("component_type") or target.get("target_kind")),
+    }
+
+
+def _visible_signals_from_row(row: Dict[str, Any], evidence: str) -> List[str]:
+    signals: List[str] = []
+    if clean_text(row.get("criterion")):
+        signals.append(clean_text(row["criterion"]))
+    if evidence:
+        signals.append(evidence)
+    bundle = row.get("evidence_bundle")
+    if isinstance(bundle, dict):
+        target = bundle.get("target")
+        if isinstance(target, dict):
+            signals.extend(
+                text
+                for text in (
+                    clean_text(target.get("component_text")),
+                    clean_text(target.get("component_type")),
+                    clean_text(target.get("issue_kind")),
+                )
+                if text
+            )
+    return dedupe_strings(signals, limit=4)
+
+
 def finding_from_row(row: Dict[str, Any], axis: Dict[str, Any]) -> Dict[str, Any]:
     severity = "high" if row["confidence"] >= 0.8 else "medium" if row["confidence"] >= 0.55 else "low"
     page_label = _page_label(row)
     evidence = _short_evidence(row)
+    visible_signals = _visible_signals_from_row(row, evidence)
     rationale, extracted_recommendation = _split_rationale_and_recommendation(row.get("rationale"))
     rationale_sentence = _polish_issue_text(rationale)
     evidence_sentence = _polish_issue_text(evidence) if evidence and evidence.lower() not in rationale.lower() else ""
@@ -473,7 +531,7 @@ def finding_from_row(row: Dict[str, Any], axis: Dict[str, Any]) -> Dict[str, Any
         f"This matters because {AXIS_USER_IMPACT[axis['id']]}. "
         f"In a GTM context, visible friction on {page_label} can make the product feel harder to understand, trust, or adopt during a first review."
     )
-    recommendation = _detail_sentence(extracted_recommendation) or (
+    recommendation = _detail_sentence(extracted_recommendation) or clean_text(axis.get("default_fix")) or (
         f"Fix this first on {page_label} by clarifying the interaction, tightening the label or feedback, "
         f"and making the intended next step more obvious."
     )
@@ -485,10 +543,12 @@ def finding_from_row(row: Dict[str, Any], axis: Dict[str, Any]) -> Dict[str, Any
         "severity": severity,
         "confidence": row["confidence"],
         "evidence": clean_text(evidence)[:240],
+        "visibleSignals": visible_signals,
         "explanation": explanation,
         "whyItMatters": why_it_matters,
         "recommendation": recommendation,
         "screenshotPath": row["screenshot_path"],
+        "visualRegion": _visual_region_from_row(row),
         "evidenceBundle": row.get("evidence_bundle"),
     }
 
@@ -538,12 +598,14 @@ def ai_discovered_findings(vision: Dict[str, Any], screenshots: List[Dict[str, A
 
         page_name = clean_text(item.get("page_name")) or clean_text(screenshot.get("page_name")) or "AI-reviewed screen"
         page_url = clean_text(item.get("page_url")) or clean_text(screenshot.get("page_url"))
-        evidence = _detail_sentence(clean_text(item.get("evidence") or item.get("reason"))) or "The AI review identified this issue from the reviewed screenshots."
+        visible_signals = dedupe_strings(item.get("visible_signals") or [], limit=4)
+        evidence = _detail_sentence(clean_text(item.get("evidence") or item.get("reason") or " ".join(visible_signals))) or "The AI review identified this issue from the reviewed screenshots."
         explanation = f"On {page_name}, the AI review identified a GTM issue that is not necessarily covered by the workbook criteria: {evidence}"
         why_it_matters = _detail_sentence(clean_text(item.get("why_it_matters"))) or (
             f"This matters because {AXIS_USER_IMPACT[axis_id]}. In a GTM context, it can reduce clarity, trust, or sales readiness during a first review."
         )
-        recommendation = _detail_sentence(clean_text(item.get("recommendation"))) or "Review this screen manually and prioritize the change if it affects a primary commercial journey."
+        recommendation = _detail_sentence(clean_text(item.get("recommendation"))) or clean_text(axis.get("default_fix")) or "Review this screen manually and prioritize the change if it affects a primary commercial journey."
+        visual_region = item.get("visual_region") if isinstance(item.get("visual_region"), dict) else item.get("visualRegion") if isinstance(item.get("visualRegion"), dict) else None
         findings.append(
             {
                 "title": title,
@@ -555,12 +617,16 @@ def ai_discovered_findings(vision: Dict[str, Any], screenshots: List[Dict[str, A
                 "severity": clean_text(item.get("severity")).lower() or "medium",
                 "confidence": clamp(safe_float(item.get("confidence"), 0.65), 0.0, 1.0),
                 "evidence": evidence[:240],
+                "visibleSignals": visible_signals,
                 "explanation": explanation,
                 "whyItMatters": why_it_matters,
                 "recommendation": recommendation,
                 "screenshotPath": clean_text(screenshot.get("screenshot_path")),
+                "visualRegion": visual_region,
+                "screenshotIndex": safe_int(item.get("screenshot_index"), -1),
                 "evidenceBundle": None,
                 "aiDiscovered": True,
+                "outsideWorkbook": bool(item.get("outside_workbook")),
             }
         )
     return findings[:6]
@@ -588,31 +654,45 @@ def build_axis(axis: Dict[str, Any], flat_rows: List[Dict[str, Any]], profile: D
     rows = axis_rows(flat_rows, axis)
     rows_scored = axis_row_score(rows)
     heuristic = metric_score(axis["id"], profile)
-    vscore = vision_axis_score((vision_axes or {}).get(axis["id"]))
+    axis_review = (vision_axes or {}).get(axis["id"]) or {}
+    vscore = vision_axis_score(axis_review)
     weighted = [(rows_scored["score"], 0.55), (heuristic, 0.35)] + ([(vscore, 0.10)] if vscore is not None else [])
     score = round(sum(value * weight for value, weight in weighted) / sum(weight for _, weight in weighted), 1)
     failed = sorted([row for row in rows if row["status"] == "FALSE"], key=lambda row: (-row["confidence"], row["sheet"], row["row"]))
     passed = sorted([row for row in rows if row["status"] == "TRUE"], key=lambda row: (-row["confidence"], row["sheet"], row["row"]))
     pain_points = [finding_from_row(row, axis) for row in failed[:3]]
     strengths = [finding_from_row(row, axis) for row in passed[:2]]
-    vision_observation = clean_text((((vision_axes or {}).get(axis["id"]) or {}).get("observation") or ""))
-    summary = f"{axis['short_name']} scores {int(round(score))}/100 in this GTM view. Structured evidence surfaced {len(failed)} pain point(s) and {len(passed)} positive signal(s)." + (f" Vision review: {vision_observation}" if vision_observation else "")
+    vision_observation = clean_text(axis_review.get("observation"))
+    missing_context = clean_text(axis_review.get("missing_context"))
+    proof_points = dedupe_strings(axis_review.get("proof_points") or [], limit=4)
+    summary = f"{axis['short_name']} scores {int(round(score))}/100 in this GTM view. Structured evidence surfaced {len(failed)} pain point(s) and {len(passed)} positive signal(s)."
+    if vision_observation:
+        summary += f" Vision review: {vision_observation}"
+    if missing_context:
+        summary += f" Missing context: {missing_context}"
     return {
         "id": axis["id"],
         "name": axis["short_name"],
         "shortName": axis["short_name"],
         "description": axis["description"],
+        "coreQuestion": clean_text(axis.get("core_question")),
+        "lookFor": list(axis.get("look_for") or []),
+        "healthySignals": list(axis.get("healthy_signals") or []),
+        "failureModes": list(axis.get("failure_modes") or []),
+        "outOfScope": list(axis.get("out_of_scope") or []),
         "score": int(round(score)),
         "severity": score_to_severity(score),
-        "confidence": round(clamp(mean([rows_scored["confidence"], 0.65 if heuristic > 0 else 0.25, safe_float((((vision_axes or {}).get(axis["id"]) or {}).get("confidence")), 0.0)], default=0.4), 0.25, 0.95), 2),
+        "confidence": round(clamp(mean([rows_scored["confidence"], 0.65 if heuristic > 0 else 0.25, safe_float(axis_review.get("confidence"), 0.0)], default=0.4), 0.25, 0.95), 2),
         "summary": summary,
         "businessImpact": AXIS_IMPACT[axis["id"]],
         "painPoints": pain_points,
         "strengths": strengths,
         "opportunities": dedupe_strings(([f"Resolve '{item['title']}' on the main commercial pages first." for item in pain_points[:2]] + [f"Raise this axis on homepage and primary conversion journeys before broader refinements."]), limit=3),
-        "evidence": dedupe_strings([item["evidence"] for item in pain_points + strengths if clean_text(item.get("evidence"))] + profile["messaging"]["heroHeadings"][:2] + profile["messaging"]["heroCtas"][:2], limit=6),
+        "evidence": dedupe_strings([item["evidence"] for item in pain_points + strengths if clean_text(item.get("evidence"))] + proof_points + profile["messaging"]["heroHeadings"][:2] + profile["messaging"]["heroCtas"][:2], limit=6),
         "signals": {"rowScore": round(rows_scored["score"], 1), "heuristicScore": round(heuristic, 1), "visionScore": round(vscore, 1) if vscore is not None else None, "relevantChecks": len(rows)},
         "visionObservation": vision_observation,
+        "missingContext": missing_context,
+        "proofPoints": proof_points,
     }
 
 
@@ -682,6 +762,8 @@ def build_payload(website_menu: Dict[str, Any], cleaned_data: Dict[str, Any], re
                 "site": profile["site"],
                 "hero_headings": profile["messaging"]["heroHeadings"][:3],
                 "hero_ctas": profile["messaging"]["heroCtas"][:4],
+                "navigation_labels": profile["messaging"]["navigationLabels"][:12],
+                "page_titles": profile["messaging"]["pageTitles"][:10],
                 "metrics": profile["metrics"],
                 "sheet_scores": profile["sheetScores"],
                 "visual_trust_review": {

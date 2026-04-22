@@ -74,6 +74,60 @@ def _rect_union(components: list[Dict[str, Any]]) -> Optional[Dict[str, float]]:
     }
 
 
+def _visual_region(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    for key in ("visualRegion", "visual_region", "region", "boundingBox", "bounding_box"):
+        value = item.get(key)
+        if isinstance(value, dict):
+            return value
+    return None
+
+
+def _component_from_visual_region(item: Dict[str, Any], screenshot_path: str) -> Optional[Dict[str, Any]]:
+    region = _visual_region(item)
+    if not isinstance(region, dict):
+        return None
+
+    absolute = absolute_from_repo(screenshot_path)
+    if not absolute or not absolute.exists():
+        return None
+
+    try:
+        from PIL import Image
+
+        with Image.open(absolute) as image:
+            image_width, image_height = image.size
+    except Exception:
+        return None
+
+    try:
+        x = float(region.get("x"))
+        y = float(region.get("y"))
+        width = float(region.get("width"))
+        height = float(region.get("height"))
+    except Exception:
+        return None
+
+    if max(abs(x), abs(y), abs(width), abs(height)) <= 1.5 or "normalized" in clean_text(region.get("coordinate_system")).lower():
+        x *= image_width
+        width *= image_width
+        y *= image_height
+        height *= image_height
+
+    if width <= 0 or height <= 0:
+        return None
+
+    width = min(width, image_width)
+    height = min(height, image_height)
+    x = max(0.0, min(x, image_width - width))
+    y = max(0.0, min(y, image_height - height))
+    return {
+        "rect": {"x": x, "y": y, "width": width, "height": height},
+        "semanticType": clean_text(region.get("description") or "visual-region"),
+        "uxRole": clean_text(item.get("axisName") or item.get("sourceSheet") or "visual-region"),
+        "_bucket": "visual-region",
+    }
+
+
 def _header_focus_component(rendered_page: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     top_components = []
     for component in iter_page_components(rendered_page):
@@ -451,7 +505,8 @@ def build_gtm_spotlight(
             rendered_page = rendered_lookup[key]
             break
 
-    component = _pick_gtm_component(item, rendered_page)
+    region_component = _component_from_visual_region(item, clean_text(item.get("screenshotPath")))
+    component = region_component or _pick_gtm_component(item, rendered_page)
     bundle_component = _evidence_bundle_component(item)
     if bundle_component:
         component = bundle_component
@@ -460,7 +515,7 @@ def build_gtm_spotlight(
         return ""
 
     filename_stem = f"issue-{str(issue_index).zfill(2)}-{normalize_match_text(item.get('title') or 'issue')[:60].replace(' ', '-')}"
-    if not bundle_component:
+    if not bundle_component and not region_component:
         candidate_components = _candidate_components(item, rendered_page, component)
         reviewed_component = _review_spotlight_candidates(
             item=item,

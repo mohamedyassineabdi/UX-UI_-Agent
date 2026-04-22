@@ -8,34 +8,13 @@ from typing import Any, Dict, List, Optional
 
 from src.audit.ai_review_client import AIReviewClient
 
-from .common import AXIS_DEFINITIONS, clamp, clean_text, mean, score_to_severity
+from .common import AXIS_DEFINITIONS, AXIS_IMPACT, AXIS_USER_IMPACT, axis_prompt_contract, clamp, clean_text, mean, score_to_severity
 from .vision_client import run_gtm_vision_review
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 GENERATED_DIR = ROOT_DIR / "shared" / "generated"
 DEFAULT_OUTPUT = GENERATED_DIR / "screenshot_gtm_audit.json"
-
-
-AXIS_IMPACT = {
-    "task_execution": "Friction in key tasks increases drop-off and weakens the product story in a live sales context.",
-    "flow_architecture": "Weak architecture slows comprehension and makes the offer feel less mature.",
-    "trust_accessibility": "Trust and accessibility gaps create perceived risk and narrow the reachable audience.",
-    "ui_consistency": "Inconsistent UI signals reduce perceived product maturity and scalability.",
-    "visual_brand": "A weak visual narrative lowers memorability and product differentiation.",
-    "content_microcopy": "Unclear messaging makes the value proposition harder to understand and repeat.",
-    "market_alignment": "Weak GTM alignment makes it harder for prospects to see why this product fits them now.",
-}
-
-AXIS_USER_IMPACT = {
-    "task_execution": "core tasks demand more effort than they should",
-    "flow_architecture": "people struggle to understand where they are, what comes next, or how the product is organized",
-    "trust_accessibility": "parts of the experience may not feel safe, inclusive, or reliable enough",
-    "ui_consistency": "recurring patterns do not behave or look consistently, which makes the product feel less mature",
-    "visual_brand": "the interface does not project enough confidence, polish, or brand distinctiveness at first glance",
-    "content_microcopy": "the value proposition and interaction cues are harder to understand than they should be",
-    "market_alignment": "prospects may not immediately understand why this product is relevant for their context or market",
-}
 
 
 def load_json(path: Path) -> Dict[str, Any]:
@@ -101,13 +80,26 @@ def _screenshot_for_issue(issue: Dict[str, Any], screenshots: List[Dict[str, Any
     return screenshots[0] if screenshots else {}
 
 
+def _visible_signals_from_issue(issue: Dict[str, Any]) -> List[str]:
+    signals = []
+    for value in issue.get("visible_signals") or []:
+        text = clean_text(value)
+        if text:
+            signals.append(text)
+    region = issue.get("visual_region") if isinstance(issue.get("visual_region"), dict) else issue.get("visualRegion") if isinstance(issue.get("visualRegion"), dict) else None
+    if isinstance(region, dict) and clean_text(region.get("description")):
+        signals.append(clean_text(region.get("description")))
+    return list(dict.fromkeys(signals))[:4]
+
+
 def _finding_from_issue(issue: Dict[str, Any], axis: Dict[str, Any], screenshots: List[Dict[str, Any]]) -> Dict[str, Any]:
     screenshot = _screenshot_for_issue(issue, screenshots)
     title = clean_text(issue.get("title") or issue.get("criterion")) or f"{axis['short_name']} opportunity"
     page_name = clean_text(issue.get("page_name")) or clean_text(screenshot.get("page_name")) or "Uploaded screenshot"
     page_url = clean_text(issue.get("page_url")) or clean_text(screenshot.get("page_url"))
-    evidence = clean_text(issue.get("evidence") or issue.get("reason"))
-    recommendation = clean_text(issue.get("recommendation")) or "Review this screen and prioritize the change if it affects a primary commercial journey."
+    visible_signals = _visible_signals_from_issue(issue)
+    evidence = clean_text(issue.get("evidence") or issue.get("reason") or " ".join(visible_signals))
+    recommendation = clean_text(issue.get("recommendation")) or clean_text(axis.get("default_fix")) or "Review this screen and prioritize the change if it affects a primary commercial journey."
     why_it_matters = clean_text(issue.get("why_it_matters")) or (
         f"This matters because {AXIS_USER_IMPACT[axis['id']]}. In a GTM context, visible friction in {page_name} can reduce clarity, trust, or conversion readiness."
     )
@@ -121,10 +113,12 @@ def _finding_from_issue(issue: Dict[str, Any], axis: Dict[str, Any], screenshots
         "axisName": axis["short_name"],
         "pageName": page_name,
         "pageUrl": page_url,
+        "screenshotIndex": _screenshot_index(issue.get("screenshot_index")),
         "sourceSheet": "Screenshot AI Review",
         "severity": clean_text(issue.get("severity")).lower() or "medium",
         "confidence": clamp(_safe_float(issue.get("confidence"), 0.55), 0.0, 1.0),
         "evidence": evidence[:240],
+        "visibleSignals": visible_signals,
         "explanation": explanation,
         "whyItMatters": why_it_matters,
         "recommendation": recommendation,
@@ -132,6 +126,7 @@ def _finding_from_issue(issue: Dict[str, Any], axis: Dict[str, Any], screenshots
         "visualRegion": issue.get("visual_region") if isinstance(issue.get("visual_region"), dict) else issue.get("visualRegion") if isinstance(issue.get("visualRegion"), dict) else None,
         "evidenceBundle": None,
         "aiDiscovered": True,
+        "outsideWorkbook": bool(issue.get("outside_workbook")),
     }
 
 
@@ -152,6 +147,8 @@ def _build_axes(vision_result: Dict[str, Any], screenshots: List[Dict[str, Any]]
         score = _axis_score(axis_review)
         issues = _vision_issues_for_axis(vision_result, axis["id"])
         findings = [_finding_from_issue(issue, axis, screenshots) for issue in issues[:4]]
+        proof_points = [clean_text(item) for item in (axis_review.get("proof_points") or []) if clean_text(item)]
+        missing_context = clean_text(axis_review.get("missing_context"))
         strengths = [
             {
                 "title": strength,
@@ -176,6 +173,10 @@ def _build_axes(vision_result: Dict[str, Any], screenshots: List[Dict[str, Any]]
                 "name": axis["short_name"],
                 "shortName": axis["short_name"],
                 "description": axis["description"],
+                "coreQuestion": clean_text(axis.get("core_question")),
+                "lookFor": list(axis.get("look_for") or []),
+                "healthySignals": list(axis.get("healthy_signals") or []),
+                "failureModes": list(axis.get("failure_modes") or []),
                 "score": int(round(score)),
                 "severity": score_to_severity(score),
                 "confidence": round(clamp(_safe_float(axis_review.get("confidence"), 0.45), 0.25, 0.95), 2),
@@ -184,7 +185,7 @@ def _build_axes(vision_result: Dict[str, Any], screenshots: List[Dict[str, Any]]
                 "painPoints": findings,
                 "strengths": strengths,
                 "opportunities": [finding["recommendation"] for finding in findings[:3]] or [f"Use the screenshot evidence to refine {axis['short_name'].lower()} before launch."],
-                "evidence": [finding["evidence"] for finding in findings if clean_text(finding.get("evidence"))][:6],
+                "evidence": ([finding["evidence"] for finding in findings if clean_text(finding.get("evidence"))] + proof_points)[:6],
                 "signals": {
                     "rowScore": None,
                     "heuristicScore": None,
@@ -193,6 +194,8 @@ def _build_axes(vision_result: Dict[str, Any], screenshots: List[Dict[str, Any]]
                     "aiDiscoveredFindings": len(findings),
                 },
                 "visionObservation": clean_text(axis_review.get("observation")),
+                "missingContext": missing_context,
+                "proofPoints": proof_points[:4],
             }
         )
     return axes
@@ -205,7 +208,20 @@ def _top_priorities(axes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             items.append({**point, "axisId": axis["id"], "axisName": axis["shortName"], "axisScore": axis["score"]})
     rank = {"high": 0, "medium": 1, "low": 2}
     items.sort(key=lambda item: (rank.get(clean_text(item.get("severity")).lower(), 3), item.get("axisScore", 999), -_safe_float(item.get("confidence"), 0.0)))
-    return items[:8]
+    deduped = []
+    seen = set()
+    for item in items:
+        key = (
+            clean_text(item.get("title")).lower(),
+            clean_text(item.get("pageUrl") or item.get("pageName")).lower(),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+        if len(deduped) >= 8:
+            break
+    return deduped
 
 
 def _recommendations(priorities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -251,6 +267,7 @@ def _screenshot_metadata(paths: List[Path], names: Optional[List[str]] = None) -
         title = custom_name or path.stem.replace("_", " ").replace("-", " ").strip() or fallback_name
         out.append(
             {
+                "screenshot_index": index - 1,
                 "page_name": display_name,
                 "page_url": "",
                 "title": title,
@@ -317,6 +334,10 @@ def _copy_missing_issue_context(refined: Dict[str, Any], original: Dict[str, Any
                 issue["title"] = clean_text(source_issue.get("title"))
             if not clean_text(issue.get("criterion")) and clean_text(source_issue.get("criterion")):
                 issue["criterion"] = clean_text(source_issue.get("criterion"))
+            if not issue.get("visible_signals") and isinstance(source_issue.get("visible_signals"), list):
+                issue["visible_signals"] = [clean_text(value) for value in source_issue.get("visible_signals") if clean_text(value)]
+            if "outside_workbook" not in issue and source_issue.get("outside_workbook") is not None:
+                issue["outside_workbook"] = bool(source_issue.get("outside_workbook"))
 
     return refined
 
@@ -337,6 +358,9 @@ def _run_text_refinement(
         "axes": {
             axis["id"]: {
                 "observation": "string",
+                "what_is_working": ["string"],
+                "proof_points": ["string"],
+                "missing_context": "string",
                 "score": 0,
                 "severity": "low | medium | high",
                 "confidence": 0.0,
@@ -354,11 +378,13 @@ You are a senior GTM UX/UI audit editor. You refine a VLM screenshot audit into 
 You cannot see the images now, so do not invent visual facts. Use only the provided VLM result and screenshot metadata.
 Preserve screenshot_index and visual_region values whenever they exist. If a visual_region is missing, leave it missing.
 Improve prioritization, axis scoring, wording, why-it-matters reasoning, and recommendations.
+Choose one primary axis per issue, unless the source VLM clearly described separate issues.
+Keep issue evidence tied to visible_signals, visible text, and visual regions from the source result.
 Return strict JSON only matching the requested schema.
 """.strip()
     user_payload = {
         "required_schema": schema,
-        "axis_definitions": AXIS_DEFINITIONS,
+        "axis_definitions": [axis_prompt_contract(axis) for axis in AXIS_DEFINITIONS],
         "site_context": site_context,
         "screenshots": [
             {key: value for key, value in screenshot.items() if key != "screenshot_path"}
@@ -371,6 +397,8 @@ Return strict JSON only matching the requested schema.
             "Avoid generic statements such as 'improve hierarchy' unless tied to a visible element, label, CTA, or section.",
             "Every recommendation should be a concrete next action, not a broad principle.",
             "Use lower confidence when the screenshot lacks enough context to judge the axis.",
+            "Preserve visible_signals when they are already useful and specific.",
+            "Use high severity only when the visible issue would likely hurt trust, comprehension, or conversion readiness.",
         ],
     }
 
