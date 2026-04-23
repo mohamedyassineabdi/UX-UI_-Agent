@@ -92,13 +92,13 @@ python -m src.mobile_audit.run_mobile_audit --app-package com.example.app --app-
 
 ## Product Screens
 
-### Home page
+### Landing page
 
-![UX/UI Auditor home page](docs/screenshots/ui-home-page.png)
+![UX/UI Auditor landing page](docs/screenshots/ui-home-page.png)
 
-### Audit launcher
+### Audit launcher workflow
 
-![UX/UI Auditor audit launcher](docs/screenshots/ui-launch-page.png)
+![UX/UI Auditor audit launcher workflow](docs/screenshots/ui-launch-page.png)
 
 ## What the Project Does
 
