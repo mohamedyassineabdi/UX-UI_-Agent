@@ -241,7 +241,7 @@ AUDIT_CONFIG = {
             "deviceReadyTimeoutMs": 180000,
             "deviceReadyPollMs": 2000,
             "autoGrantPermissions": True,
-            "noReset": True,
+            "noReset": False,
         },
         "capture": {
             "launchTimeoutMs": 15000,

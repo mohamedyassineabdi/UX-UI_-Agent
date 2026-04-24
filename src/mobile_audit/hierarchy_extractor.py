@@ -297,7 +297,15 @@ def build_screen_fingerprint(
     elements: list[dict[str, Any]],
 ) -> str:
     class_signature = "|".join(
-        f"{element.get('class_name')}:{element.get('resource_id')}:{element.get('bounds')}"
+        (
+            f"{element.get('class_name')}:"
+            f"{element.get('resource_id')}:"
+            f"{element.get('bounds')}:"
+            f"en={int(bool(element.get('enabled')))}:"
+            f"sel={int(bool(element.get('selected')))}:"
+            f"chk={int(bool(element.get('checked')))}:"
+            f"clk={int(bool(element.get('clickable')))}"
+        )
         for element in elements[:80]
     )
     payload = "\n".join(

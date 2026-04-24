@@ -157,6 +157,28 @@ class BoundedScreenExplorer:
     def _screen_type(self, screen: dict[str, Any]) -> str:
         return str(screen.get("semantic", {}).get("screen_type") or screen.get("meta", {}).get("screen_type") or "unknown")
 
+    def _progression_label(self, value: str) -> bool:
+        normalized = str(value or "").strip().lower()
+        return normalized in {"next", "continue", "get started", "done", "finish", "start", "skip"}
+
+    def _element_label(self, element: dict[str, Any]) -> str:
+        return (
+            str(element.get("text") or "").strip()
+            or str(element.get("content_desc") or "").strip()
+            or str(element.get("hint_text") or "").strip()
+            or str(element.get("label") or "").strip()
+        )
+
+    def _has_disabled_progression(self, screen: dict[str, Any]) -> bool:
+        for element in screen.get("elements", []):
+            if not element.get("visible"):
+                continue
+            if element.get("enabled"):
+                continue
+            if self._progression_label(self._element_label(element)):
+                return True
+        return False
+
     def _is_modal_surface(self, screen: dict[str, Any]) -> bool:
         screen_type = self._screen_type(screen)
         if screen_type in {"modal_surface", "menu_surface"}:
@@ -293,7 +315,7 @@ class BoundedScreenExplorer:
         self._interactions.append(interaction)
         return interaction
 
-    def _continue_after_in_place_change(self, updated_capture: dict[str, Any], phase_context: dict[str, Any]) -> bool:
+    def _continue_after_onboarding_selection(self, updated_capture: dict[str, Any], phase_context: dict[str, Any]) -> bool:
         updated_screen = updated_capture["screen"]
         progression_candidates = self._progression_candidates(updated_screen, phase_context)
         if not progression_candidates:
@@ -322,7 +344,7 @@ class BoundedScreenExplorer:
                 action_type=action_type,
                 result=result,
                 notes=(
-                    f"Triggered immediate progression after in-place onboarding change via '{self._label(candidate)}' "
+                    f"Triggered immediate progression after onboarding selection via '{self._label(candidate)}' "
                     f"(safety={candidate.get('safety_score', 0)}, "
                     f"exploration={candidate.get('exploration_score', 0)}, "
                     f"final={candidate.get('selection_score', 0)}) and observed {result.replace('_', ' ')}."
@@ -382,6 +404,8 @@ class BoundedScreenExplorer:
         onboarding_choice_no_change_count = 0
         inert_onboarding_choices = False
         progression_visible = any(str(candidate.get("action_category") or "") == "progression" for candidate in ranked)
+        disabled_progression_visible = self._has_disabled_progression(source_screen)
+        max_onboarding_choice_attempts = 5 if disabled_progression_visible else 2
         for candidate in ranked:
             if executed_on_screen >= self.config.max_actions_per_screen or self._should_stop():
                 return True
@@ -391,7 +415,7 @@ class BoundedScreenExplorer:
                 if action_category == "onboarding_choice":
                     if inert_onboarding_choices:
                         continue
-                    if onboarding_choice_attempts >= 2:
+                    if onboarding_choice_attempts >= max_onboarding_choice_attempts:
                         continue
 
             action_type = "adjust" if action_category == "slider_adjustment" else "tap"
@@ -437,22 +461,22 @@ class BoundedScreenExplorer:
                     onboarding_choice_attempts += 1
                     if result == "no_change":
                         onboarding_choice_no_change_count += 1
-                        if onboarding_choice_no_change_count >= 2:
+                        if onboarding_choice_no_change_count >= max_onboarding_choice_attempts:
                             inert_onboarding_choices = True
                             print(
-                                "[mobile] Onboarding option taps did not change state twice; "
+                                f"[mobile] Onboarding option taps did not change state after {max_onboarding_choice_attempts} attempts; "
                                 "skipping the remaining sibling choices and preferring progression controls."
                             )
                     else:
                         onboarding_choice_no_change_count = 0
+                if (
+                    source_screen_type == "onboarding_screen"
+                    and action_category in {"onboarding_choice", "slider_adjustment"}
+                    and self._continue_after_onboarding_selection(follow_up_capture, phase_context)
+                ):
+                    print("[mobile] Continued onboarding immediately after a valid selection state.")
+                    return False
                 if result == "content_shift":
-                    if (
-                        source_screen_type == "onboarding_screen"
-                        and action_category in {"onboarding_choice", "slider_adjustment"}
-                        and self._continue_after_in_place_change(follow_up_capture, phase_context)
-                    ):
-                        print("[mobile] Continued onboarding immediately after an in-place change.")
-                        return False
                     if is_new and not self._should_stop():
                         self._explore_capture(follow_up_capture, scroll_depth=0)
                     print("[mobile] In-place screen state changed after tap; continuing exploration from the updated state.")

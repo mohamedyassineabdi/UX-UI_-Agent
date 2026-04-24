@@ -296,9 +296,44 @@ class AndroidDeviceManager:
         print(f"[mobile]   disableWindowAnimation: {self.config.disable_window_animation}")
         print(f"[mobile]   noReset: {self.config.no_reset}")
 
+    def _prepare_clean_launch(self) -> None:
+        if self.config.no_reset:
+            return
+
+        print(f"[mobile] Preparing a clean app launch for: {self.config.app_package}")
+        try:
+            force_stop = self._run_adb(
+                "shell",
+                "am",
+                "force-stop",
+                self.config.app_package,
+                timeout_ms=20000,
+            )
+            if force_stop.returncode != 0 and (force_stop.stderr or "").strip():
+                print(f"[mobile] force-stop returned: {(force_stop.stderr or '').strip()}")
+        except Exception as exc:
+            print(f"[mobile] Unable to force-stop app before clean launch: {exc}")
+
+        try:
+            clear_result = self._run_adb(
+                "shell",
+                "pm",
+                "clear",
+                self.config.app_package,
+                timeout_ms=30000,
+            )
+            output = (clear_result.stdout or clear_result.stderr or "").strip()
+            if clear_result.returncode == 0:
+                print(f"[mobile] pm clear result: {output or 'Success'}")
+            else:
+                print(f"[mobile] pm clear returned non-zero: {output or clear_result.returncode}")
+        except Exception as exc:
+            print(f"[mobile] Unable to clear app data before clean launch: {exc}")
+
     def connect(self) -> WebDriver:
         options = self._build_options()
         self._wait_for_emulator_ready()
+        self._prepare_clean_launch()
         self._log_session_request()
         try:
             self.driver = webdriver.Remote(self.config.appium_url, options=options)
@@ -447,3 +482,55 @@ class AndroidDeviceManager:
             self.driver.quit()
         finally:
             self.driver = None
+
+
+def resolve_adb_executable(
+    adb_path: Optional[str] = None,
+    android_sdk_root: Optional[str] = None,
+    udid: Optional[str] = None,
+) -> str:
+    config = AndroidSessionConfig(
+        appium_url="http://127.0.0.1:4723",
+        app_package="discovery.placeholder",
+        app_activity=".PlaceholderActivity",
+        adb_path=adb_path,
+        android_sdk_root=android_sdk_root,
+        udid=udid,
+    )
+    return AndroidDeviceManager(config)._resolve_adb_path()
+
+
+def run_adb_command(
+    *args: str,
+    udid: Optional[str] = None,
+    timeout_ms: int = 15000,
+    adb_path: Optional[str] = None,
+    android_sdk_root: Optional[str] = None,
+) -> subprocess.CompletedProcess[str]:
+    config = AndroidSessionConfig(
+        appium_url="http://127.0.0.1:4723",
+        app_package="discovery.placeholder",
+        app_activity=".PlaceholderActivity",
+        adb_path=adb_path,
+        android_sdk_root=android_sdk_root,
+        udid=udid,
+    )
+    manager = AndroidDeviceManager(config)
+    return manager._run_adb(*args, timeout_ms=timeout_ms)
+
+
+def adb_stdout(
+    *args: str,
+    udid: Optional[str] = None,
+    timeout_ms: int = 15000,
+    adb_path: Optional[str] = None,
+    android_sdk_root: Optional[str] = None,
+) -> str:
+    result = run_adb_command(
+        *args,
+        udid=udid,
+        timeout_ms=timeout_ms,
+        adb_path=adb_path,
+        android_sdk_root=android_sdk_root,
+    )
+    return (result.stdout or "").strip()

@@ -19,6 +19,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 from dotenv import load_dotenv
+from src.mobile_audit.device_manager import adb_stdout, resolve_adb_executable
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -35,6 +36,7 @@ URL_RE = re.compile(r"https://[^\s]+")
 STAGE_RE = re.compile(r"\[(?P<current>\d+)/(?P<total>\d+)\]\s*(?P<label>.+)")
 SAFE_FILENAME_RE = re.compile(r"[^a-zA-Z0-9._-]+")
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+FOREGROUND_ACTIVITY_RE = re.compile(r"(?P<package>[A-Za-z0-9._$]+)/(?P<activity>[A-Za-z0-9._$/-]+)")
 
 load_dotenv(ROOT_DIR / ".env")
 
@@ -216,6 +218,35 @@ def _finish_if_cancelled(job_id: str) -> bool:
     return False
 
 
+def _derive_mobile_failure_error(job_id: str, exit_code: int) -> str:
+    with JOBS_LOCK:
+        job = JOBS.get(job_id) or {}
+        logs = [str(line or "") for line in job.get("logs", [])]
+
+    combined = "\n".join(logs)
+    if "Neither ANDROID_HOME nor ANDROID_SDK_ROOT environment variable was exported" in combined:
+        return (
+            "Mobile app audit failed because the Appium process does not have "
+            "ANDROID_HOME or ANDROID_SDK_ROOT configured. Restart Appium after "
+            "exporting your Android SDK path."
+        )
+    if "adb could not be resolved" in combined or "adb was not found on PATH" in combined:
+        return (
+            "Mobile app audit failed because adb could not be resolved. Install Android "
+            "platform-tools and make adb available to both the backend and the Appium process."
+        )
+    if "Appium session creation failed" in combined:
+        return (
+            f"Mobile app audit failed with exit code {exit_code} during Appium session creation. "
+            "Check the Appium server, emulator/device availability, and app package/activity."
+        )
+    return (
+        f"Mobile app audit failed with exit code {exit_code}. "
+        "Check that Appium is running, the Android emulator/device is available, "
+        "and the target app package/activity are correct."
+    )
+
+
 def _terminate_process(process: subprocess.Popen[str]) -> None:
     if process.poll() is not None:
         return
@@ -288,6 +319,163 @@ def _validate_required_text(value: str, field_label: str) -> str:
     if not clean:
         raise ValueError(f"{field_label} is required.")
     return clean
+
+
+def _friendly_app_label(package_name: str, activity_name: str = "") -> str:
+    package_tail = str(package_name or "").strip().split(".")[-1]
+    activity_tail = str(activity_name or "").strip().split("/")[-1].split(".")[-1]
+    raw = activity_tail or package_tail or "Android App Audit"
+    raw = raw.replace("_", " ").replace("-", " ").strip()
+    if not raw:
+        return "Android App Audit"
+    return " ".join(part.capitalize() for part in re.split(r"\s+", raw))
+
+
+def _parse_adb_devices(raw_output: str) -> list[dict[str, str]]:
+    devices: list[dict[str, str]] = []
+    for line in (raw_output or "").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.lower().startswith("list of devices"):
+            continue
+        parts = stripped.split()
+        if len(parts) < 2:
+            continue
+        serial, state = parts[0], parts[1]
+        extras = {token.split(":", 1)[0]: token.split(":", 1)[1] for token in parts[2:] if ":" in token}
+        devices.append(
+            {
+                "udid": serial,
+                "state": state,
+                "model": extras.get("model", "").replace("_", " "),
+                "device": extras.get("device", "").replace("_", " "),
+                "product": extras.get("product", "").replace("_", " "),
+            }
+        )
+    return devices
+
+
+def _foreground_activity(adb_path: str, udid: str = "") -> tuple[str, str]:
+    dumps = ""
+    for command in (
+        ("shell", "dumpsys", "activity", "activities"),
+        ("shell", "dumpsys", "window", "windows"),
+    ):
+        try:
+            dumps = adb_stdout(*command, udid=udid or None, timeout_ms=15000, adb_path=adb_path)
+        except Exception:
+            dumps = ""
+        if not dumps:
+            continue
+        for line in dumps.splitlines():
+            if not any(token in line for token in ("mResumedActivity", "topResumedActivity", "mFocusedApp", "mCurrentFocus")):
+                continue
+            match = FOREGROUND_ACTIVITY_RE.search(line)
+            if match:
+                return match.group("package"), match.group("activity")
+    return "", ""
+
+
+def _launchable_apps(adb_path: str, udid: str = "") -> list[dict[str, str]]:
+    commands = [
+        ("shell", "cmd", "package", "query-activities", "--brief", "-a", "android.intent.action.MAIN", "-c", "android.intent.category.LAUNCHER"),
+        ("shell", "cmd", "package", "query-activities", "-a", "android.intent.action.MAIN", "-c", "android.intent.category.LAUNCHER"),
+    ]
+    output = ""
+    for command in commands:
+        try:
+            output = adb_stdout(*command, udid=udid or None, timeout_ms=20000, adb_path=adb_path)
+        except Exception:
+            output = ""
+        if output:
+            break
+
+    apps: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for line in output.splitlines():
+        stripped = line.strip()
+        if "/" not in stripped:
+            continue
+        match = FOREGROUND_ACTIVITY_RE.search(stripped)
+        if not match:
+            continue
+        package_name = match.group("package")
+        activity_name = match.group("activity")
+        key = (package_name, activity_name)
+        if key in seen:
+            continue
+        seen.add(key)
+        apps.append(
+            {
+                "appPackage": package_name,
+                "appActivity": activity_name,
+                "appLabel": _friendly_app_label(package_name, activity_name),
+            }
+        )
+    apps.sort(key=lambda item: (item["appLabel"].lower(), item["appPackage"].lower()))
+    return apps
+
+
+def _mobile_discovery_payload() -> dict[str, Any]:
+    adb_path = resolve_adb_executable()
+    devices = _parse_adb_devices(adb_stdout("devices", "-l", timeout_ms=10000, adb_path=adb_path))
+    online_devices = [device for device in devices if device.get("state") == "device"]
+    selected = online_devices[0] if online_devices else (devices[0] if devices else None)
+    selected_udid = str((selected or {}).get("udid") or "")
+
+    model = ""
+    platform_version = ""
+    current_package = ""
+    current_activity = ""
+    current_app: dict[str, str] | None = None
+    launchable_apps: list[dict[str, str]] = []
+    warnings: list[str] = []
+
+    if selected_udid:
+        try:
+            model = adb_stdout("shell", "getprop", "ro.product.model", udid=selected_udid, timeout_ms=8000, adb_path=adb_path)
+        except Exception as exc:
+            warnings.append(f"Unable to read device model: {exc}")
+        try:
+            platform_version = adb_stdout("shell", "getprop", "ro.build.version.release", udid=selected_udid, timeout_ms=8000, adb_path=adb_path)
+        except Exception as exc:
+            warnings.append(f"Unable to read platform version: {exc}")
+        try:
+            current_package, current_activity = _foreground_activity(adb_path, udid=selected_udid)
+        except Exception as exc:
+            warnings.append(f"Unable to detect the foreground app: {exc}")
+        try:
+            launchable_apps = _launchable_apps(adb_path, udid=selected_udid)
+        except Exception as exc:
+            warnings.append(f"Unable to list launchable apps: {exc}")
+
+    if current_package and current_activity:
+        current_app = {
+            "appPackage": current_package,
+            "appActivity": current_activity,
+            "appLabel": _friendly_app_label(current_package, current_activity),
+        }
+        if (current_package, current_activity) not in {(app["appPackage"], app["appActivity"]) for app in launchable_apps}:
+            launchable_apps = [current_app, *launchable_apps]
+
+    return {
+        "adbPath": adb_path,
+        "devices": devices,
+        "selectedDevice": {
+            "udid": selected_udid,
+            "deviceName": model or str((selected or {}).get("model") or (selected or {}).get("device") or "Android Device"),
+            "platformVersion": platform_version,
+            "state": str((selected or {}).get("state") or ""),
+        } if selected else None,
+        "defaults": {
+            "appiumUrl": "http://127.0.0.1:4723",
+            "deviceName": model or str((selected or {}).get("model") or (selected or {}).get("device") or "Android Emulator"),
+            "platformVersion": platform_version,
+            "udid": selected_udid,
+        },
+        "currentApp": current_app,
+        "launchableApps": launchable_apps[:80],
+        "warnings": warnings,
+    }
 
 
 def _safe_upload_name(raw_name: str, index: int, suffix_source: str = "") -> str:
@@ -590,6 +778,7 @@ def _run_mobile_audit_job(job_id: str) -> None:
         appium_url,
         "--device-name",
         device_name,
+        "--full-reset",
     ]
     if platform_version:
         command.extend(["--platform-version", platform_version])
@@ -604,11 +793,7 @@ def _run_mobile_audit_job(job_id: str) -> None:
         _set_job(
             job_id,
             status="failed",
-            error=(
-                f"Mobile app audit failed with exit code {exit_code}. "
-                "Check that Appium is running, the Android emulator/device is available, "
-                "and the target app package/activity are correct."
-            ),
+            error=_derive_mobile_failure_error(job_id, exit_code),
         )
         return
 
@@ -690,6 +875,28 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
                     "port": getattr(self.server, "server_port", None),
                 }
             )
+            return
+        if parsed.path == "/api/mobile/discovery":
+            try:
+                self._send_json(_mobile_discovery_payload())
+            except Exception as exc:
+                self._send_json(
+                    {
+                        "error": str(exc),
+                        "devices": [],
+                        "selectedDevice": None,
+                        "defaults": {
+                            "appiumUrl": "http://127.0.0.1:4723",
+                            "deviceName": "Android Emulator",
+                            "platformVersion": "",
+                            "udid": "",
+                        },
+                        "currentApp": None,
+                        "launchableApps": [],
+                        "warnings": [],
+                    },
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
             return
         if parsed.path == "/":
             self._send_file(STATIC_DIR / "index.html")
