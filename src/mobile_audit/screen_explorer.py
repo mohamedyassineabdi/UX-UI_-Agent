@@ -210,6 +210,8 @@ class BoundedScreenExplorer:
     def _detect_result(self, source_screen: dict[str, Any], target_screen: dict[str, Any]) -> str:
         source_fingerprint = source_screen.get("screen_fingerprint")
         target_fingerprint = target_screen.get("screen_fingerprint")
+        source_type = self._screen_type(source_screen)
+        target_type = self._screen_type(target_screen)
         if source_fingerprint == target_fingerprint:
             return "no_change"
 

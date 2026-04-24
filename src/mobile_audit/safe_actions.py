@@ -127,6 +127,8 @@ def _looks_like_onboarding_choice(label: str) -> bool:
         return False
     if normalized in {"button", "action", "view", "imagebutton", "layout"}:
         return False
+    if normalized in {"ft", "cm", "m", "in", "kg", "lb", "lbs", "year", "years", "yr", "yrs"}:
+        return False
     if _looks_like_step_progress_label(normalized):
         return False
     if len(normalized) > 40:
