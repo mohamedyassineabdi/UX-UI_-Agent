@@ -189,6 +189,7 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
     if not tappable.get("visible") or not tappable.get("enabled"):
         return {
             **tappable,
+            "action_category": "disabled",
             "safe_action": "unsafe",
             "safe_reason": "not visible or not enabled",
             "safety_score": -100,
@@ -200,6 +201,7 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
         if pattern.search(label):
             return {
                 **tappable,
+                "action_category": "blocked",
                 "safe_action": "unsafe",
                 "safe_reason": reason,
                 "safety_score": -95,
@@ -210,6 +212,7 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
     if "edittext" in class_name:
         return {
             **tappable,
+            "action_category": "text_entry",
             "safe_action": "unsafe",
             "safe_reason": "text entry is out of scope for bounded safe exploration",
             "safety_score": -90,
@@ -230,6 +233,7 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
                 )
                 return {
                     **tappable,
+                    "action_category": "modal_followup",
                     "safe_action": "safe",
                     "safe_reason": reason,
                     "safety_score": safety_score,
@@ -250,6 +254,11 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
             )
             return {
                 **tappable,
+                "action_category": (
+                    "progression"
+                    if normalized_label in {"next", "continue", "skip", "get started", "start", "done", "finish", "continue as guest", "browse as guest"}
+                    else "navigation"
+                ),
                 "safe_action": "safe",
                 "safe_reason": reason,
                 "safety_score": safety_score,
@@ -261,6 +270,7 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
     if surface_profile == "onboarding_screen" and _looks_like_onboarding_choice(label):
         return {
             **tappable,
+            "action_category": "onboarding_choice",
             "safe_action": "safe",
             "safe_reason": "bounded onboarding choice selection",
             "safety_score": 86,
@@ -273,6 +283,7 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
         if pattern.search(label):
             return {
                 **tappable,
+                "action_category": "unsafe_pattern",
                 "safe_action": "unsafe",
                 "safe_reason": reason,
                 "safety_score": -80,
@@ -284,6 +295,7 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
         if pattern.search(resource_id):
             return {
                 **tappable,
+                "action_category": "unsafe_resource",
                 "safe_action": "unsafe",
                 "safe_reason": reason,
                 "safety_score": -75,
@@ -293,6 +305,7 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
 
     return {
         **tappable,
+        "action_category": "unknown",
         "safe_action": "unknown",
         "safe_reason": (
             "does not match the modal follow-up allowlist"

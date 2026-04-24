@@ -131,6 +131,10 @@ class BoundedScreenExplorer:
                 f"{candidate.get('selection_reason') or candidate.get('safe_reason')}"
             )
 
+    def _progression_candidates(self, screen: dict[str, Any], phase_context: dict[str, Any]) -> list[dict[str, Any]]:
+        ranked = rank_safe_tappables(self._classify_screen_tappables(screen, context=phase_context))
+        return [candidate for candidate in ranked if str(candidate.get("action_category") or "") == "progression"]
+
     def _tap_center(self, bounds: list[int]) -> None:
         if len(bounds) != 4:
             raise RuntimeError("Cannot tap element without valid bounds.")
@@ -306,13 +310,26 @@ class BoundedScreenExplorer:
 
     def _explore_taps(self, source_capture: dict[str, Any], phase_context: dict[str, Any]) -> bool:
         source_screen = source_capture["screen"]
+        source_screen_type = self._screen_type(source_screen)
         ranked = rank_safe_tappables(self._classify_screen_tappables(source_screen, context=phase_context))
         self._log_candidate_ranking(source_screen, ranked, "Safe exploration")
 
         executed_on_screen = 0
+        onboarding_choice_attempts = 0
+        onboarding_choice_no_change_count = 0
+        inert_onboarding_choices = False
+        progression_visible = any(str(candidate.get("action_category") or "") == "progression" for candidate in ranked)
         for candidate in ranked:
             if executed_on_screen >= self.config.max_actions_per_screen or self._should_stop():
                 return True
+
+            action_category = str(candidate.get("action_category") or "")
+            if source_screen_type == "onboarding_screen":
+                if action_category == "onboarding_choice":
+                    if inert_onboarding_choices:
+                        continue
+                    if onboarding_choice_attempts >= 2:
+                        continue
 
             signature = self._action_signature(source_screen, candidate, "tap")
             if signature in self._tested_action_signatures:
@@ -352,6 +369,18 @@ class BoundedScreenExplorer:
                     target_screen_id=target_screen_id,
                     target_screen=follow_up_capture["screen"],
                 )
+                if source_screen_type == "onboarding_screen" and action_category == "onboarding_choice":
+                    onboarding_choice_attempts += 1
+                    if result == "no_change":
+                        onboarding_choice_no_change_count += 1
+                        if onboarding_choice_no_change_count >= 2:
+                            inert_onboarding_choices = True
+                            print(
+                                "[mobile] Onboarding option taps did not change state twice; "
+                                "skipping the remaining sibling choices and preferring progression controls."
+                            )
+                    else:
+                        onboarding_choice_no_change_count = 0
                 if result == "content_shift":
                     if is_new and not self._should_stop():
                         self._explore_capture(follow_up_capture, scroll_depth=0)
@@ -360,6 +389,9 @@ class BoundedScreenExplorer:
                 if result in {"navigation", "modal_open"}:
                     if is_new and not self._should_stop():
                         self._explore_capture(follow_up_capture, scroll_depth=0)
+                    if source_screen_type == "onboarding_screen" and action_category == "progression":
+                        print("[mobile] Onboarding progression succeeded; moving deeper instead of continuing sibling exploration on this step.")
+                        return False
                     if not self._return_to_screen(str(source_screen.get("screen_fingerprint") or "")):
                         print("[mobile] Unable to return to the previous screen after tap exploration. Stopping this branch.")
                         return False
@@ -376,6 +408,105 @@ class BoundedScreenExplorer:
                 if not self._return_to_screen(str(source_screen.get("screen_fingerprint") or "")):
                     print("[mobile] State recovery failed after tap error. Stopping this branch.")
                     return False
+
+        if source_screen_type == "onboarding_screen" and not self._should_stop():
+            if inert_onboarding_choices or not progression_visible:
+                if not self._reveal_onboarding_progression(source_capture, phase_context):
+                    return False
+
+        return True
+
+    def _reveal_onboarding_progression(self, source_capture: dict[str, Any], phase_context: dict[str, Any]) -> bool:
+        source_screen = source_capture["screen"]
+        source_fingerprint = str(source_screen.get("screen_fingerprint") or "")
+        reveal_signature = (source_fingerprint, "onboarding_reveal_scroll")
+        if reveal_signature in self._tested_action_signatures:
+            return True
+        self._tested_action_signatures.add(reveal_signature)
+
+        print("[mobile] Attempting a bounded onboarding scroll to reveal a hidden progression control.")
+        try:
+            can_scroll_more = self.runner.scroll_forward(source_screen)
+            revealed_capture = self.runner.capture_current_screen(screen_id="pending_screen")
+            revealed_screen, is_new = self._maybe_register_target(revealed_capture)
+            revealed_result = self._detect_result(source_screen, revealed_capture["screen"])
+
+            if revealed_capture["screen"].get("screen_fingerprint") == source_screen.get("screen_fingerprint"):
+                self._record_interaction(
+                    source_screen=source_screen,
+                    action_type="scroll",
+                    result="no_change",
+                    notes="Scrolled the onboarding screen to reveal a hidden progression CTA, but no new state appeared.",
+                    candidate=None,
+                    target_screen_id=source_screen.get("screen_id") or "",
+                    target_screen=source_screen,
+                )
+                return True
+
+            notes = "Scrolled the onboarding screen to reveal additional content or progression controls."
+            if not can_scroll_more:
+                notes += " Appium reported the end of the scrollable region."
+            self._record_interaction(
+                source_screen=source_screen,
+                action_type="scroll",
+                result=revealed_result,
+                notes=notes,
+                candidate=None,
+                target_screen_id=revealed_screen.get("screen_id") or "",
+                target_screen=revealed_capture["screen"],
+            )
+
+            revealed_progression = self._progression_candidates(revealed_screen, phase_context)
+            if revealed_progression:
+                candidate = revealed_progression[0]
+                print(
+                    "[mobile] Hidden onboarding progression revealed: "
+                    f"{self._label(candidate)} "
+                    f"(safety={candidate.get('safety_score', 0)}, "
+                    f"exploration={candidate.get('exploration_score', 0)}, "
+                    f"final={candidate.get('selection_score', 0)})"
+                )
+                self._tap_center(candidate.get("bounds") or [])
+                follow_up_capture = self.runner.capture_current_screen(screen_id="pending_screen")
+                target_screen, follow_up_is_new = self._maybe_register_target(follow_up_capture)
+                result = self._detect_result(revealed_screen, follow_up_capture["screen"])
+                target_screen_id = (
+                    target_screen.get("screen_id") or ""
+                    if result in {"navigation", "modal_open", "content_shift"}
+                    else revealed_screen.get("screen_id") or ""
+                )
+                self._record_interaction(
+                    source_screen=revealed_screen,
+                    action_type="tap",
+                    result=result,
+                    notes=(
+                        f"Tapped revealed onboarding progression control '{self._label(candidate)}' "
+                        f"(safety={candidate.get('safety_score', 0)}, "
+                        f"exploration={candidate.get('exploration_score', 0)}, "
+                        f"final={candidate.get('selection_score', 0)}) and observed {result.replace('_', ' ')}."
+                    ),
+                    candidate=candidate,
+                    target_screen_id=target_screen_id,
+                    target_screen=follow_up_capture["screen"],
+                )
+                if follow_up_is_new and not self._should_stop():
+                    self._explore_capture(follow_up_capture, scroll_depth=0)
+                print("[mobile] Onboarding progression continued after reveal; moving deeper into the app flow.")
+                return False
+
+            if is_new and not self._should_stop():
+                self._explore_capture(revealed_capture, scroll_depth=0)
+                return False
+        except Exception as exc:
+            self._record_interaction(
+                source_screen=source_screen,
+                action_type="scroll",
+                result="error",
+                notes=f"Onboarding CTA reveal failed: {exc}",
+                candidate=None,
+                target_screen_id="",
+                target_screen=source_screen,
+            )
 
         return True
 
