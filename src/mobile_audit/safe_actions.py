@@ -187,6 +187,7 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
     resource_id = _text(tappable.get("resource_id"))
     phase = _text(context.get("phase")) or "initial"
     surface_profile = _text(context.get("surface_profile") or context.get("screen_type"))
+    control_type = _text(tappable.get("control_type")) or "action"
 
     if not tappable.get("visible") or not tappable.get("enabled"):
         return {
@@ -220,6 +221,24 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
             "safety_score": -90,
             "exploration_score": -90,
             "selection_score": -180,
+        }
+
+    if control_type == "slider":
+        exploration_score = 72 if surface_profile in {"onboarding_screen", "form_screen"} else 44
+        selection_reason = (
+            "bounded slider adjustment helps reveal progressable app state"
+            if surface_profile in {"onboarding_screen", "form_screen"}
+            else "bounded slider adjustment is safe to probe once"
+        )
+        return {
+            **tappable,
+            "action_category": "slider_adjustment",
+            "safe_action": "safe",
+            "safe_reason": "bounded slider adjustment",
+            "safety_score": 84,
+            "exploration_score": exploration_score,
+            "selection_score": 84 + exploration_score,
+            "selection_reason": selection_reason,
         }
 
     if phase == "modal_followup":

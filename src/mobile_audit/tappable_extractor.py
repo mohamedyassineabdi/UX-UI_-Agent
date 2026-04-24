@@ -117,6 +117,25 @@ def _label_richness(element: dict[str, Any], elements: list[dict[str, Any]]) -> 
     return richness
 
 
+def _control_type(element: dict[str, Any]) -> str:
+    class_name = _text(element.get("class_name")).lower()
+    resource_id = _text(element.get("resource_id")).lower()
+    width = int(element.get("width") or 0)
+    height = int(element.get("height") or 0)
+
+    if "seekbar" in class_name or "slider" in class_name or "seekbar" in resource_id or "slider" in resource_id:
+        return "slider"
+
+    if (
+        "progressbar" in class_name
+        and (element.get("clickable") or element.get("focusable"))
+        and width >= max(height * 3, 120)
+    ):
+        return "slider"
+
+    return "action"
+
+
 def build_tappables(elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
     candidates = [element for element in elements if _is_actionable(element)]
     candidates.sort(
@@ -163,6 +182,7 @@ def build_tappables(elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "visible": bool(element.get("visible")),
                 "focusable": bool(element.get("focusable")),
                 "scrollable": bool(element.get("scrollable")),
+                "control_type": _control_type(element),
             }
         )
 

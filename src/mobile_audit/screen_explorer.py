@@ -146,6 +146,14 @@ class BoundedScreenExplorer:
         except Exception as exc:
             raise RuntimeError(f"Unable to execute tap gesture at ({x}, {y}).") from exc
 
+    def _perform_candidate_action(self, candidate: dict[str, Any]) -> str:
+        action_category = str(candidate.get("action_category") or "")
+        if action_category == "slider_adjustment":
+            self.runner.adjust_slider(candidate.get("bounds") or [])
+            return "adjust"
+        self._tap_center(candidate.get("bounds") or [])
+        return "tap"
+
     def _screen_type(self, screen: dict[str, Any]) -> str:
         return str(screen.get("semantic", {}).get("screen_type") or screen.get("meta", {}).get("screen_type") or "unknown")
 
@@ -285,6 +293,59 @@ class BoundedScreenExplorer:
         self._interactions.append(interaction)
         return interaction
 
+    def _continue_after_in_place_change(self, updated_capture: dict[str, Any], phase_context: dict[str, Any]) -> bool:
+        updated_screen = updated_capture["screen"]
+        progression_candidates = self._progression_candidates(updated_screen, phase_context)
+        if not progression_candidates:
+            return False
+
+        candidate = progression_candidates[0]
+        try:
+            print(
+                "[mobile] In-place onboarding change detected; immediately following progression with "
+                f"{self._label(candidate)} "
+                f"(safety={candidate.get('safety_score', 0)}, "
+                f"exploration={candidate.get('exploration_score', 0)}, "
+                f"final={candidate.get('selection_score', 0)})."
+            )
+            action_type = self._perform_candidate_action(candidate)
+            follow_up_capture = self.runner.capture_current_screen(screen_id="pending_screen")
+            target_screen, is_new = self._maybe_register_target(follow_up_capture)
+            result = self._detect_result(updated_screen, follow_up_capture["screen"])
+            target_screen_id = (
+                target_screen.get("screen_id") or ""
+                if result in {"navigation", "modal_open", "content_shift"}
+                else updated_screen.get("screen_id") or ""
+            )
+            self._record_interaction(
+                source_screen=updated_screen,
+                action_type=action_type,
+                result=result,
+                notes=(
+                    f"Triggered immediate progression after in-place onboarding change via '{self._label(candidate)}' "
+                    f"(safety={candidate.get('safety_score', 0)}, "
+                    f"exploration={candidate.get('exploration_score', 0)}, "
+                    f"final={candidate.get('selection_score', 0)}) and observed {result.replace('_', ' ')}."
+                ),
+                candidate=candidate,
+                target_screen_id=target_screen_id,
+                target_screen=follow_up_capture["screen"],
+            )
+            if is_new and not self._should_stop():
+                self._explore_capture(follow_up_capture, scroll_depth=0)
+            return True
+        except Exception as exc:
+            self._record_interaction(
+                source_screen=updated_screen,
+                action_type="tap",
+                result="error",
+                notes=f"Immediate progression after in-place change failed for '{self._label(candidate)}': {exc}",
+                candidate=candidate,
+                target_screen_id="",
+                target_screen=updated_screen,
+            )
+            return False
+
     def _return_to_screen(self, expected_fingerprint: str) -> bool:
         if not expected_fingerprint:
             return False
@@ -333,7 +394,8 @@ class BoundedScreenExplorer:
                     if onboarding_choice_attempts >= 2:
                         continue
 
-            signature = self._action_signature(source_screen, candidate, "tap")
+            action_type = "adjust" if action_category == "slider_adjustment" else "tap"
+            signature = self._action_signature(source_screen, candidate, action_type)
             if signature in self._tested_action_signatures:
                 continue
             self._tested_action_signatures.add(signature)
@@ -347,24 +409,24 @@ class BoundedScreenExplorer:
                     f"exploration={candidate.get('exploration_score', 0)}, "
                     f"final={candidate.get('selection_score', 0)})"
                 )
-                self._tap_center(candidate.get("bounds") or [])
+                action_type = self._perform_candidate_action(candidate)
                 follow_up_capture = self.runner.capture_current_screen(screen_id="pending_screen")
                 target_screen, is_new = self._maybe_register_target(follow_up_capture)
                 result = self._detect_result(source_screen, follow_up_capture["screen"])
                 target_screen_id = (
                     target_screen.get("screen_id") or ""
-                    if result in {"navigation", "modal_open"}
+                    if result in {"navigation", "modal_open", "content_shift"}
                     else source_screen.get("screen_id") or ""
                 )
                 notes = (
-                    f"Tapped '{self._label(candidate)}' "
+                    f"{'Adjusted' if action_type == 'adjust' else 'Tapped'} '{self._label(candidate)}' "
                     f"(safety={candidate.get('safety_score', 0)}, "
                     f"exploration={candidate.get('exploration_score', 0)}, "
                     f"final={candidate.get('selection_score', 0)}) and observed {result.replace('_', ' ')}."
                 )
                 self._record_interaction(
                     source_screen=source_screen,
-                    action_type="tap",
+                    action_type=action_type,
                     result=result,
                     notes=notes,
                     candidate=candidate,
@@ -384,6 +446,13 @@ class BoundedScreenExplorer:
                     else:
                         onboarding_choice_no_change_count = 0
                 if result == "content_shift":
+                    if (
+                        source_screen_type == "onboarding_screen"
+                        and action_category in {"onboarding_choice", "slider_adjustment"}
+                        and self._continue_after_in_place_change(follow_up_capture, phase_context)
+                    ):
+                        print("[mobile] Continued onboarding immediately after an in-place change.")
+                        return False
                     if is_new and not self._should_stop():
                         self._explore_capture(follow_up_capture, scroll_depth=0)
                     print("[mobile] In-place screen state changed after tap; continuing exploration from the updated state.")
