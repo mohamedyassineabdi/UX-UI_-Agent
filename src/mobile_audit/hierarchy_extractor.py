@@ -59,6 +59,10 @@ def _dedupe_key(element: dict[str, Any]) -> tuple[Any, ...]:
         element.get("text") or "",
         element.get("content_desc") or "",
         tuple(element.get("bounds") or []),
+        int(bool(element.get("clickable"))),
+        int(bool(element.get("focusable"))),
+        int(bool(element.get("scrollable"))),
+        int(bool(element.get("enabled"))),
     )
 
 

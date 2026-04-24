@@ -108,6 +108,8 @@ class BoundedScreenExplorer:
         resolved["available_labels"] = sorted(labels)
         resolved["screen_type"] = screen.get("semantic", {}).get("screen_type") or screen.get("meta", {}).get("screen_type") or "unknown"
         resolved["surface_profile"] = resolved["screen_type"]
+        resolved["visible_text_count"] = len(screen.get("visible_text", []))
+        resolved["screen_bounds"] = list(screen.get("meta", {}).get("screen_bounds_union") or [0, 0, 0, 0])
         return resolved
 
     def _classify_screen_tappables(self, screen: dict[str, Any], context: Optional[dict[str, Any]] = None) -> list[dict[str, Any]]:

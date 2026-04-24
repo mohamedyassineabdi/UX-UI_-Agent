@@ -179,6 +179,40 @@ def _apply_contextual_adjustments(
     return safety_score, exploration_score, reason, selection_reason
 
 
+def _looks_like_sparse_fullscreen_intro(tappable: dict[str, Any], context: dict[str, Any]) -> bool:
+    bounds = tappable.get("bounds") or []
+    screen_bounds = context.get("screen_bounds") or []
+    if len(bounds) != 4 or len(screen_bounds) != 4:
+        return False
+
+    screen_width = max(0, screen_bounds[2] - screen_bounds[0])
+    screen_height = max(0, screen_bounds[3] - screen_bounds[1])
+    target_width = max(0, bounds[2] - bounds[0])
+    target_height = max(0, bounds[3] - bounds[1])
+    if screen_width <= 0 or screen_height <= 0:
+        return False
+
+    width_ratio = target_width / screen_width
+    height_ratio = target_height / screen_height
+    if width_ratio < 0.85 or height_ratio < 0.85:
+        return False
+
+    surface_profile = _text(context.get("surface_profile") or context.get("screen_type"))
+    visible_text_count = int(context.get("visible_text_count") or 0)
+    available_labels = context.get("available_labels") or []
+    label = _primary_label(tappable).strip().lower()
+
+    if surface_profile not in {"unknown", "onboarding_screen"}:
+        return False
+    if visible_text_count > 4:
+        return False
+    if len(available_labels) > 4:
+        return False
+    if re.search(r"\b(back|close|dismiss|delete|buy|pay|subscribe|sign in|log in|login|sign up|register)\b", label):
+        return False
+    return True
+
+
 def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     context = context or {}
     label = _primary_label(tappable)
@@ -239,6 +273,18 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
             "exploration_score": exploration_score,
             "selection_score": 84 + exploration_score,
             "selection_reason": selection_reason,
+        }
+
+    if _looks_like_sparse_fullscreen_intro(tappable, context):
+        return {
+            **tappable,
+            "action_category": "progression",
+            "safe_action": "safe",
+            "safe_reason": "sparse full-screen intro card",
+            "safety_score": 82,
+            "exploration_score": 76,
+            "selection_score": 158,
+            "selection_reason": "single full-screen intro/interstitial surface is likely a tap-to-continue step",
         }
 
     if phase == "modal_followup":
