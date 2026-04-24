@@ -88,7 +88,7 @@ class BoundedScreenExplorer:
 
     def _entry_context(self, screen: dict[str, Any]) -> tuple[dict[str, Any], str]:
         semantic_type = str(screen.get("semantic", {}).get("screen_type") or screen.get("meta", {}).get("screen_type") or "")
-        if semantic_type in {"modal_menu", "browser_menu"} or screen.get("meta", {}).get("has_modal"):
+        if semantic_type in {"modal_surface", "menu_surface"} or screen.get("meta", {}).get("has_modal"):
             return (
                 {"phase": "modal_followup"},
                 "Entry modal",
@@ -107,11 +107,7 @@ class BoundedScreenExplorer:
         }
         resolved["available_labels"] = sorted(labels)
         resolved["screen_type"] = screen.get("semantic", {}).get("screen_type") or screen.get("meta", {}).get("screen_type") or "unknown"
-        if (
-            resolved.get("phase", "initial") == "initial"
-            and resolved["screen_type"] == "home_feed"
-        ):
-            resolved["surface_profile"] = "chrome_home"
+        resolved["surface_profile"] = resolved["screen_type"]
         return resolved
 
     def _classify_screen_tappables(self, screen: dict[str, Any], context: Optional[dict[str, Any]] = None) -> list[dict[str, Any]]:
@@ -151,14 +147,24 @@ class BoundedScreenExplorer:
 
     def _is_modal_surface(self, screen: dict[str, Any]) -> bool:
         screen_type = self._screen_type(screen)
-        if screen_type in {"modal_menu", "browser_menu"}:
+        if screen_type in {"modal_surface", "menu_surface"}:
             return True
         meta = screen.get("meta", {})
         return bool(meta.get("has_modal")) and not bool(meta.get("is_page_like"))
 
     def _is_page_surface(self, screen: dict[str, Any]) -> bool:
         screen_type = self._screen_type(screen)
-        if screen_type in {"webview_page", "home_feed", "content_feed", "scrollable_collection"}:
+        if screen_type in {
+            "webview_screen",
+            "home_dashboard",
+            "list_feed",
+            "detail_screen",
+            "form_screen",
+            "auth_screen",
+            "onboarding_screen",
+            "scrollable_content",
+            "navigation_shell",
+        }:
             return True
         meta = screen.get("meta", {})
         if meta.get("is_page_like"):
@@ -192,7 +198,7 @@ class BoundedScreenExplorer:
             "target_fingerprint": str(target_screen.get("screen_fingerprint") or ""),
             "trigger_label": self._label(candidate) if candidate else "",
             "trigger_resource_id": str((candidate or {}).get("resource_id") or ""),
-            "is_overlay_transition": target_type in {"modal_menu", "browser_menu"},
+            "is_overlay_transition": target_type in {"modal_surface", "menu_surface"},
             "contains_external_content": bool(target_screen.get("meta", {}).get("ux_signals", {}).get("contains_external_content")),
         }
         return details
@@ -213,6 +219,13 @@ class BoundedScreenExplorer:
             source_screen.get("package_name") == target_screen.get("package_name")
             and source_screen.get("activity_name") == target_screen.get("activity_name")
         )
+        if (
+            same_context
+            and source_screen.get("screen_title_guess") == target_screen.get("screen_title_guess")
+            and source_type == target_type
+            and target_type not in {"modal_surface", "menu_surface"}
+        ):
+            return "content_shift"
         if same_context and self._is_modal_surface(target_screen):
             return "modal_open"
         if same_context and self._is_page_surface(target_screen):
@@ -339,6 +352,11 @@ class BoundedScreenExplorer:
                     target_screen_id=target_screen_id,
                     target_screen=follow_up_capture["screen"],
                 )
+                if result == "content_shift":
+                    if is_new and not self._should_stop():
+                        self._explore_capture(follow_up_capture, scroll_depth=0)
+                    print("[mobile] In-place screen state changed after tap; continuing exploration from the updated state.")
+                    return False
                 if result in {"navigation", "modal_open"}:
                     if is_new and not self._should_stop():
                         self._explore_capture(follow_up_capture, scroll_depth=0)

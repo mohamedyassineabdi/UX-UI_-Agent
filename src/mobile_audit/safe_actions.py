@@ -5,60 +5,87 @@ from typing import Any, Optional
 
 
 SAFE_RULES: list[tuple[re.Pattern[str], int, int, str, str]] = [
-    (re.compile(r"^options for discover$", re.IGNORECASE), 95, 88, "bounded menu control", "reveals bounded discover options"),
-    (re.compile(r"^update available\.\s*more options$", re.IGNORECASE), 94, 84, "bounded update menu control", "reveals bounded chrome options"),
     (
-        re.compile(r"^\d+\s+open\s+tabs?(?:,\s*tap to switch tabs)?$", re.IGNORECASE),
-        96,
-        82,
-        "tab switcher control",
-        "opens a contained tab-management surface",
+        re.compile(r"^(close|dismiss|not now|maybe later|later|cancel|back)$", re.IGNORECASE),
+        98,
+        92,
+        "safe overlay dismissal or bounded back-navigation control",
+        "resolves transient UI without making a durable product change",
     ),
     (
-        re.compile(r"^(learn more|read more|more info|details|view details)$", re.IGNORECASE),
-        90,
-        74,
-        "low-risk informational control",
-        "opens explanatory content and is safe to explore in a bounded run",
-    ),
-    (
-        re.compile(r"^(about|help)$", re.IGNORECASE),
-        88,
-        70,
-        "read-only informational destination",
-        "opens an informational destination that is still considered safe for bounded exploration",
-    ),
-    (
-        re.compile(r"^(menu|main menu|open menu|more options)$", re.IGNORECASE),
-        87,
-        72,
+        re.compile(r"^(menu|main menu|open menu|more options|options)$", re.IGNORECASE),
+        95,
+        84,
         "bounded menu control",
-        "opens a bounded option surface that can reveal additional safe controls",
+        "opens a contained navigation or options surface that is safe to inspect",
     ),
-    (re.compile(r"^home$", re.IGNORECASE), 100, 8, "home navigation control", "safe but often a no-op on the current home surface"),
+    (
+        re.compile(r"^(learn more|read more|more info|details|view details|help|support|faq|about|privacy|terms)$", re.IGNORECASE),
+        93,
+        78,
+        "read-only informational destination",
+        "opens explanatory or support content without immediately mutating account or product state",
+    ),
+    (
+        re.compile(r"^(next|continue|skip|get started|start|done|finish|continue as guest|browse as guest)$", re.IGNORECASE),
+        88,
+        74,
+        "bounded progression control",
+        "advances an onboarding or lightweight flow while staying within the app context",
+    ),
+    (
+        re.compile(r"^(home|dashboard|overview|browse|explore)$", re.IGNORECASE),
+        92,
+        58,
+        "safe navigation control",
+        "moves within stable app navigation surfaces",
+    ),
+    (
+        re.compile(r"^(profile|account|preferences|settings|notifications)$", re.IGNORECASE),
+        84,
+        56,
+        "contained utility destination",
+        "opens an internal utility area that can still be inspected safely in a bounded run",
+    ),
+    (
+        re.compile(r"^(see all|view all|show more|open)$", re.IGNORECASE),
+        80,
+        52,
+        "safe expansion control",
+        "reveals additional in-app content without obvious destructive side effects",
+    ),
 ]
 
 MODAL_FOLLOWUP_SAFE_RULES: list[tuple[re.Pattern[str], int, int, str, str]] = [
     (
-        re.compile(r"^learn more$", re.IGNORECASE),
+        re.compile(r"^(close|dismiss|not now|later|cancel|back)$", re.IGNORECASE),
+        99,
+        96,
+        "preferred modal dismissal control",
+        "clears the transient overlay and returns to the main screen context",
+    ),
+    (
+        re.compile(r"^(learn more|details|view details|help|support)$", re.IGNORECASE),
         92,
-        91,
-        "bounded follow-up action inside a compact menu",
-        "opens explanatory content without immediately changing product state",
+        82,
+        "bounded modal follow-up action",
+        "opens explanatory content from the transient surface without directly changing settings",
     ),
 ]
 
 BLOCKED_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"^turn off$", re.IGNORECASE), "changes product state and is blocked for bounded safe exploration"),
-    (re.compile(r"\bturn off\b", re.IGNORECASE), "changes product state and is blocked for bounded safe exploration"),
+    (re.compile(r"\b(turn off|disable|delete|remove|erase|clear data|unsubscribe|deactivate)\b", re.IGNORECASE), "destructive or state-changing action"),
+    (re.compile(r"\b(log out|logout|sign out)\b", re.IGNORECASE), "session-ending action"),
+    (re.compile(r"\b(buy|purchase|checkout|pay|subscribe|confirm|place order)\b", re.IGNORECASE), "commerce or commitment action"),
+    (re.compile(r"\b(save|apply|submit|send|post|publish|accept all|allow)\b", re.IGNORECASE), "commits a product or permission state change"),
+    (re.compile(r"\b(sign in|log in|login|sign up|register|create account)\b", re.IGNORECASE), "auth or account-creation action is out of scope for bounded safe exploration"),
 ]
 
 UNSAFE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"search", re.IGNORECASE), "search field or search action"),
-    (re.compile(r"voice search", re.IGNORECASE), "voice input action"),
-    (re.compile(r"\bshare\b", re.IGNORECASE), "share action"),
-    (re.compile(r"\bfacebook\b|\byoutube\b|\binstagram\b|\btiktok\b|\bx\b", re.IGNORECASE), "content or external destination"),
-    (re.compile(r"\bnews\b|\barticle\b|\bstory\b|\bdiscover\b", re.IGNORECASE), "content navigation surface"),
+    (re.compile(r"voice search|microphone|mic\b", re.IGNORECASE), "voice input action"),
+    (re.compile(r"\bshare\b", re.IGNORECASE), "sharing action"),
+    (re.compile(r"\bfacebook\b|\byoutube\b|\binstagram\b|\btiktok\b|\bx\b", re.IGNORECASE), "external social or content destination"),
 ]
 
 UNSAFE_RESOURCE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
@@ -83,6 +110,35 @@ def _primary_label(tappable: dict[str, Any]) -> str:
     return ""
 
 
+def _looks_like_step_progress_label(value: str) -> bool:
+    normalized = _text(value).lower()
+    if not normalized:
+        return False
+    if re.fullmatch(r"\d{1,2}", normalized):
+        return True
+    if re.fullmatch(r"0\.\d{4,}", normalized):
+        return True
+    return False
+
+
+def _looks_like_onboarding_choice(label: str) -> bool:
+    normalized = _text(label).lower()
+    if not normalized:
+        return False
+    if normalized in {"button", "action", "view", "imagebutton", "layout"}:
+        return False
+    if _looks_like_step_progress_label(normalized):
+        return False
+    if len(normalized) > 40:
+        return False
+    if any(token in normalized for token in ("next", "continue", "skip", "back", "close", "dismiss", "later", "not now")):
+        return False
+    if re.search(r"\b(sign in|log in|login|sign up|register|create account|buy|pay|checkout|subscribe)\b", normalized):
+        return False
+    word_count = len([part for part in re.split(r"\s+", normalized) if part])
+    return 1 <= word_count <= 5
+
+
 def _apply_contextual_adjustments(
     normalized_label: str,
     base_safety_score: int,
@@ -92,28 +148,31 @@ def _apply_contextual_adjustments(
     context: dict[str, Any],
 ) -> tuple[int, int, str, str]:
     phase = _text(context.get("phase")) or "initial"
-    surface_profile = _text(context.get("surface_profile"))
-    available_labels = {str(value or "").strip().lower() for value in context.get("available_labels", []) if str(value or "").strip()}
+    surface_profile = _text(context.get("surface_profile") or context.get("screen_type"))
 
     safety_score = base_safety_score
     exploration_score = base_exploration_score
     reason = base_reason
     selection_reason = base_selection_reason
 
-    if phase == "initial" and surface_profile == "chrome_home":
-        if normalized_label == "options for discover":
-            exploration_score += 14
-            selection_reason = "preferred bounded discover path on the Chrome home/new-tab surface"
-        elif normalized_label == "update available. more options":
-            exploration_score -= 18
-            selection_reason = "safe overflow menu but deprioritized versus the bounded discover path on the Chrome home/new-tab surface"
-            if "options for discover" in available_labels:
-                exploration_score -= 6
-        elif "open tab" in normalized_label:
-            exploration_score -= 4
-            selection_reason = "contained chrome navigation but lower priority than the Discover bounded menu on the home surface"
-        elif normalized_label == "home":
-            exploration_score = min(exploration_score, 8)
+    if phase == "modal_followup" and normalized_label in {"close", "dismiss", "not now", "later", "cancel", "back"}:
+        exploration_score += 12
+        selection_reason = "preferred way to exit a transient modal and continue bounded exploration"
+
+    if surface_profile == "home_dashboard" and normalized_label in {"home", "dashboard"}:
+        exploration_score = min(exploration_score, 12)
+        selection_reason = "safe but likely redundant on the current home/dashboard surface"
+
+    if surface_profile == "onboarding_screen" and normalized_label in {"next", "continue", "get started", "skip"}:
+        exploration_score += 8
+        selection_reason = "useful bounded progression action on an onboarding screen"
+    if surface_profile == "onboarding_screen" and normalized_label == "next":
+        exploration_score -= 10
+        selection_reason = "progression control on onboarding, but lower priority than selecting an in-flow option"
+
+    if surface_profile == "auth_screen" and normalized_label in {"continue as guest", "browse as guest", "not now"}:
+        exploration_score += 10
+        selection_reason = "preferred guest or defer path on an authentication gate"
 
     return safety_score, exploration_score, reason, selection_reason
 
@@ -125,6 +184,7 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
     class_name = _text(tappable.get("class_name")).lower()
     resource_id = _text(tappable.get("resource_id"))
     phase = _text(context.get("phase")) or "initial"
+    surface_profile = _text(context.get("surface_profile") or context.get("screen_type"))
 
     if not tappable.get("visible") or not tappable.get("enabled"):
         return {
@@ -151,7 +211,7 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
         return {
             **tappable,
             "safe_action": "unsafe",
-            "safe_reason": "text input is out of scope for bounded safe exploration",
+            "safe_reason": "text entry is out of scope for bounded safe exploration",
             "safety_score": -90,
             "exploration_score": -90,
             "selection_score": -180,
@@ -178,16 +238,6 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
                     "selection_reason": selection_reason,
                 }
 
-        if normalized_label in {"home", "options for discover", "update available. more options"}:
-            return {
-                **tappable,
-                "safe_action": "unknown",
-                "safe_reason": "already inside a bounded menu; chrome controls are deprioritized for the modal follow-up step",
-                "safety_score": 5,
-                "exploration_score": -30,
-                "selection_score": -25,
-            }
-
     for pattern, base_safety_score, base_exploration_score, base_reason, base_selection_reason in SAFE_RULES:
         if pattern.search(label):
             safety_score, exploration_score, reason, selection_reason = _apply_contextual_adjustments(
@@ -207,6 +257,17 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
                 "selection_score": safety_score + exploration_score,
                 "selection_reason": selection_reason,
             }
+
+    if surface_profile == "onboarding_screen" and _looks_like_onboarding_choice(label):
+        return {
+            **tappable,
+            "safe_action": "safe",
+            "safe_reason": "bounded onboarding choice selection",
+            "safety_score": 86,
+            "exploration_score": 84,
+            "selection_score": 170,
+            "selection_reason": "selecting an onboarding option helps progress into the actual product experience",
+        }
 
     for pattern, reason in UNSAFE_PATTERNS:
         if pattern.search(label):

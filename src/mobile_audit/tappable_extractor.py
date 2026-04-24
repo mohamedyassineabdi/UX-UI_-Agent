@@ -97,9 +97,37 @@ def _dedupe_signature(element: dict[str, Any]) -> tuple[Any, ...]:
     )
 
 
+def _label_richness(element: dict[str, Any], elements: list[dict[str, Any]]) -> int:
+    label = _label_for_tappable(element, elements)
+    text = _text(element.get("text"))
+    content_desc = _text(element.get("content_desc"))
+    hint_text = _text(element.get("hint_text"))
+    resource_id = _text(element.get("resource_id"))
+
+    richness = 0
+    if text:
+        richness += 50
+    if content_desc:
+        richness += 35
+    if hint_text:
+        richness += 20
+    if resource_id:
+        richness += 10
+    richness += min(len(label), 40)
+    return richness
+
+
 def build_tappables(elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
     candidates = [element for element in elements if _is_actionable(element)]
-    candidates.sort(key=lambda item: (_bounds_area(item.get("bounds") or []), len(_label_for_tappable(item, elements))), reverse=True)
+    candidates.sort(
+        key=lambda item: (
+            _label_richness(item, elements),
+            int(bool(_text(item.get("resource_id")))),
+            int(bool(_text(item.get("text")) or _text(item.get("content_desc")))),
+            -_bounds_area(item.get("bounds") or []),
+        ),
+        reverse=True,
+    )
 
     tappables: list[dict[str, Any]] = []
     seen: set[tuple[Any, ...]] = set()

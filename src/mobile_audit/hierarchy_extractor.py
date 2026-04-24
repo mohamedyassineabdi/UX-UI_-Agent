@@ -93,6 +93,15 @@ def _collect_candidate_strings(element: dict[str, Any]) -> list[str]:
     return ordered
 
 
+def _is_noise_text(value: str) -> bool:
+    normalized = _normalize_text(value)
+    if not normalized:
+        return True
+    if re.fullmatch(r"0\.\d{4,}", normalized):
+        return True
+    return False
+
+
 def _visible_bounds_union(elements: list[dict[str, Any]]) -> list[int]:
     visible_elements = [
         element
@@ -128,15 +137,26 @@ def _has_webview_signal(elements: list[dict[str, Any]]) -> bool:
     return False
 
 
-def _bottom_nav_score(elements: list[dict[str, Any]]) -> int:
+def _bottom_nav_score(elements: list[dict[str, Any]], screen_width: int, screen_height: int) -> int:
     clickable = [element for element in elements if element.get("clickable") and element.get("visible")]
     if not clickable:
         return 0
-    max_bottom = max((element["bounds"][3] for element in clickable if len(element.get("bounds", [])) == 4), default=0)
-    if max_bottom <= 0:
+    if screen_height <= 0 or screen_width <= 0:
         return 0
-    threshold = max_bottom * 0.72
-    return sum(1 for element in clickable if element["bounds"][1] >= threshold)
+    threshold = screen_height * 0.84
+    bottom_candidates = [
+        element
+        for element in clickable
+        if len(element.get("bounds", [])) == 4 and element["bounds"][1] >= threshold
+    ]
+    if len(bottom_candidates) < 3:
+        return 0
+
+    centers = sorted(int((element["bounds"][0] + element["bounds"][2]) / 2) for element in bottom_candidates)
+    spread = centers[-1] - centers[0] if centers else 0
+    if spread < screen_width * 0.45:
+        return 0
+    return len(bottom_candidates)
 
 
 def _meta_flags(
@@ -151,7 +171,7 @@ def _meta_flags(
     resource_ids = [str(element.get("resource_id") or "").lower() for element in visible_elements]
     text_values = [str(value or "").strip().lower() for value in visible_text if str(value or "").strip()]
 
-    bottom_nav_score = _bottom_nav_score(elements)
+    bottom_nav_score = _bottom_nav_score(elements, screen_width, screen_height)
     has_bottom_nav = bottom_nav_score >= 2
 
     has_back_button = any(
@@ -251,6 +271,8 @@ def _visible_text(elements: list[dict[str, Any]]) -> list[str]:
         if not element.get("visible"):
             continue
         for value in _collect_candidate_strings(element):
+            if _is_noise_text(value):
+                continue
             if value in seen:
                 continue
             seen.add(value)
