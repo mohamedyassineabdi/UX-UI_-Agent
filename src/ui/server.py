@@ -149,6 +149,51 @@ def _new_mobile_job(
     }
 
 
+def _resolve_mobile_launch_target(
+    requested_package: str,
+    requested_activity: str,
+) -> tuple[str, str, str]:
+    app_package = str(requested_package or "").strip()
+    app_activity = str(requested_activity or "").strip()
+    discovery = _mobile_discovery_payload()
+    current_app = discovery.get("currentApp") or {}
+    launchable_apps = list(discovery.get("launchableApps") or [])
+
+    def _candidate_matches(candidate: dict[str, Any]) -> bool:
+        candidate_package = str(candidate.get("appPackage") or "").strip()
+        candidate_activity = str(candidate.get("appActivity") or "").strip()
+        if app_package and candidate_package != app_package:
+            return False
+        if app_activity and candidate_activity != app_activity:
+            return False
+        return bool(candidate_package and candidate_activity)
+
+    preferred: dict[str, Any] | None = None
+    if app_package or app_activity:
+        preferred = next((item for item in launchable_apps if _candidate_matches(item)), None)
+        if not preferred and _candidate_matches(current_app):
+            preferred = current_app
+    else:
+        if _candidate_matches(current_app):
+            preferred = current_app
+        elif launchable_apps:
+            preferred = launchable_apps[0]
+
+    if preferred:
+        return (
+            str(preferred.get("appPackage") or "").strip(),
+            str(preferred.get("appActivity") or "").strip(),
+            str(preferred.get("appLabel") or "").strip() or "Android App Audit",
+        )
+
+    if app_package and app_activity:
+        return app_package, app_activity, ""
+
+    raise ValueError(
+        "Unable to auto-detect a launchable Android app. Open the target app first or choose one from the detected installed apps."
+    )
+
+
 def _snapshot_job(job: dict[str, Any]) -> dict[str, Any]:
     safe = dict(job)
     safe["logs"] = list(job.get("logs", []))[-200:]
@@ -1023,8 +1068,12 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
                     worker = threading.Thread(target=_run_audit_job, args=(job["id"],), daemon=True)
                 elif audit_type == "mobile":
                     app_label = str(data.get("appLabel") or "Android App Audit").strip() or "Android App Audit"
-                    app_package = _validate_required_text(str(data.get("appPackage") or ""), "Android app package")
-                    app_activity = _validate_required_text(str(data.get("appActivity") or ""), "Android app activity")
+                    app_package, app_activity, detected_label = _resolve_mobile_launch_target(
+                        str(data.get("appPackage") or ""),
+                        str(data.get("appActivity") or ""),
+                    )
+                    if app_label == "Android App Audit" and detected_label:
+                        app_label = detected_label
                     appium_url = str(data.get("appiumUrl") or "http://127.0.0.1:4723").strip() or "http://127.0.0.1:4723"
                     device_name = str(data.get("deviceName") or "Android Emulator").strip() or "Android Emulator"
                     platform_version = str(data.get("platformVersion") or "").strip()

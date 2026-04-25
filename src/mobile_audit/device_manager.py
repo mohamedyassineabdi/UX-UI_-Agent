@@ -469,6 +469,8 @@ class AndroidDeviceManager:
             "deviceName": capabilities.get("deviceName") or self.config.device_name,
             "platformVersion": capabilities.get("platformVersion") or self.config.platform_version or "",
             "udid": capabilities.get("udid") or self.config.udid or "",
+            "launchAppPackage": self.config.app_package,
+            "launchAppActivity": self.config.app_activity,
             "appPackage": self.current_package() or self.config.app_package,
             "appActivity": self.current_activity() or self.config.app_activity,
             "capabilities": {

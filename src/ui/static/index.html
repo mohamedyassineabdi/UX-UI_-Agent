@@ -572,7 +572,8 @@
         font-weight: 850;
       }
 
-      .field input {
+      .field input,
+      .field select {
         background: rgba(45, 46, 56, 0.62);
         border: 1px solid rgba(196, 196, 208, 0.18);
         border-radius: 18px;
@@ -587,15 +588,59 @@
         color: rgba(196, 196, 208, 0.44);
       }
 
-      .field input:focus {
+      .field input:focus,
+      .field select:focus {
         border-color: rgba(255, 230, 0, 0.8);
         box-shadow: 0 0 0 4px rgba(255, 230, 0, 0.12);
+      }
+
+      .field select {
+        appearance: none;
+        cursor: pointer;
+        padding-right: 52px;
+      }
+
+      .field select option {
+        background: #1a1a24;
+        color: var(--text);
       }
 
       .field-grid {
         display: grid;
         gap: 16px;
         grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .discovery-panel {
+        background: rgba(45, 46, 56, 0.42);
+        border: 1px solid rgba(196, 196, 208, 0.14);
+        border-radius: 18px;
+        display: grid;
+        gap: 14px;
+        margin-top: 24px;
+        padding: 16px;
+      }
+
+      .discovery-meta {
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.5;
+      }
+
+      .discovery-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .inline-note {
+        color: var(--muted);
+        font-size: 0.88rem;
+        line-height: 1.45;
+      }
+
+      .inline-note.warning {
+        color: #ffd6a3;
       }
 
       .choice-stack {
@@ -1067,7 +1112,7 @@
       <div class="unlimited-solutions"></div>
     </div>
     <script>
-      const { useEffect, useMemo, useRef, useState } = React;
+      const { useCallback, useEffect, useMemo, useRef, useState } = React;
       const e = React.createElement;
 
       function Icon({ name }) {
@@ -1199,6 +1244,11 @@
         const [mobileDeviceName, setMobileDeviceName] = useState("Android Emulator");
         const [mobilePlatformVersion, setMobilePlatformVersion] = useState("");
         const [mobileUdid, setMobileUdid] = useState("");
+        const [mobileDiscovery, setMobileDiscovery] = useState(null);
+        const [mobileDiscoveryError, setMobileDiscoveryError] = useState("");
+        const [isDiscoveringMobile, setIsDiscoveringMobile] = useState(false);
+        const [hasAttemptedMobileDiscovery, setHasAttemptedMobileDiscovery] = useState(false);
+        const [selectedLaunchableApp, setSelectedLaunchableApp] = useState("");
         const [screenshotFiles, setScreenshotFilesState] = useState([]);
         const [job, setJob] = useState(null);
         const [error, setError] = useState("");
@@ -1213,12 +1263,69 @@
         const isMobileLiveAudit = experienceType === "mobile" && mobileInputType === "live";
         const screenshotSurfaceType = experienceType === "mobile" ? "mobile_app" : "website";
 
+        const applyDiscoveredApp = useCallback((app) => {
+          if (!app || typeof app !== "object") return;
+          const appPackage = String(app.appPackage || "").trim();
+          const appActivity = String(app.appActivity || "").trim();
+          const appLabel = String(app.appLabel || "").trim();
+          if (appPackage) setMobileAppPackage(appPackage);
+          if (appActivity) setMobileAppActivity(appActivity);
+          if (appLabel && (!mobileAppLabel.trim() || mobileAppLabel.trim() === "Android App Audit")) {
+            setMobileAppLabel(appLabel);
+          }
+        }, [mobileAppLabel]);
+
+        const discoverMobileEnvironment = useCallback(async ({ prefillCurrentApp = true } = {}) => {
+          setMobileDiscoveryError("");
+          setIsDiscoveringMobile(true);
+          try {
+            const response = await apiFetch("/api/mobile/discovery");
+            const payload = await response.json();
+            if (!response.ok) {
+              throw new Error(payload.error || "Unable to inspect the connected Android device.");
+            }
+            setMobileDiscovery(payload);
+
+            const defaults = payload.defaults || {};
+            if (String(defaults.appiumUrl || "").trim() && (!mobileAppiumUrl.trim() || mobileAppiumUrl.trim() === "http://127.0.0.1:4723")) {
+              setMobileAppiumUrl(String(defaults.appiumUrl || "").trim());
+            }
+            if (String(defaults.deviceName || "").trim() && (!mobileDeviceName.trim() || mobileDeviceName.trim() === "Android Emulator")) {
+              setMobileDeviceName(String(defaults.deviceName || "").trim());
+            }
+            if (String(defaults.platformVersion || "").trim() && !mobilePlatformVersion.trim()) {
+              setMobilePlatformVersion(String(defaults.platformVersion || "").trim());
+            }
+            if (String(defaults.udid || "").trim() && !mobileUdid.trim()) {
+              setMobileUdid(String(defaults.udid || "").trim());
+            }
+
+            const apps = Array.isArray(payload.launchableApps) ? payload.launchableApps : [];
+            if (apps.length && !selectedLaunchableApp) {
+              const currentApp = payload.currentApp;
+              const fallbackApp = currentApp && currentApp.appPackage && currentApp.appActivity ? currentApp : apps[0];
+              setSelectedLaunchableApp(`${fallbackApp.appPackage}|${fallbackApp.appActivity}`);
+            }
+
+            if (prefillCurrentApp && payload.currentApp && !mobileAppPackage.trim() && !mobileAppActivity.trim()) {
+              applyDiscoveredApp(payload.currentApp);
+            }
+          } catch (discoveryError) {
+            setMobileDiscoveryError(discoveryError.message || "Unable to inspect the Android environment.");
+          } finally {
+            setIsDiscoveringMobile(false);
+          }
+        }, [applyDiscoveredApp, mobileAppActivity, mobileAppPackage, mobileAppiumUrl, mobileDeviceName, mobilePlatformVersion, mobileUdid, selectedLaunchableApp]);
+
         const canStart = useMemo(() => {
           if (isSubmitting) return false;
           if (isWebsiteUrlAudit) return url.trim().length > 3;
           if (isScreenshotAudit) return screenshotFiles.length > 0;
-          return mobileAppPackage.trim().length > 1 && mobileAppActivity.trim().length > 1;
-        }, [isMobileLiveAudit, isScreenshotAudit, isSubmitting, isWebsiteUrlAudit, mobileAppActivity, mobileAppPackage, screenshotFiles.length, url]);
+          const hasManualTarget = mobileAppPackage.trim().length > 1 && mobileAppActivity.trim().length > 1;
+          const hasDetectedCurrent = !!(mobileDiscovery?.currentApp?.appPackage && mobileDiscovery?.currentApp?.appActivity);
+          const hasDetectedLaunchable = Array.isArray(mobileDiscovery?.launchableApps) && mobileDiscovery.launchableApps.length > 0;
+          return hasManualTarget || hasDetectedCurrent || hasDetectedLaunchable;
+        }, [isMobileLiveAudit, isScreenshotAudit, isSubmitting, isWebsiteUrlAudit, mobileAppActivity, mobileAppPackage, mobileDiscovery, screenshotFiles.length, url]);
 
         const completionText = useMemo(() => {
           if (isMobileLiveAudit) return "Review the generated first-screen artifacts and structured mobile evidence.";
@@ -1238,6 +1345,12 @@
             return current;
           });
         }, [experienceType]);
+
+        useEffect(() => {
+          if (!isMobileLiveAudit || hasAttemptedMobileDiscovery) return;
+          setHasAttemptedMobileDiscovery(true);
+          discoverMobileEnvironment({ prefillCurrentApp: true });
+        }, [discoverMobileEnvironment, hasAttemptedMobileDiscovery, isMobileLiveAudit]);
 
         useEffect(() => {
           return () => {
@@ -1342,14 +1455,26 @@
               screenshotFiles.forEach((item) => formData.append("screenshots", item.file));
               response = await apiFetch("/api/audits", { method: "POST", body: formData });
             } else if (isMobileLiveAudit) {
+              const detectedCurrentApp = mobileDiscovery?.currentApp || null;
+              const detectedLaunchableApps = Array.isArray(mobileDiscovery?.launchableApps) ? mobileDiscovery.launchableApps : [];
+              const selectedDetectedApp = detectedLaunchableApps.find((item) => `${item.appPackage}|${item.appActivity}` === selectedLaunchableApp) || null;
+              const launchTarget = (
+                mobileAppPackage.trim() && mobileAppActivity.trim()
+                  ? { appPackage: mobileAppPackage.trim(), appActivity: mobileAppActivity.trim() }
+                  : selectedDetectedApp
+                    ? { appPackage: String(selectedDetectedApp.appPackage || "").trim(), appActivity: String(selectedDetectedApp.appActivity || "").trim() }
+                    : detectedCurrentApp && detectedCurrentApp.appPackage && detectedCurrentApp.appActivity
+                      ? { appPackage: String(detectedCurrentApp.appPackage || "").trim(), appActivity: String(detectedCurrentApp.appActivity || "").trim() }
+                      : { appPackage: "", appActivity: "" }
+              );
               response = await apiFetch("/api/audits", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   auditType: "mobile",
                   appLabel: mobileAppLabel.trim() || "Android App Audit",
-                  appPackage: mobileAppPackage.trim(),
-                  appActivity: mobileAppActivity.trim(),
+                  appPackage: launchTarget.appPackage,
+                  appActivity: launchTarget.appActivity,
                   appiumUrl: mobileAppiumUrl.trim() || "http://127.0.0.1:4723",
                   deviceName: mobileDeviceName.trim() || "Android Emulator",
                   platformVersion: mobilePlatformVersion.trim(),
@@ -1522,6 +1647,8 @@
                   }),
                 isMobileLiveAudit &&
                   e(MobileFields, {
+                    mobileDiscovery,
+                    mobileDiscoveryError,
                     mobileAppActivity,
                     mobileAppLabel,
                     mobileAppPackage,
@@ -1529,6 +1656,15 @@
                     mobileDeviceName,
                     mobilePlatformVersion,
                     mobileUdid,
+                    isDiscoveringMobile,
+                    onRefreshDiscovery: () => discoverMobileEnvironment({ prefillCurrentApp: false }),
+                    onUseCurrentApp: () => applyDiscoveredApp(mobileDiscovery?.currentApp),
+                    onUseSelectedApp: () => {
+                      const apps = Array.isArray(mobileDiscovery?.launchableApps) ? mobileDiscovery.launchableApps : [];
+                      const match = apps.find((item) => `${item.appPackage}|${item.appActivity}` === selectedLaunchableApp);
+                      applyDiscoveredApp(match);
+                    },
+                    selectedLaunchableApp,
                     setMobileAppActivity,
                     setMobileAppLabel,
                     setMobileAppPackage,
@@ -1536,6 +1672,7 @@
                     setMobileDeviceName,
                     setMobilePlatformVersion,
                     setMobileUdid,
+                    setSelectedLaunchableApp,
                   }),
                 error && e("div", { className: "error" }, error),
                 e(
@@ -1716,9 +1853,64 @@
       }
 
       function MobileFields(props) {
+        const selectedDevice = props.mobileDiscovery?.selectedDevice || null;
+        const currentApp = props.mobileDiscovery?.currentApp || null;
+        const launchableApps = Array.isArray(props.mobileDiscovery?.launchableApps) ? props.mobileDiscovery.launchableApps : [];
+        const warnings = Array.isArray(props.mobileDiscovery?.warnings) ? props.mobileDiscovery.warnings : [];
         return e(
           React.Fragment,
           null,
+          e(
+            "div",
+            { className: "discovery-panel" },
+            e("div", { className: "field-legend" }, "Auto-detect mobile environment"),
+            e(
+              "div",
+              { className: "discovery-meta" },
+              selectedDevice
+                ? `Connected device: ${selectedDevice.deviceName || "Android Device"}${selectedDevice.platformVersion ? ` • Android ${selectedDevice.platformVersion}` : ""}${selectedDevice.udid ? ` • ${selectedDevice.udid}` : ""}`
+                : "Inspect the connected emulator or device to prefill mobile audit inputs."
+            ),
+            e(
+              "div",
+              { className: "discovery-actions" },
+              e("button", { className: "ghost", type: "button", onClick: props.onRefreshDiscovery, disabled: props.isDiscoveringMobile }, props.isDiscoveringMobile ? "Detecting..." : "Refresh device info"),
+              e("button", { className: "ghost", type: "button", onClick: props.onUseCurrentApp, disabled: !currentApp }, currentApp ? `Use current app (${currentApp.appLabel})` : "Use current app")
+            ),
+            launchableApps.length > 0 &&
+              e(
+                React.Fragment,
+                null,
+                e(
+                  "div",
+                  { className: "field" },
+                  e("label", { htmlFor: "mobile-launchable-app" }, "Installed launchable app"),
+                  e(
+                    "select",
+                    {
+                      id: "mobile-launchable-app",
+                      value: props.selectedLaunchableApp,
+                      onChange: (event) => props.setSelectedLaunchableApp(event.target.value),
+                    },
+                    e("option", { value: "" }, "Select an installed app"),
+                    launchableApps.map((item) =>
+                      e(
+                        "option",
+                        { key: `${item.appPackage}|${item.appActivity}`, value: `${item.appPackage}|${item.appActivity}` },
+                        `${item.appLabel} • ${item.appPackage}`
+                      )
+                    )
+                  )
+                ),
+                e(
+                  "div",
+                  { className: "discovery-actions" },
+                  e("button", { className: "ghost", type: "button", onClick: props.onUseSelectedApp, disabled: !props.selectedLaunchableApp }, "Use selected app")
+                )
+              ),
+            props.mobileDiscoveryError && e("div", { className: "inline-note warning" }, props.mobileDiscoveryError),
+            warnings.length > 0 && warnings.map((warning, index) => e("div", { className: "inline-note warning", key: `mobile-warning-${index}` }, warning))
+          ),
           e(
             "div",
             { className: "field" },
@@ -1732,13 +1924,13 @@
               "div",
               { className: "field" },
               e("label", { htmlFor: "mobile-app-package" }, "App package"),
-              e("input", { id: "mobile-app-package", value: props.mobileAppPackage, placeholder: "com.example.app", onChange: (event) => props.setMobileAppPackage(event.target.value), autoComplete: "off" })
+              e("input", { id: "mobile-app-package", value: props.mobileAppPackage, placeholder: "Auto-detected if left blank", onChange: (event) => props.setMobileAppPackage(event.target.value), autoComplete: "off" })
             ),
             e(
               "div",
               { className: "field" },
               e("label", { htmlFor: "mobile-app-activity" }, "Launch activity"),
-              e("input", { id: "mobile-app-activity", value: props.mobileAppActivity, placeholder: "com.example.app.MainActivity", onChange: (event) => props.setMobileAppActivity(event.target.value), autoComplete: "off" })
+              e("input", { id: "mobile-app-activity", value: props.mobileAppActivity, placeholder: "Auto-detected if left blank", onChange: (event) => props.setMobileAppActivity(event.target.value), autoComplete: "off" })
             )
           ),
           e(
