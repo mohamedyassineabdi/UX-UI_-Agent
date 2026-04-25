@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -48,6 +49,26 @@ class AndroidDeviceManager:
         self.config = config
         self.driver: Optional[WebDriver] = None
         self._resolved_adb_path: Optional[str] = None
+        self._resolved_adb_user_home: Optional[str] = None
+
+    def _resolve_adb_user_home(self) -> str:
+        if self._resolved_adb_user_home:
+            return self._resolved_adb_user_home
+
+        configured = (
+            os.getenv("MOBILE_AUDIT_ANDROID_USER_HOME")
+            or os.getenv("ANDROID_USER_HOME")
+            or ""
+        )
+        candidate = str(configured).strip().strip('"')
+        if candidate:
+            target = Path(candidate)
+        else:
+            target = Path(tempfile.gettempdir()) / "ux-ui-auditor-android-home"
+
+        target.mkdir(parents=True, exist_ok=True)
+        self._resolved_adb_user_home = str(target.resolve())
+        return self._resolved_adb_user_home
 
     def _resolve_adb_path(self) -> str:
         if self._resolved_adb_path:
@@ -153,12 +174,19 @@ class AndroidDeviceManager:
 
     def _run_adb(self, *args: str, timeout_ms: int = 15000) -> subprocess.CompletedProcess:
         command = [*self._adb_base_command(), *args]
+        env = os.environ.copy()
+        adb_user_home = self._resolve_adb_user_home()
+        env["ANDROID_USER_HOME"] = adb_user_home
+        env["ANDROID_SDK_HOME"] = str(Path(adb_user_home).parent)
+        env["HOME"] = str(Path(adb_user_home).parent)
+        env["USERPROFILE"] = str(Path(adb_user_home).parent)
         return subprocess.run(
             command,
             capture_output=True,
             text=True,
             timeout=max(1, timeout_ms) / 1000.0,
             check=False,
+            env=env,
         )
 
     def _adb_stdout(self, *args: str, timeout_ms: int = 15000) -> str:
@@ -266,6 +294,7 @@ class AndroidDeviceManager:
         print("[mobile] Creating Appium session with:")
         print(f"[mobile]   Appium URL: {self.config.appium_url}")
         print(f"[mobile]   adb executable: {self._resolve_adb_path()}")
+        print(f"[mobile]   adb user home: {self._resolve_adb_user_home()}")
         print(f"[mobile]   Device name: {self.config.device_name}")
         print(
             "[mobile]   Android SDK root: "

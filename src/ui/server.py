@@ -235,6 +235,12 @@ def _derive_mobile_failure_error(job_id: str, exit_code: int) -> str:
             "Mobile app audit failed because adb could not be resolved. Install Android "
             "platform-tools and make adb available to both the backend and the Appium process."
         )
+    if "Cannot mkdir" in combined or "did not become ready before Appium session creation" in combined:
+        return (
+            "Mobile app audit failed before Appium could start because adb could not initialize its "
+            "working directory or the emulator never became ready. Check emulator availability and "
+            "ensure adb can write its Android user-home directory."
+        )
     if "Appium session creation failed" in combined:
         return (
             f"Mobile app audit failed with exit code {exit_code} during Appium session creation. "
