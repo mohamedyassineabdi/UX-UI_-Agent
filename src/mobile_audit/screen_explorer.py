@@ -290,6 +290,14 @@ class BoundedScreenExplorer:
             return "navigation"
         return "navigation"
 
+    def _capture_transition_target(self, source_screen: dict[str, Any]) -> dict[str, Any]:
+        initial_capture = self.runner.capture_current_screen(screen_id="pending_screen")
+        return self.runner.wait_for_transition_target(
+            source_screen,
+            initial_capture,
+            screen_id="pending_screen",
+        )
+
     def _current_capture(self, screen_id_prefix: str = "probe") -> dict[str, Any]:
         return self.runner.inspect_current_screen(
             screen_id=f"{screen_id_prefix}_{self._interaction_counter:03d}",
@@ -351,7 +359,7 @@ class BoundedScreenExplorer:
                 f"final={candidate.get('selection_score', 0)})."
             )
             action_type = self._perform_candidate_action(candidate)
-            follow_up_capture = self.runner.capture_current_screen(screen_id="pending_screen")
+            follow_up_capture = self._capture_transition_target(updated_screen)
             target_screen, is_new = self._maybe_register_target(follow_up_capture)
             result = self._detect_result(updated_screen, follow_up_capture["screen"])
             target_screen_id = (
@@ -469,7 +477,7 @@ class BoundedScreenExplorer:
                     f"final={candidate.get('selection_score', 0)})"
                 )
                 action_type = self._perform_candidate_action(candidate)
-                follow_up_capture = self.runner.capture_current_screen(screen_id="pending_screen")
+                follow_up_capture = self._capture_transition_target(source_screen)
                 target_screen, is_new = self._maybe_register_target(follow_up_capture)
                 result = self._detect_result(source_screen, follow_up_capture["screen"])
                 target_screen_id = (
@@ -597,7 +605,7 @@ class BoundedScreenExplorer:
                     f"final={candidate.get('selection_score', 0)})"
                 )
                 self._tap_center(candidate.get("bounds") or [])
-                follow_up_capture = self.runner.capture_current_screen(screen_id="pending_screen")
+                follow_up_capture = self._capture_transition_target(revealed_screen)
                 target_screen, follow_up_is_new = self._maybe_register_target(follow_up_capture)
                 result = self._detect_result(revealed_screen, follow_up_capture["screen"])
                 target_screen_id = (

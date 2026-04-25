@@ -248,6 +248,8 @@ AUDIT_CONFIG = {
             "settleDelayMs": 1200,
             "stabilizationTimeoutMs": 10000,
             "stabilizationPollMs": 700,
+            "transitionWaitTimeoutMs": 9000,
+            "transitionWaitPollMs": 700,
         },
         "initialization": {
             "maxBackPresses": 2,
