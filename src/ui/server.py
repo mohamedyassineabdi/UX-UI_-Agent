@@ -241,6 +241,11 @@ def _derive_mobile_failure_error(job_id: str, exit_code: int) -> str:
             "working directory or the emulator never became ready. Check emulator availability and "
             "ensure adb can write its Android user-home directory."
         )
+    if "not exported from uid" in combined or "Permission Denial: starting Intent" in combined:
+        return (
+            "Mobile app audit failed because the selected launch activity is not exported and cannot be "
+            "started by adb/Appium. Use the app's launcher activity instead of the current foreground activity."
+        )
     if "Appium session creation failed" in combined:
         return (
             f"Mobile app audit failed with exit code {exit_code} during Appium session creation. "
@@ -454,14 +459,24 @@ def _mobile_discovery_payload() -> dict[str, Any]:
         except Exception as exc:
             warnings.append(f"Unable to list launchable apps: {exc}")
 
-    if current_package and current_activity:
-        current_app = {
-            "appPackage": current_package,
-            "appActivity": current_activity,
-            "appLabel": _friendly_app_label(current_package, current_activity),
-        }
-        if (current_package, current_activity) not in {(app["appPackage"], app["appActivity"]) for app in launchable_apps}:
-            launchable_apps = [current_app, *launchable_apps]
+    if current_package:
+        preferred_launchable = next((app for app in launchable_apps if app["appPackage"] == current_package), None)
+        if preferred_launchable:
+            current_app = {
+                **preferred_launchable,
+                "foregroundActivity": current_activity,
+                "foregroundLabel": _friendly_app_label(current_package, current_activity) if current_activity else preferred_launchable["appLabel"],
+            }
+        elif current_activity:
+            current_app = {
+                "appPackage": current_package,
+                "appActivity": current_activity,
+                "appLabel": _friendly_app_label(current_package, current_activity),
+                "foregroundActivity": current_activity,
+                "foregroundLabel": _friendly_app_label(current_package, current_activity),
+            }
+            if (current_package, current_activity) not in {(app["appPackage"], app["appActivity"]) for app in launchable_apps}:
+                launchable_apps = [current_app, *launchable_apps]
 
     return {
         "adbPath": adb_path,
