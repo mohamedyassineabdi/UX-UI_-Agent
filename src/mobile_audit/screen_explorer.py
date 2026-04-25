@@ -124,7 +124,9 @@ class BoundedScreenExplorer:
         resolved["available_labels"] = sorted(labels)
         resolved["screen_type"] = screen.get("semantic", {}).get("screen_type") or screen.get("meta", {}).get("screen_type") or "unknown"
         resolved["surface_profile"] = resolved["screen_type"]
+        resolved["screen_title_guess"] = str(screen.get("screen_title_guess") or "")
         resolved["visible_text_count"] = len(screen.get("visible_text", []))
+        resolved["visible_text"] = list(screen.get("visible_text", []))[:20]
         resolved["screen_bounds"] = list(screen.get("meta", {}).get("screen_bounds_union") or [0, 0, 0, 0])
         return resolved
 

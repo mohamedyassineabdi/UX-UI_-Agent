@@ -52,15 +52,31 @@ def _has_visible_text_token(visible_text: list[str], *tokens: str) -> bool:
     return any(token.lower() in text_blob for token in tokens)
 
 
-def _looks_like_shortcut_grid(elements: list[dict[str, Any]]) -> bool:
-    tile_titles = [
-        element
-        for element in elements
-        if element.get("visible")
-        and _resource_tail(str(element.get("resource_id") or "")) in {"tile_view_title", "most_visited_tile_title"}
-        and _norm(element.get("text"))
-    ]
-    return len(tile_titles) >= 3
+def _has_any_token(values: set[str], tokens: tuple[str, ...]) -> bool:
+    return any(token in value for value in values for token in tokens)
+
+
+def _looks_like_assessment_prompt(
+    *,
+    screen_title_guess: str,
+    visible_text: list[str],
+    clickable_count: int,
+    input_count: int,
+    meta: dict[str, Any],
+) -> bool:
+    if input_count > 0:
+        return False
+    if bool(meta.get("has_modal")):
+        return False
+    title = str(screen_title_guess or "").strip()
+    if not title:
+        return False
+    question_like_title = title.endswith("?")
+    assessment_signals = _has_visible_text_token(visible_text, "fitness assessment", "assessment")
+    if not question_like_title and not assessment_signals:
+        return False
+    visible_text_count = int(meta.get("visible_text_count") or len(visible_text))
+    return 2 <= clickable_count <= 8 and visible_text_count <= 16
 
 
 def _looks_like_compact_overlay(elements: list[dict[str, Any]], meta: dict[str, Any]) -> bool:
@@ -75,7 +91,16 @@ def _looks_like_compact_overlay(elements: list[dict[str, Any]], meta: dict[str, 
     max_y = max(int(element["bounds"][3]) for element in visible)
     width = max(0, max_x - min_x)
     height = max(0, max_y - min_y)
-    return width <= 700 and height <= 700
+    return width <= 700 and height <= 900
+
+
+def _infer_content_density(visible_text_count: int, clickable_count: int, scrollable_count: int) -> str:
+    density_score = visible_text_count + clickable_count + (scrollable_count * 2)
+    if density_score >= 20:
+        return "high"
+    if density_score >= 8:
+        return "medium"
+    return "low"
 
 
 def classify_screen(
@@ -88,7 +113,6 @@ def classify_screen(
     screen_title_guess: str,
 ) -> dict[str, Any]:
     labels = _labels(elements)
-    package_norm = _norm(package_name)
     title_norm = _norm(screen_title_guess)
 
     has_recycler = _has_class(elements, "recyclerview")
@@ -96,108 +120,169 @@ def classify_screen(
     has_webview_class = _has_class(elements, "webview")
     has_webview_desc = any(_norm(element.get("content_desc")) == "web view" for element in elements)
     has_edittext = _has_class(elements, "edittext")
-    has_url_bar = _has_resource(elements, "url_bar") or _has_resource(elements, "location_bar")
-    has_search_box = _has_resource(elements, "search_box") or _has_visible_text_token(
-        visible_text,
-        "search or type web address",
+    has_toolbar = _has_class(elements, "toolbar") or _has_class(elements, "appbarlayout")
+    has_bottom_nav = bool(meta.get("has_bottom_nav"))
+    has_search_box = _has_resource(elements, "search_box") or _has_resource(elements, "search_src_text")
+
+    clickable_count = _count_clickable(elements)
+    scrollable_count = _count_scrollable(elements)
+    input_count = int(meta.get("input_count") or 0)
+    visible_text_count = int(meta.get("visible_text_count") or len(visible_text))
+    content_density = _infer_content_density(visible_text_count, clickable_count, scrollable_count)
+
+    auth_tokens = (
+        "sign in",
+        "log in",
+        "login",
+        "password",
+        "email",
+        "forgot password",
+        "create account",
+        "register",
+        "username",
+        "otp",
+        "verification code",
     )
-    has_shortcuts = _looks_like_shortcut_grid(elements)
-    has_discover = _has_visible_text_token(visible_text, "discover", "options for discover")
-    has_help = _has_visible_text_token(visible_text, "help", "support.google.com", "google chrome help")
-    has_browser_menu_items = _has_visible_text_token(
-        visible_text,
-        "new tab",
+    onboarding_tokens = (
+        "welcome",
+        "get started",
+        "continue",
+        "skip",
+        "next",
+        "intro",
+        "allow notifications",
+        "maybe later",
+        "not now",
+        "let's go",
+    )
+    dashboard_tokens = (
+        "home",
+        "dashboard",
+        "overview",
+        "browse",
+        "explore",
+        "discover",
+        "feed",
+        "for you",
+    )
+    support_tokens = (
+        "help",
+        "support",
+        "faq",
+        "privacy",
+        "terms",
+    )
+    menu_tokens = (
+        "menu",
+        "settings",
+        "help & feedback",
+        "notifications",
         "history",
         "downloads",
         "bookmarks",
-        "settings",
-        "help & feedback",
-        "find in page",
+        "options",
     )
 
     screen_type = "unknown"
     ui_patterns: list[str] = []
     interaction_model = "tap"
-    content_density = "low"
     navigation_complexity = "low"
 
-    if meta.get("has_modal") and has_listview and _looks_like_compact_overlay(elements, meta):
-        screen_type = "modal_menu"
-        ui_patterns = ["overlay", "context_menu", "stacked_actions"]
+    if meta.get("has_modal") and _looks_like_compact_overlay(elements, meta):
+        screen_type = "modal_surface"
+        ui_patterns = ["overlay", "dialog", "stacked_actions"]
         interaction_model = "tap"
-        content_density = "low"
         navigation_complexity = "low"
 
-    elif has_browser_menu_items and has_listview:
-        screen_type = "browser_menu"
-        ui_patterns = ["overflow_menu", "grouped_actions", "stacked_actions"]
+    elif meta.get("has_modal"):
+        screen_type = "menu_surface"
+        ui_patterns = ["overlay", "menu", "stacked_actions"]
         interaction_model = "tap"
-        content_density = "medium"
-        navigation_complexity = "medium"
+        navigation_complexity = "low"
 
-    elif has_webview_class or has_webview_desc or (has_url_bar and has_help):
-        screen_type = "webview_page"
-        ui_patterns = ["top_bar", "address_bar", "web_content"]
+    elif has_webview_class or has_webview_desc or meta.get("has_webview"):
+        screen_type = "webview_screen"
+        ui_patterns = ["top_bar", "web_content"]
         interaction_model = "scroll + tap"
-        content_density = "medium" if has_help else "high"
         navigation_complexity = "medium"
 
-    elif package_norm == "com.android.chrome" and has_recycler and has_search_box and has_shortcuts:
-        screen_type = "home_feed"
-        ui_patterns = ["top_bar", "search_bar", "shortcut_grid", "feed"]
-        if has_discover:
-            ui_patterns.append("discover_feed")
-        interaction_model = "scroll + tap"
-        content_density = "high"
-        navigation_complexity = "medium"
-
-    elif has_listview:
-        screen_type = "menu_list"
-        ui_patterns = ["stacked_actions", "list_menu"]
-        interaction_model = "tap"
-        content_density = "medium"
-        navigation_complexity = "medium"
-
-    elif has_recycler and has_edittext:
-        screen_type = "content_feed"
-        ui_patterns = ["input", "scrollable_feed"]
-        interaction_model = "scroll + tap"
-        content_density = "high"
-        navigation_complexity = "medium"
-
-    elif has_recycler:
-        screen_type = "scrollable_collection"
-        ui_patterns = ["scrollable_collection"]
-        interaction_model = "scroll + tap"
-        content_density = "medium"
-        navigation_complexity = "medium"
-
-    elif has_edittext:
-        screen_type = "input_screen"
-        ui_patterns = ["input"]
+    elif input_count >= 2 and (_has_any_token(labels, auth_tokens) or _has_visible_text_token(visible_text, *auth_tokens)):
+        screen_type = "auth_screen"
+        ui_patterns = ["input", "form", "authentication"]
         interaction_model = "tap + type"
-        content_density = "low"
+        navigation_complexity = "medium"
+
+    elif _has_any_token(labels, onboarding_tokens) and visible_text_count <= 18:
+        screen_type = "onboarding_screen"
+        ui_patterns = ["hero", "pager", "progression"]
+        interaction_model = "tap"
         navigation_complexity = "low"
+
+    elif _looks_like_assessment_prompt(
+        screen_title_guess=screen_title_guess,
+        visible_text=visible_text,
+        clickable_count=clickable_count,
+        input_count=input_count,
+        meta=meta,
+    ):
+        screen_type = "onboarding_screen"
+        ui_patterns = ["questionnaire", "assessment", "progression"]
+        interaction_model = "tap"
+        navigation_complexity = "low"
+
+    elif input_count >= 1 and has_edittext:
+        screen_type = "form_screen"
+        ui_patterns = ["input", "form"]
+        interaction_model = "tap + type"
+        navigation_complexity = "medium"
+
+    elif has_bottom_nav and (has_recycler or has_listview or clickable_count >= 4):
+        screen_type = "home_dashboard"
+        ui_patterns = ["top_bar", "bottom_nav", "dashboard"]
+        interaction_model = "scroll + tap"
+        navigation_complexity = "high"
+
+    elif (has_recycler or has_listview) and clickable_count >= 4:
+        screen_type = "list_feed"
+        ui_patterns = ["scrollable_collection", "cards_or_rows"]
+        interaction_model = "scroll + tap"
+        navigation_complexity = "medium"
+
+    elif scrollable_count >= 1 and visible_text_count >= 8:
+        screen_type = "detail_screen"
+        ui_patterns = ["scrollable_content", "detail"]
+        interaction_model = "scroll + tap"
+        navigation_complexity = "medium"
+
+    elif has_toolbar and clickable_count >= 2:
+        screen_type = "navigation_shell"
+        ui_patterns = ["top_bar", "navigation"]
+        interaction_model = "tap"
+        navigation_complexity = "medium"
+
+    elif has_recycler or has_listview or scrollable_count >= 1:
+        screen_type = "scrollable_content"
+        ui_patterns = ["scrollable_content"]
+        interaction_model = "scroll + tap"
+        navigation_complexity = "medium"
+
+    elif clickable_count >= 2 and (_has_any_token(labels, dashboard_tokens) or title_norm in dashboard_tokens):
+        screen_type = "home_dashboard"
+        ui_patterns = ["dashboard"]
+        interaction_model = "tap"
+        navigation_complexity = "medium"
 
     ux_signals = {
-        "has_primary_cta": _count_clickable(elements) >= 1,
-        "is_scrollable": _count_scrollable(elements) >= 1 or bool(meta.get("is_page_like")),
-        "has_redundant_actions": has_shortcuts and _count_clickable(elements) >= 8,
-        "interaction_cost": (
-            "low"
-            if screen_type in {"home_feed", "modal_menu", "browser_menu", "menu_list"}
-            else "medium"
-        ),
-        "is_overlay": screen_type in {"modal_menu", "browser_menu"},
-        "blocks_background": screen_type in {"modal_menu", "browser_menu"},
-        "contains_external_content": screen_type == "webview_page",
+        "has_primary_cta": clickable_count >= 1,
+        "is_scrollable": scrollable_count >= 1 or bool(meta.get("is_page_like")),
+        "has_redundant_actions": clickable_count >= 8,
+        "interaction_cost": "low" if screen_type in {"home_dashboard", "modal_surface", "menu_surface"} else "medium",
+        "is_overlay": screen_type in {"modal_surface", "menu_surface"},
+        "blocks_background": screen_type in {"modal_surface", "menu_surface"},
+        "contains_external_content": screen_type == "webview_screen",
+        "has_support_signals": _has_any_token(labels, support_tokens),
+        "has_menu_signals": _has_any_token(labels, menu_tokens),
     }
-
-    if title_norm in {"learn more", "turn off"} and screen_type == "unknown":
-        screen_type = "modal_menu"
-        ui_patterns = ["overlay", "context_menu", "stacked_actions"]
-        ux_signals["is_overlay"] = True
-        ux_signals["blocks_background"] = True
 
     return {
         "screen_type": screen_type,
@@ -211,12 +296,13 @@ def classify_screen(
             "has_listview": has_listview,
             "has_webview_class": has_webview_class,
             "has_webview_desc": has_webview_desc,
-            "has_url_bar": has_url_bar,
             "has_search_box": has_search_box,
-            "has_shortcuts": has_shortcuts,
-            "has_discover": has_discover,
-            "has_help": has_help,
-            "has_browser_menu_items": has_browser_menu_items,
+            "has_toolbar": has_toolbar,
+            "has_bottom_nav": has_bottom_nav,
+            "clickable_count": clickable_count,
+            "scrollable_count": scrollable_count,
+            "input_count": input_count,
+            "visible_text_count": visible_text_count,
         },
         "package_name": package_name,
         "activity_name": activity_name,

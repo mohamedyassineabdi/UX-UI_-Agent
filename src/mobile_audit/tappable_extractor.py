@@ -19,7 +19,7 @@ def _contains_bounds(outer: list[int], inner: list[int]) -> bool:
     return outer[0] <= inner[0] and outer[1] <= inner[1] and outer[2] >= inner[2] and outer[3] >= inner[3]
 
 
-def _nested_text_candidate(element: dict[str, Any], elements: list[dict[str, Any]]) -> dict[str, Any] | None:
+def _nested_text_candidates(element: dict[str, Any], elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
     outer_bounds = element.get("bounds") or []
     candidates: list[dict[str, Any]] = []
     for candidate in elements:
@@ -37,10 +37,29 @@ def _nested_text_candidate(element: dict[str, Any], elements: list[dict[str, Any
         if not any((text, content_desc, hint_text, title_hint)):
             continue
         candidates.append(candidate)
-    if not candidates:
-        return None
     candidates.sort(key=lambda item: (_bounds_area(item.get("bounds") or []), len(_text(item.get("text")) or _text(item.get("content_desc")) or _text(item.get("title_hint")))))
-    return candidates[0]
+    return candidates
+
+
+def _nested_text_candidate(element: dict[str, Any], elements: list[dict[str, Any]]) -> dict[str, Any] | None:
+    candidates = _nested_text_candidates(element, elements)
+    return candidates[0] if candidates else None
+
+
+def _descendant_labels(element: dict[str, Any], elements: list[dict[str, Any]]) -> list[str]:
+    labels: list[str] = []
+    seen: set[str] = set()
+    for candidate in _nested_text_candidates(element, elements):
+        for key in ("text", "content_desc", "hint_text", "title_hint", "label"):
+            value = _text(candidate.get(key))
+            if not value:
+                continue
+            normalized = value.lower()
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            labels.append(value)
+    return labels[:6]
 
 
 def _label_for_tappable(element: dict[str, Any], elements: list[dict[str, Any]]) -> str:
@@ -48,12 +67,9 @@ def _label_for_tappable(element: dict[str, Any], elements: list[dict[str, Any]])
         value = _text(element.get(key))
         if value:
             return value
-    nested_candidate = _nested_text_candidate(element, elements)
-    if nested_candidate:
-        for key in ("text", "content_desc", "hint_text", "title_hint", "label"):
-            value = _text(nested_candidate.get(key))
-            if value:
-                return value
+    descendant_labels = _descendant_labels(element, elements)
+    if descendant_labels:
+        return descendant_labels[0]
     element_label = _text(element.get("text")) or _text(element.get("title_hint")) or _text(element.get("label"))
     class_name = _text(element.get("class_name"))
     if element_label and element_label.lower() not in {class_name.rsplit(".", 1)[-1].lower(), class_name.lower()}:
@@ -162,6 +178,7 @@ def build_tappables(elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
             continue
 
         nested_candidate = _nested_text_candidate(element, elements)
+        descendant_labels = _descendant_labels(element, elements)
         resolved_text = _text(element.get("text")) or _text((nested_candidate or {}).get("text"))
         resolved_content_desc = _text(element.get("content_desc")) or _text((nested_candidate or {}).get("content_desc"))
         resolved_hint_text = _text(element.get("hint_text")) or _text((nested_candidate or {}).get("hint_text"))
@@ -176,6 +193,7 @@ def build_tappables(elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "content_desc": resolved_content_desc,
                 "hint_text": resolved_hint_text,
                 "label": _label_for_tappable(element, elements),
+                "descendant_labels": descendant_labels,
                 "bounds": list(bounds),
                 "clickable": bool(element.get("clickable")),
                 "enabled": bool(element.get("enabled")),
