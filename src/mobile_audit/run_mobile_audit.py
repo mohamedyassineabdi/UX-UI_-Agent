@@ -130,6 +130,8 @@ def _build_explorer_config() -> ExplorerConfig:
     return ExplorerConfig(
         max_screens=int(exploration_defaults.get("maxScreens", 12)),
         max_actions_total=int(exploration_defaults.get("maxActionsTotal", 24)),
+        max_onboarding_screens=int(exploration_defaults.get("maxOnboardingScreens", 24)),
+        max_onboarding_actions=int(exploration_defaults.get("maxOnboardingActions", 48)),
         max_actions_per_screen=int(exploration_defaults.get("maxActionsPerScreen", 6)),
         max_scrolls_per_path=int(exploration_defaults.get("maxScrollsPerPath", 3)),
         max_backtrack_steps=int(exploration_defaults.get("maxBacktrackSteps", 2)),

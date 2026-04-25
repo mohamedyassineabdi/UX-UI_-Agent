@@ -258,6 +258,8 @@ AUDIT_CONFIG = {
         "exploration": {
             "maxScreens": 40,
             "maxActionsTotal": 96,
+            "maxOnboardingScreens": 80,
+            "maxOnboardingActions": 160,
             "maxActionsPerScreen": 8,
             "maxScrollsPerPath": 5,
             "maxBacktrackSteps": 4,
