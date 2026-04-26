@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: ux-ui-auditor
+    env: docker
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: HOST
+        value: "0.0.0.0"
+      - key: PORT
+        value: "10000"
+      - key: AUDIT_BROWSER_HEADLESS
+        value: "1"
+      - key: AUDIT_PAGE_CONCURRENCY
+        value: "2"
+      - key: CRAWLER_USE_AI_NAV
+        value: "0"
+      - key: USE_AI_NAV
+        value: "0"

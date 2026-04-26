@@ -1,0 +1,2620 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UX/UI Auditor</title>
+    <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.6.3/dist/es-module-shims.min.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@v0.151.3/build/three.module.min.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.151.3/examples/jsm/"
+        }
+      }
+    </script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/gsap@3.11.5/dist/gsap.min.js"></script>
+    <script src="https://unpkg.com/gsap@3.11.5/dist/ScrollTrigger.min.js"></script>
+    <script src="./config.js"></script>
+    <style>
+      :root {
+        --bg: #1a1a24;
+        --bg-2: #2d2e38;
+        --panel: rgba(26, 26, 36, 0.9);
+        --panel-strong: rgba(45, 46, 56, 0.94);
+        --panel-soft: rgba(255, 255, 255, 0.06);
+        --line: rgba(196, 196, 208, 0.22);
+        --line-strong: rgba(255, 230, 0, 0.28);
+        --text: #ffffff;
+        --muted: #c4c4d0;
+        --faint: #747480;
+        --purple: #8400ff;
+        --violet: #4966ff;
+        --pink: #ff32ff;
+        --magenta: #ff32ff;
+        --orange: #f77d1e;
+        --red: #ff3c00;
+        --yellow: #ffe600;
+        --lime: #b4ff00;
+        --green: #00cb64;
+        --teal: #32ffff;
+        --blue: #4966ff;
+        --danger: #ff4136;
+        --success: #2db757;
+        --shadow: 0 28px 90px rgba(0, 0, 0, 0.45);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: Aptos, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        margin: 0;
+        min-height: 100vh;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      button {
+        color: inherit;
+      }
+
+      input[type="file"] {
+        cursor: pointer;
+      }
+
+      .app-shell {
+        background:
+          radial-gradient(ellipse at 12% 12%, rgba(50, 255, 255, 0.14), transparent 18rem),
+          radial-gradient(circle at 78% 4%, rgba(132, 0, 255, 0.32), transparent 19rem),
+          radial-gradient(circle at 90% 12%, rgba(247, 125, 30, 0.42), transparent 22rem),
+          radial-gradient(circle at 98% 8%, rgba(255, 230, 0, 0.55), transparent 18rem),
+          radial-gradient(circle at 88% 18%, rgba(255, 50, 255, 0.34), transparent 19rem),
+          linear-gradient(180deg, #07070d 0%, #11111a 46%, #1a1a24 100%);
+        isolation: isolate;
+        min-height: 100vh;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .app-shell::before {
+        background:
+          linear-gradient(110deg, rgba(0, 0, 0, 0) 0%, rgba(50, 255, 255, 0.16) 16%, rgba(132, 0, 255, 0.24) 36%, rgba(247, 125, 30, 0.3) 68%, rgba(255, 230, 0, 0.28) 100%);
+        content: "";
+        filter: blur(54px);
+        height: 240px;
+        left: 20%;
+        opacity: 0.66;
+        pointer-events: none;
+        position: absolute;
+        right: -14%;
+        top: -100px;
+        transform: rotate(6deg);
+        z-index: -1;
+      }
+
+      .topbar {
+        align-items: center;
+        backdrop-filter: blur(22px);
+        background: rgba(17, 17, 26, 0.86);
+        border-bottom: 1px solid rgba(255, 230, 0, 0.16);
+        display: flex;
+        justify-content: space-between;
+        min-height: 76px;
+        padding: 0 clamp(24px, 7vw, 132px);
+        position: sticky;
+        top: 0;
+        z-index: 30;
+      }
+
+      .brand {
+        align-items: center;
+        display: flex;
+        min-width: 0;
+      }
+
+      .brand-logo {
+        display: block;
+        height: auto;
+        width: clamp(142px, 11vw, 184px);
+      }
+
+      .page {
+        margin: 0 auto;
+        max-width: 1360px;
+        padding: 0 clamp(22px, 7vw, 88px) 88px;
+      }
+
+      .hero {
+        align-items: center;
+        display: grid;
+        gap: clamp(36px, 6vw, 86px);
+        grid-template-columns: minmax(0, 0.88fr) minmax(360px, 1.12fr);
+        min-height: auto;
+        padding: clamp(48px, 5vw, 72px) 0 clamp(58px, 5vw, 76px);
+      }
+
+      .ey-pill {
+        align-items: center;
+        background: rgba(255, 230, 0, 0.1);
+        border: 1px solid rgba(255, 230, 0, 0.42);
+        border-radius: 999px;
+        color: var(--yellow);
+        display: inline-flex;
+        font-size: 0.83rem;
+        font-weight: 800;
+        gap: 9px;
+        line-height: 1;
+        padding: 12px 24px;
+        width: fit-content;
+      }
+
+      .hero h1,
+      .launch-copy h2 {
+        color: var(--text);
+        font-size: clamp(3.2rem, 6.2vw, 5.9rem);
+        font-weight: 700;
+        line-height: 1.11;
+        margin: 38px 0 28px;
+        max-width: 680px;
+      }
+
+      .accent {
+        background: linear-gradient(90deg, var(--yellow) 0%, var(--orange) 42%, var(--pink) 72%, var(--purple) 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      .hero-copy,
+      .launch-copy p {
+        color: #e6e6ea;
+        font-size: clamp(1.05rem, 1.35vw, 1.22rem);
+        line-height: 1.58;
+        margin: 0;
+        max-width: 610px;
+      }
+
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-top: 38px;
+      }
+
+      .primary,
+      .secondary,
+      .ghost {
+        align-items: center;
+        border-radius: 18px;
+        cursor: pointer;
+        display: inline-flex;
+        font-weight: 850;
+        gap: 10px;
+        justify-content: center;
+        min-height: 58px;
+        padding: 0 28px;
+        text-decoration: none;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, background 0.18s ease;
+      }
+
+      .primary {
+        background: linear-gradient(100deg, var(--yellow) 0%, var(--orange) 42%, var(--pink) 74%, var(--purple) 100%);
+        border: 0;
+        box-shadow: 0 18px 42px rgba(247, 125, 30, 0.22);
+        color: #1a1a24;
+      }
+
+      .primary:hover,
+      .secondary:hover,
+      .ghost:hover {
+        transform: translateY(-1px);
+      }
+
+      .primary:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+        transform: none;
+      }
+
+      .secondary,
+      .ghost {
+        background: rgba(26, 26, 36, 0.72);
+        border: 1px solid rgba(255, 230, 0, 0.32);
+        color: white;
+      }
+
+      .ghost {
+        border-color: rgba(196, 196, 208, 0.22);
+        min-height: 46px;
+        padding: 0 18px;
+      }
+
+      .stop-button {
+        border-color: rgba(255, 107, 107, 0.52);
+        color: #ffd0d0;
+      }
+
+      .stop-button:hover {
+        background: rgba(255, 107, 107, 0.12);
+        border-color: rgba(255, 107, 107, 0.78);
+      }
+
+      .icon {
+        display: inline-block;
+        flex: 0 0 auto;
+        height: 19px;
+        width: 19px;
+      }
+
+      .hero-visual {
+        min-height: 600px;
+        position: relative;
+      }
+
+      .visual-card {
+        background:
+          linear-gradient(180deg, rgba(26, 26, 36, 0.54), rgba(17, 17, 24, 0.92)),
+          radial-gradient(circle at 82% 14%, rgba(255, 230, 0, 0.16), transparent 11rem),
+          radial-gradient(circle at 70% 0%, rgba(132, 0, 255, 0.18), transparent 20rem),
+          radial-gradient(circle at 90% 28%, rgba(247, 125, 30, 0.16), transparent 18rem),
+          #0d0d14;
+        border: 1px solid rgba(255, 230, 0, 0.12);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+        height: min(68vh, 620px);
+        min-height: 540px;
+        overflow: hidden;
+        position: absolute;
+        right: 0;
+        top: 24px;
+        width: min(100%, 580px);
+      }
+
+      .visual-card::before {
+        background:
+          linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+        background-size: 42px 42px;
+        content: "";
+        inset: 0;
+        opacity: 0.48;
+        position: absolute;
+      }
+
+      .chaingpt-robot-card {
+        isolation: isolate;
+      }
+
+      .chaingpt-robot-card .webgl {
+        inset: -8% -10% -4%;
+        pointer-events: none;
+        position: absolute;
+        z-index: 2;
+      }
+
+      .chaingpt-robot-card .webgl canvas {
+        display: block;
+        height: 100% !important;
+        max-width: none;
+        object-fit: contain;
+        transform: translateY(7%) scale(1.68);
+        transform-origin: center center;
+        width: 100% !important;
+      }
+
+      .robot-video-assets,
+      .shader-assets {
+        display: none;
+      }
+
+      .webgl-fallback {
+        align-items: center;
+        background:
+          radial-gradient(circle at 50% 28%, rgba(255, 230, 0, 0.2), transparent 7rem),
+          radial-gradient(circle at 58% 52%, rgba(244, 63, 157, 0.18), transparent 9rem),
+          radial-gradient(circle at 42% 68%, rgba(17, 98, 255, 0.22), transparent 10rem);
+        color: rgba(255, 255, 255, 0.58);
+        display: flex;
+        font-size: 0.9rem;
+        font-weight: 800;
+        inset: 0;
+        justify-content: center;
+        letter-spacing: 0.08em;
+        position: absolute;
+        text-transform: uppercase;
+        z-index: 1;
+      }
+
+      body.loaded .webgl-fallback {
+        opacity: 0;
+        visibility: hidden;
+      }
+
+      .robot-script-hooks {
+        height: 1px;
+        left: -9999px;
+        overflow: hidden;
+        position: fixed;
+        top: -9999px;
+        width: 1px;
+      }
+
+      .robot-portrait {
+        bottom: -44px;
+        height: 500px;
+        left: 46%;
+        position: absolute;
+        transform: translateX(-50%);
+        width: 360px;
+        z-index: 2;
+      }
+
+      .robot-head {
+        background:
+          radial-gradient(circle at 27% 20%, #fffbd1 0 13%, transparent 14%),
+          radial-gradient(circle at 70% 34%, rgba(244, 63, 157, 0.95), transparent 21%),
+          linear-gradient(135deg, #fff4a8 0%, #ff5a14 27%, #101016 45%, #1162ff 70%, #dfe8ff 100%);
+        border: 1px solid rgba(255, 255, 255, 0.32);
+        border-radius: 44% 48% 48% 44%;
+        box-shadow:
+          inset -18px -26px 38px rgba(0, 0, 0, 0.5),
+          inset 18px 16px 34px rgba(255, 255, 255, 0.28),
+          0 25px 90px rgba(17, 98, 255, 0.28);
+        height: 176px;
+        left: 92px;
+        position: absolute;
+        top: 12px;
+        transform: rotate(4deg);
+        width: 162px;
+      }
+
+      .robot-head::before {
+        background: linear-gradient(90deg, #0b0a0f 0%, #15131f 55%, #050506 100%);
+        border-radius: 999px;
+        content: "";
+        height: 48px;
+        left: 28px;
+        position: absolute;
+        top: 56px;
+        transform: rotate(-2deg);
+        width: 122px;
+      }
+
+      .robot-head::after {
+        background: linear-gradient(160deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.02));
+        border-radius: 50%;
+        content: "";
+        height: 86px;
+        left: 18px;
+        position: absolute;
+        top: 13px;
+        width: 78px;
+      }
+
+      .robot-neck {
+        background: linear-gradient(90deg, #11131f, #f2f4ff 42%, #ff5a14 60%, #09090e);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 22px;
+        height: 80px;
+        left: 142px;
+        position: absolute;
+        top: 156px;
+        width: 66px;
+      }
+
+      .robot-torso {
+        background:
+          radial-gradient(circle at 36% 14%, rgba(255, 230, 0, 0.9), transparent 20%),
+          radial-gradient(circle at 76% 34%, rgba(244, 63, 157, 0.78), transparent 22%),
+          linear-gradient(135deg, #dfe8ff 0%, #17234d 34%, #050506 54%, #ff5a14 75%, #f8f7ff 100%);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 48% 48% 18% 18%;
+        box-shadow:
+          inset -28px -30px 52px rgba(0, 0, 0, 0.54),
+          inset 20px 20px 42px rgba(255, 255, 255, 0.16),
+          0 34px 90px rgba(0, 0, 0, 0.52);
+        height: 270px;
+        left: 78px;
+        position: absolute;
+        top: 206px;
+        width: 214px;
+      }
+
+      .robot-shoulder {
+        background: linear-gradient(135deg, #dfe8ff, #0e1020 48%, #ff5a14 100%);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 999px;
+        height: 80px;
+        position: absolute;
+        top: 222px;
+        width: 92px;
+      }
+
+      .robot-shoulder.left {
+        left: 20px;
+        transform: rotate(-22deg);
+      }
+
+      .robot-shoulder.right {
+        right: 4px;
+        transform: rotate(18deg);
+      }
+
+      .robot-arm {
+        background: linear-gradient(180deg, #1162ff, #0d1022 54%, #cbd5ff);
+        border-radius: 999px;
+        height: 190px;
+        left: 28px;
+        position: absolute;
+        top: 292px;
+        transform: rotate(22deg);
+        width: 42px;
+      }
+
+      .launch-section {
+        align-items: start;
+        display: grid;
+        gap: clamp(36px, 6vw, 74px);
+        grid-template-columns: minmax(280px, 0.62fr) minmax(0, 1fr);
+        padding: 36px 0 96px;
+      }
+
+      .view-home .launch-section {
+        display: none;
+      }
+
+      .view-audit .hero {
+        display: none;
+      }
+
+      .view-audit .page {
+        min-height: calc(100vh - 76px);
+      }
+
+      .view-audit .launch-section {
+        min-height: calc(100vh - 164px);
+        padding-top: clamp(48px, 6vw, 84px);
+      }
+
+      .launch-copy {
+        padding-top: 10px;
+      }
+
+      .launch-copy h2 {
+        font-size: clamp(2.4rem, 4.1vw, 4rem);
+        margin: 0 0 18px;
+      }
+
+      .process-list {
+        display: grid;
+        gap: 27px;
+        margin-top: 38px;
+      }
+
+      .process-step {
+        align-items: start;
+        display: grid;
+        gap: 15px;
+        grid-template-columns: 34px 1fr;
+      }
+
+      .process-step-number {
+        align-items: center;
+        background: linear-gradient(135deg, var(--yellow), var(--orange));
+        border-radius: 999px;
+        display: flex;
+        color: #1a1a24;
+        font-size: 0.86rem;
+        font-weight: 900;
+        height: 34px;
+        justify-content: center;
+        width: 34px;
+      }
+
+      .process-step strong {
+        display: block;
+        font-size: 1.02rem;
+        margin-top: 2px;
+      }
+
+      .process-step p {
+        color: var(--muted);
+        line-height: 1.5;
+        margin: 8px 0 0;
+      }
+
+      .audit-panel {
+        backdrop-filter: blur(24px);
+        background:
+          radial-gradient(circle at 92% 0%, rgba(255, 230, 0, 0.12), transparent 14rem),
+          radial-gradient(circle at 84% 8%, rgba(247, 125, 30, 0.12), transparent 18rem),
+          rgba(26, 26, 36, 0.94);
+        border: 1px solid rgba(196, 196, 208, 0.18);
+        border-radius: 18px;
+        box-shadow: var(--shadow);
+        padding: clamp(24px, 3vw, 34px);
+      }
+
+      .audit-panel h2 {
+        font-size: 1.5rem;
+        margin: 0 0 12px;
+      }
+
+      .panel-subtitle {
+        color: var(--muted);
+        font-weight: 700;
+        margin: 0 0 34px;
+      }
+
+      .field {
+        display: grid;
+        gap: 8px;
+        margin-top: 24px;
+      }
+
+      .field label,
+      .field-legend {
+        color: #f6f6fa;
+        font-size: 0.94rem;
+        font-weight: 850;
+      }
+
+      .field input {
+        background: rgba(45, 46, 56, 0.62);
+        border: 1px solid rgba(196, 196, 208, 0.18);
+        border-radius: 18px;
+        color: var(--text);
+        min-height: 58px;
+        outline: 0;
+        padding: 0 26px;
+        width: 100%;
+      }
+
+      .field input::placeholder {
+        color: rgba(196, 196, 208, 0.44);
+      }
+
+      .field input:focus {
+        border-color: rgba(255, 230, 0, 0.8);
+        box-shadow: 0 0 0 4px rgba(255, 230, 0, 0.12);
+      }
+
+      .field-grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .choice-stack {
+        display: grid;
+        gap: 14px;
+        margin-top: 8px;
+      }
+
+      .choice {
+        align-items: center;
+        background: rgba(45, 46, 56, 0.52);
+        border: 1px solid rgba(196, 196, 208, 0.18);
+        border-radius: 18px;
+        cursor: pointer;
+        display: grid;
+        gap: 16px;
+        grid-template-columns: 50px 1fr;
+        min-height: 100px;
+        padding: 18px 24px;
+        text-align: left;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, transform 0.18s ease;
+        width: 100%;
+      }
+
+      .choice:hover {
+        border-color: rgba(255, 230, 0, 0.42);
+        transform: translateY(-1px);
+      }
+
+      .choice.active {
+        background:
+          linear-gradient(90deg, rgba(255, 230, 0, 0.08), rgba(247, 125, 30, 0.08)),
+          rgba(45, 46, 56, 0.72);
+        border-color: rgba(255, 230, 0, 0.86);
+        box-shadow: 0 0 0 1px rgba(255, 230, 0, 0.18), 0 18px 48px rgba(247, 125, 30, 0.12);
+      }
+
+      .choice-icon {
+        align-items: center;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        display: flex;
+        height: 48px;
+        justify-content: center;
+        width: 48px;
+      }
+
+      .choice.active .choice-icon {
+        background: linear-gradient(135deg, var(--yellow), var(--orange), var(--pink));
+        color: #1a1a24;
+      }
+
+      .choice strong {
+        display: block;
+        font-size: 1.06rem;
+        margin-bottom: 7px;
+      }
+
+      .choice small {
+        color: #d7d7df;
+        display: block;
+        font-size: 0.91rem;
+        font-weight: 700;
+        line-height: 1.36;
+      }
+
+      .segmented {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .segmented button {
+        align-items: center;
+        background: rgba(45, 46, 56, 0.58);
+        border: 1px solid rgba(196, 196, 208, 0.18);
+        border-radius: 18px;
+        color: var(--muted);
+        cursor: pointer;
+        display: flex;
+        font-weight: 850;
+        gap: 8px;
+        justify-content: center;
+        min-height: 58px;
+      }
+
+      .segmented button.active {
+        background: linear-gradient(100deg, var(--yellow), var(--orange), var(--pink));
+        border-color: transparent;
+        color: #1a1a24;
+      }
+
+      .upload-zone {
+        background: rgba(45, 46, 56, 0.48);
+        border: 1.5px dashed rgba(196, 196, 208, 0.28);
+        border-radius: 18px;
+        cursor: pointer;
+        display: grid;
+        gap: 8px;
+        padding: 22px;
+      }
+
+      .upload-zone:hover,
+      .upload-zone:focus-within {
+        border-color: rgba(255, 230, 0, 0.9);
+        box-shadow: 0 0 0 4px rgba(255, 230, 0, 0.12);
+      }
+
+      .upload-zone strong {
+        color: white;
+      }
+
+      .upload-zone span {
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .upload-zone input {
+        color: var(--muted);
+        margin-top: 8px;
+        max-width: 100%;
+      }
+
+      .screenshot-grid {
+        display: flex;
+        gap: 14px;
+        margin-top: 16px;
+        overflow-x: auto;
+        padding: 2px 2px 12px;
+      }
+
+      .screenshot-card {
+        background: rgba(45, 46, 56, 0.56);
+        border: 1px solid rgba(196, 196, 208, 0.18);
+        border-radius: 14px;
+        flex: 0 0 170px;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .screenshot-thumb {
+        align-items: center;
+        aspect-ratio: 1 / 1;
+        background:
+          linear-gradient(45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
+          linear-gradient(-45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
+          rgba(0, 0, 0, 0.28);
+        background-size: 18px 18px;
+        display: flex;
+        justify-content: center;
+      }
+
+      .screenshot-thumb img {
+        height: 100%;
+        object-fit: contain;
+        width: 100%;
+      }
+
+      .screenshot-meta {
+        display: grid;
+        gap: 8px;
+        padding: 10px;
+      }
+
+      .screenshot-name-row small {
+        color: var(--muted);
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .remove-screenshot {
+        align-items: center;
+        background: rgba(5, 5, 10, 0.78);
+        border: 1px solid rgba(255, 255, 255, 0.34);
+        border-radius: 999px;
+        color: white;
+        cursor: pointer;
+        display: flex;
+        font-size: 0.76rem;
+        font-weight: 900;
+        height: 28px;
+        justify-content: center;
+        padding: 0;
+        position: absolute;
+        right: 8px;
+        top: 8px;
+        width: 28px;
+      }
+
+      .screenshot-label-input {
+        border-radius: 12px !important;
+        font-size: 0.88rem !important;
+        min-height: 42px !important;
+        padding: 0 10px !important;
+      }
+
+      .start-button {
+        margin-top: 30px;
+        min-height: 58px;
+        width: 100%;
+      }
+
+      .error {
+        background: rgba(255, 107, 107, 0.1);
+        border: 1px solid rgba(255, 107, 107, 0.35);
+        border-radius: 14px;
+        color: #ffd0d0;
+        line-height: 1.45;
+        margin-top: 18px;
+        padding: 14px 16px;
+      }
+
+      .status-strip {
+        align-items: center;
+        background: rgba(45, 46, 56, 0.56);
+        border: 1px solid rgba(196, 196, 208, 0.18);
+        border-radius: 16px;
+        color: var(--muted);
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+        margin-top: 22px;
+        padding: 14px 16px;
+      }
+
+      .status-strip strong {
+        color: white;
+      }
+
+      .progress-wrap {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 999px;
+        height: 11px;
+        overflow: hidden;
+        width: 100%;
+      }
+
+      .progress {
+        background: linear-gradient(90deg, var(--yellow) 0%, var(--orange) 38%, var(--pink) 74%, var(--purple) 100%);
+        height: 100%;
+        transition: width 0.35s ease;
+      }
+
+      .modal-backdrop {
+        align-items: center;
+        background:
+          radial-gradient(circle at 50% 8%, rgba(255, 230, 0, 0.1), transparent 28rem),
+          rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(18px);
+        display: flex;
+        inset: 0;
+        justify-content: center;
+        padding: 24px;
+        position: fixed;
+        z-index: 100;
+      }
+
+      .modal {
+        background:
+          radial-gradient(circle at 86% 0%, rgba(255, 230, 0, 0.12), transparent 12rem),
+          radial-gradient(circle at 74% 8%, rgba(247, 125, 30, 0.14), transparent 16rem),
+          radial-gradient(circle at 12% 18%, rgba(132, 0, 255, 0.16), transparent 18rem),
+          rgba(26, 26, 36, 0.98);
+        border: 1px solid rgba(196, 196, 208, 0.18);
+        border-radius: 28px;
+        box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        max-height: min(900px, 92vh);
+        max-width: 1060px;
+        overflow: auto;
+        padding: clamp(26px, 4vw, 46px);
+        position: relative;
+        width: 100%;
+      }
+
+      .modal::before {
+        background:
+          linear-gradient(90deg, transparent, rgba(255, 230, 0, 0.42), transparent);
+        content: "";
+        height: 1px;
+        left: 30px;
+        opacity: 0.7;
+        position: absolute;
+        right: 30px;
+        top: 0;
+      }
+
+      .modal-head {
+        align-items: start;
+        display: flex;
+        gap: 18px;
+        justify-content: space-between;
+      }
+
+      .modal h2 {
+        font-size: clamp(2.4rem, 5.2vw, 4.45rem);
+        letter-spacing: 0;
+        line-height: 1.05;
+        margin: 24px 0 14px;
+        max-width: 790px;
+      }
+
+      .stage {
+        color: var(--muted);
+        font-weight: 750;
+        line-height: 1.5;
+        margin: 0 0 26px;
+        max-width: 720px;
+      }
+
+      .scan-layout {
+        align-items: stretch;
+        display: grid;
+        gap: 22px;
+        grid-template-columns: minmax(360px, 1fr) minmax(230px, 0.45fr);
+        margin: 28px 0 26px;
+      }
+
+      .scan-frame {
+        aspect-ratio: 16 / 9;
+        background:
+          radial-gradient(circle at 50% 42%, rgba(255, 50, 255, 0.1), transparent 32%),
+          rgba(5, 5, 12, 0.72);
+        border: 1px solid rgba(255, 230, 0, 0.22);
+        border-radius: 22px;
+        box-shadow: inset 0 0 60px rgba(255, 230, 0, 0.07);
+        min-height: 320px;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .scan-frame::before,
+      .scan-frame::after {
+        content: "";
+        left: 12%;
+        position: absolute;
+        right: 12%;
+      }
+
+      .scan-frame::before {
+        animation: scanLineMove 6.5s ease-in-out infinite;
+        background: linear-gradient(90deg, transparent, rgba(255, 230, 0, 0.96), transparent);
+        box-shadow: 0 0 24px rgba(255, 230, 0, 0.62);
+        height: 3px;
+        top: 0;
+        z-index: 4;
+      }
+
+      .scan-frame::after {
+        animation: scanSweep 2.6s ease-in-out infinite;
+        background: linear-gradient(180deg, transparent, rgba(255, 50, 255, 0.26), transparent);
+        height: 34%;
+        top: -22%;
+        z-index: 4;
+      }
+
+      .scan-corner {
+        border-color: rgba(255, 255, 255, 0.95);
+        border-style: solid;
+        height: 84px;
+        position: absolute;
+        width: 84px;
+        z-index: 3;
+      }
+
+      .scan-corner.tl {
+        border-width: 10px 0 0 10px;
+        border-radius: 26px 0 0 0;
+        left: 32px;
+        top: 32px;
+      }
+
+      .scan-corner.tr {
+        border-width: 10px 10px 0 0;
+        border-radius: 0 26px 0 0;
+        right: 32px;
+        top: 32px;
+      }
+
+      .scan-corner.bl {
+        border-width: 0 0 10px 10px;
+        border-radius: 0 0 0 26px;
+        bottom: 32px;
+        left: 32px;
+      }
+
+      .scan-corner.br {
+        border-width: 0 10px 10px 0;
+        border-radius: 0 0 26px 0;
+        bottom: 32px;
+        right: 32px;
+      }
+
+      .scan-core {
+        background: rgba(7, 7, 13, 0.72);
+        border: 1px solid rgba(255, 230, 0, 0.22);
+        border-radius: 14px;
+        left: 22px;
+        max-width: min(360px, calc(100% - 44px));
+        min-width: 0;
+        padding: 12px 14px;
+        position: absolute;
+        text-align: left;
+        top: 22px;
+        transform: none;
+        z-index: 6;
+      }
+
+      .scan-core strong {
+        color: white;
+        display: block;
+        font-size: clamp(0.94rem, 1.35vw, 1.12rem);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .scan-core span {
+        color: var(--yellow);
+        font-size: 0.78rem;
+        font-weight: 850;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .scan-real-shot {
+        background: rgba(255, 255, 255, 0.04);
+        animation: realPageScroll 11s ease-in-out infinite;
+        display: block;
+        height: 100%;
+        inset: 0;
+        object-fit: cover;
+        object-position: top center;
+        position: absolute;
+        width: 100%;
+        z-index: 3;
+      }
+
+      .scan-frame.has-preview .scan-live-frame {
+        opacity: 0;
+      }
+
+      .scan-live-frame {
+        background: rgba(5, 5, 12, 0.92);
+        border: 0;
+        display: block;
+        height: 100%;
+        inset: 0;
+        pointer-events: none;
+        position: absolute;
+        transition: opacity 0.25s ease;
+        width: 100%;
+        z-index: 2;
+      }
+
+      .scan-frame.has-live .scan-real-shot {
+        opacity: 0.72;
+      }
+
+      .scan-empty-state {
+        align-items: center;
+        color: var(--muted);
+        display: grid;
+        font-weight: 850;
+        gap: 10px;
+        inset: 0;
+        justify-items: center;
+        padding: 28px;
+        position: absolute;
+        text-align: center;
+        z-index: 1;
+      }
+
+      .scan-empty-state strong {
+        color: white;
+        font-size: 1.15rem;
+      }
+
+      .scan-browser {
+        background: rgba(12, 12, 20, 0.82);
+        border: 1px solid rgba(255, 230, 0, 0.18);
+        border-radius: 16px;
+        box-shadow: 0 22px 58px rgba(0, 0, 0, 0.32);
+        bottom: 22px;
+        left: 50%;
+        min-width: min(640px, calc(100% - 84px));
+        overflow: hidden;
+        position: absolute;
+        transform: translateX(-50%);
+        z-index: 5;
+      }
+
+      .scan-browser-top {
+        align-items: center;
+        background: rgba(255, 255, 255, 0.06);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        display: grid;
+        gap: 10px;
+        grid-template-columns: auto 1fr;
+        min-height: 42px;
+        padding: 8px 12px;
+      }
+
+      .scan-browser-dots {
+        display: flex;
+        gap: 6px;
+      }
+
+      .scan-browser-dots span {
+        border-radius: 999px;
+        height: 9px;
+        width: 9px;
+      }
+
+      .scan-browser-dots span:nth-child(1) {
+        background: #ff5f57;
+      }
+
+      .scan-browser-dots span:nth-child(2) {
+        background: #ffbd2e;
+      }
+
+      .scan-browser-dots span:nth-child(3) {
+        background: #28c840;
+      }
+
+      .scan-browser-address {
+        background: rgba(0, 0, 0, 0.22);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 999px;
+        color: #f1edf8;
+        font-size: 0.78rem;
+        font-weight: 800;
+        overflow: hidden;
+        padding: 7px 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .scan-browser-body {
+        display: none;
+        gap: 10px;
+        padding: 13px 14px 15px;
+        position: relative;
+      }
+
+      .scan-browser-label {
+        color: var(--yellow);
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .scan-browser-title {
+        color: white;
+        font-size: 0.92rem;
+        font-weight: 850;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .crawl-preview {
+        background:
+          linear-gradient(90deg, rgba(255, 230, 0, 0.08), transparent 38%),
+          rgba(0, 0, 0, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 12px;
+        display: grid;
+        gap: 9px;
+        overflow: hidden;
+        padding: 11px;
+        position: relative;
+      }
+
+      .crawl-preview::after {
+        animation: analyzeSweep 2.1s ease-in-out infinite;
+        background: linear-gradient(90deg, transparent, rgba(255, 230, 0, 0.34), rgba(255, 50, 255, 0.22), transparent);
+        content: "";
+        inset: 0 auto 0 -55%;
+        position: absolute;
+        width: 46%;
+      }
+
+      .crawl-nav {
+        display: flex;
+        gap: 7px;
+        overflow: hidden;
+        position: relative;
+        z-index: 1;
+      }
+
+      .crawl-nav span {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 999px;
+        flex: 0 0 auto;
+        height: 9px;
+        width: 54px;
+      }
+
+      .crawl-page-lines {
+        display: grid;
+        gap: 7px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .crawl-page-lines span {
+        background: rgba(255, 255, 255, 0.14);
+        border-radius: 999px;
+        display: block;
+        height: 8px;
+      }
+
+      .crawl-page-lines span:nth-child(1) {
+        background: rgba(255, 230, 0, 0.4);
+        width: 64%;
+      }
+
+      .crawl-page-lines span:nth-child(2) {
+        width: 88%;
+      }
+
+      .crawl-page-lines span:nth-child(3) {
+        width: 72%;
+      }
+
+      .crawl-trail {
+        display: grid;
+        gap: 6px;
+      }
+
+      .crawl-trail-item {
+        align-items: center;
+        color: #d7d7df;
+        display: grid;
+        font-size: 0.75rem;
+        font-weight: 800;
+        gap: 8px;
+        grid-template-columns: 8px 1fr;
+        min-width: 0;
+      }
+
+      .crawl-trail-item::before {
+        background: rgba(196, 196, 208, 0.5);
+        border-radius: 999px;
+        content: "";
+        height: 7px;
+        width: 7px;
+      }
+
+      .crawl-trail-item.active::before {
+        animation: pulseDot 1.2s ease-in-out infinite;
+        background: var(--yellow);
+        box-shadow: 0 0 14px rgba(255, 230, 0, 0.58);
+      }
+
+      .crawl-trail-item span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .scan-dot {
+        animation: pulseDot 1.45s ease-in-out infinite;
+        background: var(--yellow);
+        border-radius: 999px;
+        box-shadow: 0 0 24px rgba(255, 230, 0, 0.72);
+        height: 10px;
+        position: absolute;
+        width: 10px;
+        z-index: 2;
+      }
+
+      .scan-dot.one {
+        left: 22%;
+        top: 36%;
+      }
+
+      .scan-dot.two {
+        animation-delay: 0.24s;
+        right: 24%;
+        top: 62%;
+      }
+
+      .scan-dot.three {
+        animation-delay: 0.48s;
+        bottom: 24%;
+        left: 46%;
+      }
+
+      .scan-panel {
+        background: rgba(5, 5, 12, 0.58);
+        border: 1px solid rgba(196, 196, 208, 0.16);
+        border-radius: 22px;
+        display: grid;
+        gap: 14px;
+        padding: 20px;
+      }
+
+      .scan-step {
+        align-items: center;
+        color: var(--muted);
+        display: grid;
+        font-size: 0.91rem;
+        font-weight: 850;
+        gap: 12px;
+        grid-template-columns: 13px 1fr;
+        line-height: 1.35;
+      }
+
+      .scan-step::before {
+        background: rgba(196, 196, 208, 0.28);
+        border-radius: 999px;
+        content: "";
+        height: 10px;
+        width: 10px;
+      }
+
+      .scan-step.active::before {
+        animation: pulseDot 1.25s ease-in-out infinite;
+        background: var(--yellow);
+        box-shadow: 0 0 16px rgba(255, 230, 0, 0.72);
+      }
+
+      .scan-step.complete {
+        color: white;
+      }
+
+      .scan-step.complete::before {
+        background: #ffe600;
+        box-shadow: 0 0 12px rgba(255, 230, 0, 0.42);
+      }
+
+      .scan-log {
+        border-top: 1px solid rgba(196, 196, 208, 0.14);
+        color: #aaa6b8;
+        display: grid;
+        font-family: "Cascadia Mono", Consolas, monospace;
+        font-size: 0.76rem;
+        gap: 8px;
+        line-height: 1.45;
+        margin-top: 6px;
+        padding-top: 14px;
+      }
+
+      .scan-log div {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .modal .progress-wrap {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        height: 14px;
+      }
+
+      .modal .progress {
+        background: linear-gradient(90deg, var(--yellow) 0%, var(--orange) 38%, var(--pink) 74%, var(--purple) 100%);
+        box-shadow: 0 0 22px rgba(255, 50, 255, 0.3);
+      }
+
+      .log {
+        background: rgba(0, 0, 0, 0.42);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 14px;
+        color: #d8d3e4;
+        font-family: "Cascadia Mono", Consolas, monospace;
+        font-size: 0.78rem;
+        line-height: 1.55;
+        margin-top: 20px;
+        max-height: 240px;
+        overflow: auto;
+        padding: 16px;
+        white-space: pre-wrap;
+      }
+
+      .artifact-summary {
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        color: var(--muted);
+        display: grid;
+        gap: 9px;
+        margin-top: 20px;
+        padding: 15px;
+      }
+
+      .artifact-summary strong {
+        color: white;
+      }
+
+      .artifact-path {
+        background: rgba(0, 0, 0, 0.28);
+        border-radius: 10px;
+        color: white;
+        font-family: "Cascadia Mono", Consolas, monospace;
+        font-size: 0.84rem;
+        line-height: 1.5;
+        padding: 12px;
+        word-break: break-word;
+      }
+
+      .success-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 22px;
+      }
+
+      @keyframes scanSweep {
+        0% {
+          opacity: 0;
+          transform: translateY(0);
+        }
+        16% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(390%);
+        }
+      }
+
+      @keyframes scanLineMove {
+        0%,
+        100% {
+          opacity: 0.56;
+          transform: translateY(48px);
+        }
+        50% {
+          opacity: 1;
+          transform: translateY(calc(min(56.25vw, 100vh) - 120px));
+        }
+      }
+
+      @keyframes pulseDot {
+        0%,
+        100% {
+          opacity: 0.42;
+          transform: scale(0.85);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.2);
+        }
+      }
+
+      @keyframes analyzeSweep {
+        0% {
+          transform: translateX(0);
+        }
+        100% {
+          transform: translateX(340%);
+        }
+      }
+
+      @keyframes realPageScroll {
+        0%,
+        12% {
+          object-position: top center;
+        }
+        48%,
+        64% {
+          object-position: bottom center;
+        }
+        100% {
+          object-position: top center;
+        }
+      }
+
+      .footer-mark {
+        align-items: center;
+        color: var(--yellow);
+        display: flex;
+        justify-content: flex-end;
+        padding: 18px clamp(22px, 7vw, 88px) 28px;
+      }
+
+      .footer-mark .brand-logo {
+        width: clamp(132px, 10vw, 172px);
+      }
+
+      .sr-only {
+        clip: rect(0 0 0 0);
+        border: 0;
+        height: 1px;
+        margin: -1px;
+        overflow: hidden;
+        padding: 0;
+        position: absolute;
+        white-space: nowrap;
+        width: 1px;
+      }
+
+      @media (max-width: 1040px) {
+        .hero,
+        .launch-section {
+          grid-template-columns: 1fr;
+        }
+
+        .scan-layout {
+          grid-template-columns: 1fr;
+        }
+
+        .hero {
+          min-height: auto;
+          padding-top: 54px;
+        }
+
+        .hero-visual {
+          min-height: 520px;
+        }
+
+        .visual-card {
+          left: 50%;
+          right: auto;
+          transform: translateX(-50%);
+          width: min(100%, 660px);
+        }
+
+      }
+
+      @media (max-width: 720px) {
+        .topbar {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 12px;
+          padding-bottom: 14px;
+          padding-top: 14px;
+          position: relative;
+        }
+
+        .page {
+          padding-inline: 18px;
+        }
+
+        .hero h1,
+        .launch-copy h2 {
+          font-size: clamp(2.52rem, 12vw, 3.2rem);
+        }
+
+        .modal {
+          border-radius: 22px;
+          max-height: 94vh;
+          padding: 22px;
+        }
+
+        .modal h2 {
+          font-size: clamp(2.05rem, 12vw, 3rem);
+        }
+
+        .scan-frame {
+          min-height: 240px;
+        }
+
+        .scan-corner {
+          height: 58px;
+          width: 58px;
+        }
+
+        .scan-corner.tl,
+        .scan-corner.tr {
+          top: 22px;
+        }
+
+        .scan-corner.bl,
+        .scan-corner.br {
+          bottom: 22px;
+        }
+
+        .scan-corner.tl,
+        .scan-corner.bl {
+          left: 22px;
+        }
+
+        .scan-corner.tr,
+        .scan-corner.br {
+          right: 22px;
+        }
+
+        .scan-browser {
+          min-width: calc(100% - 56px);
+          top: 67%;
+        }
+
+        .hero-visual {
+          min-height: 470px;
+        }
+
+        .visual-card {
+          min-height: 440px;
+        }
+
+        .robot-portrait {
+          height: 410px;
+          transform: translateX(-50%) scale(0.82);
+          transform-origin: bottom center;
+        }
+
+        .field-grid,
+        .segmented {
+          grid-template-columns: 1fr;
+        }
+
+        .choice {
+          grid-template-columns: 44px 1fr;
+          padding: 16px;
+        }
+
+        .choice-icon {
+          height: 42px;
+          width: 42px;
+        }
+
+        .status-strip {
+          align-items: stretch;
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div class="robot-video-assets" aria-hidden="true">
+      <div class="eye-video w-embed">
+        <video id="eye-video" crossorigin="anonymous" playsinline autoplay muted loop width="100%" style="display: none;">
+          <source src="https://web-assets.chaingpt.org/assets/video/animations/eyes_video-transcode.mp4" />
+          <source src="https://web-assets.chaingpt.org/assets/video/animations/eyes_video-transcode.webm" />
+        </video>
+      </div>
+      <div class="touch-video w-embed">
+        <video id="click-video" crossorigin="anonymous" playsinline muted width="100%" style="display: none;">
+          <source src="https://web-assets.chaingpt.org/assets/video/animations/touch_video-transcode.mp4" />
+          <source src="https://web-assets.chaingpt.org/assets/video/animations/touch_video-transcode.webm" />
+        </video>
+      </div>
+    </div>
+    <div class="shader-assets" aria-hidden="true">
+      <script id="vertexShader" type="x-shader/x-vertex">
+        varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }
+      </script>
+      <script id="fragmentShader" type="x-shader/x-fragment">
+        #ifdef GL_ES precision highp float; #endif uniform sampler2D videoTexture; varying vec2 vUv; void main( void ) { vec4 textColor = texture(videoTexture, vUv); gl_FragColor = vec4(textColor.rgb, textColor.r + textColor.g + textColor.b); }
+      </script>
+    </div>
+    <div class="robot-script-hooks" aria-hidden="true">
+      <div class="pupils"></div>
+      <div class="unlimited-solutions"></div>
+    </div>
+    <script>
+      const { useEffect, useMemo, useRef, useState } = React;
+      const e = React.createElement;
+
+      function Icon({ name }) {
+        const paths = {
+          arrow: "M4 12h14M13 6l6 6-6 6",
+          chart: "M5 17V9M12 17V5M19 17v-6",
+          check: "M5 12l4 4L19 6",
+          close: "M6 6l12 12M18 6L6 18",
+          doc: "M7 3h7l4 4v14H7zM14 3v5h5M9 13h6M9 17h6",
+          globe: "M12 3a9 9 0 100 18 9 9 0 000-18zM3 12h18M12 3c2.4 2.5 3.6 5.5 3.6 9S14.4 18.5 12 21c-2.4-2.5-3.6-5.5-3.6-9S9.6 5.5 12 3z",
+          image: "M5 5h14v14H5zM8 15l3-3 2 2 3-4 3 5M8.5 9.5h.01",
+          phone: "M9 3h6a2 2 0 012 2v14a2 2 0 01-2 2H9a2 2 0 01-2-2V5a2 2 0 012-2zM11 18h2",
+          spark: "M12 3l1.7 5.2L19 10l-5.3 1.8L12 17l-1.7-5.2L5 10l5.3-1.8L12 3z",
+          upload: "M12 16V5M7 10l5-5 5 5M5 19h14",
+        };
+        return e(
+          "svg",
+          {
+            className: "icon",
+            viewBox: "0 0 24 24",
+            fill: "none",
+            stroke: "currentColor",
+            strokeWidth: "2",
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+            "aria-hidden": "true",
+          },
+          e("path", { d: paths[name] || paths.spark })
+        );
+      }
+
+      function screenshotRecordId(file, index) {
+        return `${file.name}-${file.size}-${file.lastModified}-${index}`;
+      }
+
+      function defaultScreenshotLabel(file, index) {
+        const stem = (file.name || "").replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
+        return stem || `Screenshot ${index + 1}`;
+      }
+
+      function formatFileSize(bytes) {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      }
+
+      function BrandLockup() {
+        return e(
+          "div",
+          { className: "brand", "aria-label": "EY Studio+" },
+          e(
+            "svg",
+            {
+              className: "brand-logo",
+              viewBox: "0 0 527 226",
+              fill: "none",
+              xmlns: "http://www.w3.org/2000/svg",
+              "aria-hidden": "true",
+              focusable: "false",
+            },
+            e("path", { d: "M61 87L210 35V64L61 87Z", fill: "#FFE600" }),
+            e("text", { x: "58", y: "170", fill: "#FFFFFF", fontFamily: "Arial Black, Arial, sans-serif", fontSize: "88", fontWeight: "900", letterSpacing: "-6" }, "EY"),
+            e("text", { x: "207", y: "169", fill: "#FFFFFF", fontFamily: "Arial, Helvetica, sans-serif", fontSize: "70", fontWeight: "700", letterSpacing: "-4" }, "Studio"),
+            e("rect", { x: "447", y: "127", width: "17", height: "51", fill: "#F72585" }),
+            e("rect", { x: "430", y: "144", width: "17", height: "17", fill: "#FFE600" }),
+            e("rect", { x: "447", y: "144", width: "17", height: "17", fill: "#8A2DFF" }),
+            e("rect", { x: "464", y: "144", width: "17", height: "17", fill: "#00A7B5" })
+          )
+        );
+      }
+
+      function pageFromHash() {
+        return window.location.hash === "#audit" ? "audit" : "home";
+      }
+
+      function normalizeApiBaseUrl(value) {
+        return String(value || "").trim().replace(/\/+$/, "");
+      }
+
+      function readInjectedConfig() {
+        const rawConfig = window.__UX_UI_AUDITOR_CONFIG__;
+        if (!rawConfig || typeof rawConfig !== "object") return {};
+        return rawConfig;
+      }
+
+      const APP_CONFIG = readInjectedConfig();
+      const API_BASE_URL = normalizeApiBaseUrl(APP_CONFIG.apiBaseUrl || "");
+
+      function isCrossOriginApi() {
+        if (!API_BASE_URL) return false;
+        try {
+          return new URL(API_BASE_URL).origin !== window.location.origin;
+        } catch (_error) {
+          return false;
+        }
+      }
+
+      function buildApiHeaders(extraHeaders) {
+        const headers = new Headers(extraHeaders || {});
+        if (isCrossOriginApi() && API_BASE_URL.includes("ngrok")) {
+          headers.set("ngrok-skip-browser-warning", "true");
+        }
+        return headers;
+      }
+
+      function buildApiUrl(path) {
+        if (!API_BASE_URL) return path;
+        if (!path.startsWith("/")) return `${API_BASE_URL}/${path}`;
+        return `${API_BASE_URL}${path}`;
+      }
+
+      async function apiFetch(path, options) {
+        const requestOptions = { ...(options || {}) };
+        requestOptions.headers = buildApiHeaders(requestOptions.headers);
+        return fetch(buildApiUrl(path), requestOptions);
+      }
+
+      function App() {
+        const [experienceType, setExperienceType] = useState("website");
+        const [websiteInputType, setWebsiteInputType] = useState("url");
+        const [mobileInputType, setMobileInputType] = useState("live");
+        const [mode, setMode] = useState("gtm");
+        const [url, setUrl] = useState("");
+        const [siteName, setSiteName] = useState("Client Website Screenshots");
+        const [mobileAppLabel, setMobileAppLabel] = useState("Android App Audit");
+        const [mobileAppPackage, setMobileAppPackage] = useState("");
+        const [mobileAppActivity, setMobileAppActivity] = useState("");
+        const [mobileAppiumUrl, setMobileAppiumUrl] = useState("http://127.0.0.1:4723");
+        const [mobileDeviceName, setMobileDeviceName] = useState("Android Emulator");
+        const [mobilePlatformVersion, setMobilePlatformVersion] = useState("");
+        const [mobileUdid, setMobileUdid] = useState("");
+        const [screenshotFiles, setScreenshotFilesState] = useState([]);
+        const [job, setJob] = useState(null);
+        const [error, setError] = useState("");
+        const [isModalOpen, setIsModalOpen] = useState(false);
+        const [isSubmitting, setIsSubmitting] = useState(false);
+        const [isStopping, setIsStopping] = useState(false);
+        const [activePage, setActivePage] = useState(pageFromHash);
+        const screenshotFilesRef = useRef([]);
+
+        const isWebsiteUrlAudit = experienceType === "website" && websiteInputType === "url";
+        const isScreenshotAudit = (experienceType === "website" && websiteInputType === "screenshot") || (experienceType === "mobile" && mobileInputType === "screenshot");
+        const isMobileLiveAudit = experienceType === "mobile" && mobileInputType === "live";
+        const screenshotSurfaceType = experienceType === "mobile" ? "mobile_app" : "website";
+
+        const canStart = useMemo(() => {
+          if (isSubmitting) return false;
+          if (isWebsiteUrlAudit) return url.trim().length > 3;
+          if (isScreenshotAudit) return screenshotFiles.length > 0;
+          return mobileAppPackage.trim().length > 1 && mobileAppActivity.trim().length > 1;
+        }, [isMobileLiveAudit, isScreenshotAudit, isSubmitting, isWebsiteUrlAudit, mobileAppActivity, mobileAppPackage, screenshotFiles.length, url]);
+
+        const completionText = useMemo(() => {
+          if (isMobileLiveAudit) return "Review the generated first-screen artifacts and structured mobile evidence.";
+          return "Open the deployed report with evidence, confidence, status, and supporting detail.";
+        }, [isMobileLiveAudit]);
+
+        useEffect(() => {
+          screenshotFilesRef.current = screenshotFiles;
+        }, [screenshotFiles]);
+
+        useEffect(() => {
+          setSiteName((current) => {
+            const clean = (current || "").trim();
+            if (!clean || clean === "Client Website Screenshots" || clean === "Client App Screenshots") {
+              return experienceType === "mobile" ? "Client App Screenshots" : "Client Website Screenshots";
+            }
+            return current;
+          });
+        }, [experienceType]);
+
+        useEffect(() => {
+          return () => {
+            screenshotFilesRef.current.forEach((item) => window.URL.revokeObjectURL(item.previewUrl));
+          };
+        }, []);
+
+        useEffect(() => {
+          function syncPageFromHash() {
+            setActivePage(pageFromHash());
+          }
+
+          window.addEventListener("hashchange", syncPageFromHash);
+          window.addEventListener("popstate", syncPageFromHash);
+          return () => {
+            window.removeEventListener("hashchange", syncPageFromHash);
+            window.removeEventListener("popstate", syncPageFromHash);
+          };
+        }, []);
+
+        useEffect(() => {
+          if (!job || !["queued", "running"].includes(job.status)) return undefined;
+          let cancelled = false;
+          const poll = async () => {
+            try {
+              const response = await apiFetch(`/api/audits/${job.id}`);
+              const payload = await response.json();
+              if (!cancelled && response.ok) {
+                setJob(payload);
+              }
+            } catch (pollError) {
+              if (!cancelled) setError("Unable to refresh the audit status.");
+            }
+          };
+          const timer = window.setInterval(poll, 2000);
+          poll();
+          return () => {
+            cancelled = true;
+            window.clearInterval(timer);
+          };
+        }, [job?.id, job?.status]);
+
+        function showPage(page) {
+          const hash = page === "audit" ? "#audit" : "#home";
+          setActivePage(page);
+          if (window.location.hash !== hash) {
+            window.history.pushState(null, "", hash);
+          }
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        function setImageFiles(fileList) {
+          const incoming = Array.from(fileList || []).filter((file) => file.type.startsWith("image/"));
+          if (!incoming.length) return;
+          setScreenshotFilesState((current) => {
+            const existing = new Set(current.map((item) => `${item.file.name}-${item.file.size}-${item.file.lastModified}`));
+            const additions = incoming
+              .filter((file) => !existing.has(`${file.name}-${file.size}-${file.lastModified}`))
+              .map((file, index) => ({
+                id: screenshotRecordId(file, current.length + index),
+                file,
+                label: defaultScreenshotLabel(file, current.length + index),
+                previewUrl: window.URL.createObjectURL(file),
+              }));
+            return current.concat(additions);
+          });
+        }
+
+        function removeScreenshotFile(id) {
+          setScreenshotFilesState((current) => {
+            const match = current.find((item) => item.id === id);
+            if (match) window.URL.revokeObjectURL(match.previewUrl);
+            return current.filter((item) => item.id !== id);
+          });
+        }
+
+        function updateScreenshotLabel(id, label) {
+          setScreenshotFilesState((current) => current.map((item) => (item.id === id ? { ...item, label } : item)));
+        }
+
+        function handleUploadDrop(event) {
+          event.preventDefault();
+          setImageFiles(event.dataTransfer.files);
+        }
+
+        async function handleSubmit(event) {
+          event.preventDefault();
+          if (!canStart) return;
+          setError("");
+          setIsSubmitting(true);
+          try {
+            let response;
+            if (isScreenshotAudit) {
+              const formData = new FormData();
+              formData.append("auditType", "screenshot");
+              formData.append("surfaceType", screenshotSurfaceType);
+              formData.append("siteName", siteName.trim() || (screenshotSurfaceType === "mobile_app" ? "Mobile App Screenshot Audit" : "Website Screenshot Audit"));
+              formData.append(
+                "screenshotLabels",
+                JSON.stringify(screenshotFiles.map((item, index) => item.label.trim() || defaultScreenshotLabel(item.file, index)))
+              );
+              screenshotFiles.forEach((item) => formData.append("screenshots", item.file));
+              response = await apiFetch("/api/audits", { method: "POST", body: formData });
+            } else if (isMobileLiveAudit) {
+              response = await apiFetch("/api/audits", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  auditType: "mobile",
+                  appLabel: mobileAppLabel.trim() || "Android App Audit",
+                  appPackage: mobileAppPackage.trim(),
+                  appActivity: mobileAppActivity.trim(),
+                  appiumUrl: mobileAppiumUrl.trim() || "http://127.0.0.1:4723",
+                  deviceName: mobileDeviceName.trim() || "Android Emulator",
+                  platformVersion: mobilePlatformVersion.trim(),
+                  udid: mobileUdid.trim(),
+                }),
+              });
+            } else {
+              response = await apiFetch("/api/audits", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ auditType: "website", mode, url: url.trim() }),
+              });
+            }
+
+            const payload = await response.json();
+            if (!response.ok) {
+              throw new Error(payload.error || "Unable to start the audit.");
+            }
+            setJob(payload);
+            setIsModalOpen(true);
+          } catch (submitError) {
+            setError(submitError.message || "Unable to start the audit.");
+          } finally {
+            setIsSubmitting(false);
+          }
+        }
+
+        async function handleStopAudit() {
+          if (!job || !["queued", "running"].includes(job.status) || isStopping) return;
+          setError("");
+          setIsStopping(true);
+          try {
+            const response = await apiFetch(`/api/audits/${job.id}/cancel`, { method: "POST" });
+            const payload = await response.json();
+            if (!response.ok) {
+              throw new Error(payload.error || "Unable to stop the audit.");
+            }
+            setJob(payload);
+            setIsModalOpen(true);
+          } catch (stopError) {
+            setError(stopError.message || "Unable to stop the audit.");
+          } finally {
+            setIsStopping(false);
+          }
+        }
+
+        return e(
+          "div",
+          { className: `app-shell view-${activePage}` },
+          e(
+            "header",
+            { className: "topbar" },
+            e(BrandLockup)
+          ),
+          e(
+            "main",
+            { className: "page" },
+            e(Hero, { onLaunch: () => showPage("audit") }),
+            e(
+              "section",
+              { className: "launch-section", id: "audit", "aria-labelledby": "launch-heading" },
+              e(
+                "div",
+                { className: "launch-copy" },
+                e(
+                  "h2",
+                  { id: "launch-heading" },
+                  "Launch a ",
+                  e("span", { className: "accent" }, "client-ready"),
+                  " audit"
+                ),
+                e("p", null, "Provide inputs, run the engine, and get structured UX insights."),
+                e(
+                  "div",
+                  { className: "process-list" },
+                  e(ProcessStep, { number: "1", title: "Select the mission", text: "Choose website or mobile app first, then select URL/live app or screenshots." }),
+                  e(ProcessStep, { number: "2", title: "Run the audit engine", text: "The pipeline extracts evidence and evaluates UX/UI quality." }),
+                  e(ProcessStep, { number: "3", title: isMobileLiveAudit ? "Inspect artifacts" : "View results", text: completionText })
+                )
+              ),
+              e(
+                "form",
+                { className: "audit-panel", onSubmit: handleSubmit },
+                e("h2", null, "Start here"),
+                e("p", { className: "panel-subtitle" }, "Configure your audit parameters"),
+                e("div", { className: "field-legend" }, "Choose Experience"),
+                e(
+                  "div",
+                  { className: "choice-stack", role: "radiogroup", "aria-label": "Experience type" },
+                  e(AuditChoice, {
+                    active: experienceType === "website",
+                    icon: "globe",
+                    onClick: () => setExperienceType("website"),
+                    title: "Website audit",
+                    text: "Audit a live website URL or uploaded website screenshots",
+                  }),
+                  e(AuditChoice, {
+                    active: experienceType === "mobile",
+                    icon: "phone",
+                    onClick: () => setExperienceType("mobile"),
+                    title: "Mobile app audit",
+                    text: "Audit a live mobile app session or uploaded app screenshots",
+                  })
+                ),
+                experienceType === "website" &&
+                  e(
+                    React.Fragment,
+                    null,
+                    e("div", { className: "field-legend", style: { marginTop: "24px" } }, "Website Input"),
+                    e(
+                      "div",
+                      { className: "choice-stack", role: "radiogroup", "aria-label": "Website input type" },
+                      e(AuditChoice, {
+                        active: websiteInputType === "url",
+                        icon: "globe",
+                        onClick: () => setWebsiteInputType("url"),
+                        title: "Live URL",
+                        text: "Run the full crawl and evidence pipeline from a website URL",
+                      }),
+                      e(AuditChoice, {
+                        active: websiteInputType === "screenshot",
+                        icon: "image",
+                        onClick: () => setWebsiteInputType("screenshot"),
+                        title: "Website screenshots",
+                        text: "Review uploaded website pages and flows as static screenshots",
+                      })
+                    )
+                  ),
+                experienceType === "mobile" &&
+                  e(
+                    React.Fragment,
+                    null,
+                    e("div", { className: "field-legend", style: { marginTop: "24px" } }, "Mobile Input"),
+                    e(
+                      "div",
+                      { className: "choice-stack", role: "radiogroup", "aria-label": "Mobile input type" },
+                      e(AuditChoice, {
+                        active: mobileInputType === "live",
+                        icon: "phone",
+                        onClick: () => setMobileInputType("live"),
+                        title: "Live app session",
+                        text: "Connect through Appium and extract structured mobile artifacts",
+                      }),
+                      e(AuditChoice, {
+                        active: mobileInputType === "screenshot",
+                        icon: "image",
+                        onClick: () => setMobileInputType("screenshot"),
+                        title: "App screenshots",
+                        text: "Review uploaded mobile app screens separately from website screenshots",
+                      })
+                    )
+                  ),
+                isWebsiteUrlAudit &&
+                  e(WebsiteFields, {
+                    mode,
+                    setMode,
+                    url,
+                    setUrl,
+                  }),
+                isScreenshotAudit &&
+                  e(ScreenshotFields, {
+                    experienceType,
+                    handleUploadDrop,
+                    removeScreenshotFile,
+                    screenshotFiles,
+                    setImageFiles,
+                    setSiteName,
+                    siteName,
+                    updateScreenshotLabel,
+                  }),
+                isMobileLiveAudit &&
+                  e(MobileFields, {
+                    mobileAppActivity,
+                    mobileAppLabel,
+                    mobileAppPackage,
+                    mobileAppiumUrl,
+                    mobileDeviceName,
+                    mobilePlatformVersion,
+                    mobileUdid,
+                    setMobileAppActivity,
+                    setMobileAppLabel,
+                    setMobileAppPackage,
+                    setMobileAppiumUrl,
+                    setMobileDeviceName,
+                    setMobilePlatformVersion,
+                    setMobileUdid,
+                  }),
+                error && e("div", { className: "error" }, error),
+                e(
+                  "button",
+                  { className: "primary start-button", type: "submit", disabled: !canStart },
+                  isSubmitting
+                    ? "Starting audit..."
+                    : isScreenshotAudit
+                      ? experienceType === "mobile"
+                        ? "Start App Screenshot Audit"
+                        : "Start Website Screenshot Audit"
+                      : isMobileLiveAudit
+                        ? "Start Mobile Extraction"
+                        : "Start Website Audit",
+                  e(Icon, { name: "arrow" })
+                ),
+                job && e(StatusStrip, { job, isStopping, onOpen: () => setIsModalOpen(true), onStop: handleStopAudit })
+              )
+            )
+          ),
+          e("footer", { className: "footer-mark" }, e(BrandLockup)),
+          isModalOpen && job && e(ProgressModal, { job, error, isStopping, onClose: () => setIsModalOpen(false), onStop: handleStopAudit })
+        );
+      }
+
+      function Hero({ onLaunch }) {
+        return e(
+          "section",
+          { className: "hero", "aria-labelledby": "hero-title" },
+          e(
+            "div",
+            null,
+            e("div", { className: "ey-pill" }, "UX/UI AUDITOR"),
+            e(
+              "h1",
+              { id: "hero-title" },
+              "Audit UX. ",
+              e("span", { className: "accent" }, "Fix Faster."),
+              " Scale Better."
+            ),
+            e("p", { className: "hero-copy" }, "AI-powered UX/UI analysis that extracts evidence, evaluates quality, and delivers client-ready reports."),
+            e(
+              "div",
+              { className: "hero-actions" },
+              e("button", { className: "primary", type: "button", onClick: onLaunch }, "Launch Audit", e(Icon, { name: "arrow" })),
+              e("button", { className: "secondary", type: "button", onClick: onLaunch }, "View Demo")
+            )
+          ),
+          e(
+            "div",
+            { className: "hero-visual", "aria-label": "Audit assistant preview" },
+            e(
+              "div",
+              { className: "visual-card chaingpt-robot-card" },
+              e("div", { className: "webgl", "aria-hidden": "true" }),
+              e("div", { className: "webgl-fallback", "aria-hidden": "true" }, "Loading 3D robot")
+            )
+          )
+        );
+      }
+
+      function ProcessStep({ number, title, text }) {
+        return e(
+          "div",
+          { className: "process-step" },
+          e("span", { className: "process-step-number" }, number),
+          e("div", null, e("strong", null, title), e("p", null, text))
+        );
+      }
+
+      function AuditChoice({ active, icon, onClick, title, text }) {
+        return e(
+          "button",
+          {
+            type: "button",
+            className: `choice ${active ? "active" : ""}`,
+            onClick,
+            role: "radio",
+            "aria-checked": active ? "true" : "false",
+          },
+          e("span", { className: "choice-icon" }, e(Icon, { name: icon })),
+          e("span", null, e("strong", null, title), e("small", null, text))
+        );
+      }
+
+      function WebsiteFields({ mode, setMode, url, setUrl }) {
+        return e(
+          React.Fragment,
+          null,
+          e(
+            "div",
+            { className: "field" },
+            e("label", { htmlFor: "website-url" }, "Website URL"),
+            e("input", { id: "website-url", value: url, placeholder: "https://example.com", onChange: (event) => setUrl(event.target.value), autoComplete: "url" })
+          ),
+          e(
+            "div",
+            { className: "field" },
+            e("div", { className: "field-legend" }, "Audit Mode"),
+            e(
+              "div",
+              { className: "segmented" },
+              e("button", { type: "button", className: mode === "detailed" ? "active" : "", onClick: () => setMode("detailed") }, "Detailed audit"),
+              e("button", { type: "button", className: mode === "gtm" ? "active" : "", onClick: () => setMode("gtm") }, e(Icon, { name: "check" }), "GTM audit")
+            )
+          )
+        );
+      }
+
+      function ScreenshotFields({ experienceType, handleUploadDrop, removeScreenshotFile, screenshotFiles, setImageFiles, setSiteName, siteName, updateScreenshotLabel }) {
+        const isMobileScreens = experienceType === "mobile";
+        const auditLabel = isMobileScreens ? "Mobile app screenshot audit label" : "Website screenshot audit label";
+        const auditPlaceholder = isMobileScreens ? "Client App Screenshots" : "Client Website Screenshots";
+        const uploadTitle = isMobileScreens ? "Upload mobile app screens" : "Upload website screenshots";
+        const uploadHint = isMobileScreens
+          ? "Add mobile app screens that represent onboarding, conversion, account, or key in-app journeys."
+          : "Add website pages or flows that represent homepage, proof, pricing, conversion, or other key journeys.";
+        return e(
+          React.Fragment,
+          null,
+          e(
+            "div",
+            { className: "field" },
+            e("label", { htmlFor: "screenshot-site-name" }, auditLabel),
+            e("input", { id: "screenshot-site-name", value: siteName, placeholder: auditPlaceholder, onChange: (event) => setSiteName(event.target.value) })
+          ),
+          e(
+            "div",
+            { className: "field" },
+            e("label", { htmlFor: "screenshot-files" }, "Screenshots"),
+            e(
+              "label",
+              { className: "upload-zone", htmlFor: "screenshot-files", onDragOver: (event) => event.preventDefault(), onDrop: handleUploadDrop },
+              e("strong", null, uploadTitle),
+              e("span", null, uploadHint),
+              e("input", {
+                id: "screenshot-files",
+                type: "file",
+                accept: "image/png,image/jpeg,image/webp,image/gif",
+                multiple: true,
+                onChange: (event) => {
+                  setImageFiles(event.target.files);
+                  event.target.value = "";
+                },
+              })
+            ),
+            screenshotFiles.length > 0 &&
+              e(
+                "div",
+                { className: "screenshot-grid" },
+                screenshotFiles.map((item, index) =>
+                  e(
+                    "article",
+                    { className: "screenshot-card", key: item.id },
+                    e("div", { className: "screenshot-thumb" }, e("img", { src: item.previewUrl, alt: item.label || `Screenshot ${index + 1}` })),
+                    e(
+                      "div",
+                      { className: "screenshot-meta" },
+                      e(
+                        "div",
+                        { className: "screenshot-name-row" },
+                        e("small", { title: item.file.name }, `${item.file.name} (${formatFileSize(item.file.size)})`),
+                        e("button", { className: "remove-screenshot", type: "button", onClick: () => removeScreenshotFile(item.id), "aria-label": `Remove ${item.label || item.file.name}` }, "X")
+                      ),
+                      e("input", {
+                        className: "screenshot-label-input",
+                        value: item.label,
+                        placeholder: `Screenshot ${index + 1} label`,
+                        onChange: (event) => updateScreenshotLabel(item.id, event.target.value),
+                        "aria-label": `Meaningful name for screenshot ${index + 1}`,
+                      })
+                    )
+                  )
+                )
+              )
+          )
+        );
+      }
+
+      function MobileFields(props) {
+        return e(
+          React.Fragment,
+          null,
+          e(
+            "div",
+            { className: "field" },
+            e("label", { htmlFor: "mobile-app-label" }, "Audit label"),
+            e("input", { id: "mobile-app-label", value: props.mobileAppLabel, placeholder: "Android App Audit", onChange: (event) => props.setMobileAppLabel(event.target.value) })
+          ),
+          e(
+            "div",
+            { className: "field-grid" },
+            e(
+              "div",
+              { className: "field" },
+              e("label", { htmlFor: "mobile-app-package" }, "App package"),
+              e("input", { id: "mobile-app-package", value: props.mobileAppPackage, placeholder: "com.example.app", onChange: (event) => props.setMobileAppPackage(event.target.value), autoComplete: "off" })
+            ),
+            e(
+              "div",
+              { className: "field" },
+              e("label", { htmlFor: "mobile-app-activity" }, "Launch activity"),
+              e("input", { id: "mobile-app-activity", value: props.mobileAppActivity, placeholder: "com.example.app.MainActivity", onChange: (event) => props.setMobileAppActivity(event.target.value), autoComplete: "off" })
+            )
+          ),
+          e(
+            "div",
+            { className: "field-grid" },
+            e(
+              "div",
+              { className: "field" },
+              e("label", { htmlFor: "mobile-appium-url" }, "Appium URL"),
+              e("input", { id: "mobile-appium-url", value: props.mobileAppiumUrl, placeholder: "http://127.0.0.1:4723", onChange: (event) => props.setMobileAppiumUrl(event.target.value), autoComplete: "off" })
+            ),
+            e(
+              "div",
+              { className: "field" },
+              e("label", { htmlFor: "mobile-device-name" }, "Device name"),
+              e("input", { id: "mobile-device-name", value: props.mobileDeviceName, placeholder: "Android Emulator", onChange: (event) => props.setMobileDeviceName(event.target.value), autoComplete: "off" })
+            )
+          ),
+          e(
+            "div",
+            { className: "field-grid" },
+            e(
+              "div",
+              { className: "field" },
+              e("label", { htmlFor: "mobile-platform-version" }, "Platform version"),
+              e("input", { id: "mobile-platform-version", value: props.mobilePlatformVersion, placeholder: "Optional", onChange: (event) => props.setMobilePlatformVersion(event.target.value), autoComplete: "off" })
+            ),
+            e(
+              "div",
+              { className: "field" },
+              e("label", { htmlFor: "mobile-udid" }, "UDID"),
+              e("input", { id: "mobile-udid", value: props.mobileUdid, placeholder: "Optional emulator/device id", onChange: (event) => props.setMobileUdid(event.target.value), autoComplete: "off" })
+            )
+          )
+        );
+      }
+
+      function jobDescriptor(job) {
+        if (!job) return "audit";
+        const type = String(job.type || "").toLowerCase();
+        const inputType = String(job.inputType || "").toLowerCase();
+        if (type === "mobile" && inputType === "screenshot") return "mobile screenshots";
+        if (type === "mobile") return "mobile app";
+        if (type === "website" && inputType === "screenshot") return "website screenshots";
+        if (type === "website" && inputType === "url") return "website url";
+        return type || "audit";
+      }
+
+      function scanTargetName(job) {
+        if (!job) return "Target website";
+        if (job.url) {
+          try {
+            return new URL(job.url).hostname.replace(/^www\./, "");
+          } catch (_error) {
+            return job.url;
+          }
+        }
+        return job.siteName || job.appLabel || "Audit target";
+      }
+
+      function currentCrawlTab(job) {
+        const fallbackUrl = job?.url || "";
+        const fallbackTitle = job?.stage || "Preparing browser tab";
+        const logs = Array.isArray(job?.logs) ? [...job.logs].reverse() : [];
+        const urlPattern = /(https?:\/\/[^\s]+)/i;
+
+        for (const rawLine of logs) {
+          const line = String(rawLine || "");
+          const urlMatch = line.match(urlPattern);
+          if (!urlMatch) continue;
+          const url = urlMatch[1].replace(/[.,)]$/, "");
+          const startMatch = line.match(/\]\s*([^>\n]+?)\s*->\s*https?:\/\//);
+          return {
+            url,
+            title: startMatch ? startMatch[1].trim() : "Opening crawled page",
+          };
+        }
+
+        return {
+          url: fallbackUrl,
+          title: fallbackUrl ? "Opening website tab" : fallbackTitle,
+        };
+      }
+
+      function artifactUrlFromPath(rawPath) {
+        const value = String(rawPath || "").trim().replace(/\\/g, "/");
+        if (!value) return "";
+        const markers = ["shared/output/", "shared/generated/"];
+        for (const marker of markers) {
+          const index = value.indexOf(marker);
+          if (index !== -1) {
+            return buildApiUrl(`/artifacts/${encodeURI(value.slice(index))}`);
+          }
+        }
+        return "";
+      }
+
+      function latestPreviewImageUrl(job) {
+        const fromJob = artifactUrlFromPath(job?.previewImagePath);
+        if (fromJob) return fromJob;
+
+        const logs = Array.isArray(job?.logs) ? [...job.logs].reverse() : [];
+        for (const rawLine of logs) {
+          const line = String(rawLine || "");
+          const match = line.match(/screenshot saved:\s*(.+)$/i);
+          if (!match) continue;
+          const fromLog = artifactUrlFromPath(match[1]);
+          if (fromLog) return fromLog;
+        }
+
+        const screenshotPaths = Array.isArray(job?.screenshotPaths) ? job.screenshotPaths : [];
+        if (screenshotPaths.length) return artifactUrlFromPath(screenshotPaths[0]);
+        return "";
+      }
+
+      function liveFrameUrl(job, currentTab) {
+        const candidate = currentTab?.url || job?.url || "";
+        if (!candidate) return "";
+        try {
+          const parsed = new URL(candidate);
+          return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : "";
+        } catch (_error) {
+          return "";
+        }
+      }
+
+      function crawlTrailFromLogs(job) {
+        const logs = Array.isArray(job?.logs) ? job.logs : [];
+        const pages = [];
+        const seen = new Set();
+        for (const rawLine of logs) {
+          const line = String(rawLine || "");
+          const match = line.match(/\[START\s+(\d+)\/(\d+)\]\s*([^>\n]+?)\s*->\s*(https?:\/\/[^\s]+)/);
+          if (!match) continue;
+          const url = match[4].replace(/[.,)]$/, "");
+          if (seen.has(url)) continue;
+          seen.add(url);
+          pages.push({
+            index: Number(match[1]),
+            total: Number(match[2]),
+            title: match[3].trim(),
+            url,
+          });
+        }
+        if (!pages.length && job?.url) {
+          pages.push({ index: 1, total: 1, title: "Home", url: job.url });
+        }
+        return pages.slice(-4);
+      }
+
+      function scanStepsForJob(job, progress, status) {
+        const isScreenshot = job?.inputType === "screenshot";
+        const isMobile = job?.type === "mobile" && !isScreenshot;
+        const labels = isMobile
+          ? ["Connecting to device", "Launching app", "Reading hierarchy", "Capturing artifacts", "Preparing output"]
+          : isScreenshot
+            ? ["Loading screenshots", "Reading visual hierarchy", "Checking trust signals", "Writing report", "Publishing result"]
+            : ["Crawling website", "Opening pages", "Extracting UI evidence", "Building audit report", "Publishing result"];
+        const activeIndex = status === "completed" ? labels.length - 1 : Math.min(labels.length - 1, Math.floor((progress || 0) / 22));
+        return labels.map((label, index) => ({ label, active: index === activeIndex, complete: index < activeIndex || status === "completed" }));
+      }
+
+      function visibleScanLogs(job, status) {
+        if (status === "completed") return [];
+        return (Array.isArray(job?.logs) ? job.logs : [])
+          .filter((line) => {
+            const text = String(line || "");
+            return !/SyntaxError|internal\/modules|Traceback|RuntimeError|File "\/app/.test(text);
+          })
+          .slice(-4)
+          .filter(Boolean);
+      }
+
+      function ScanVisualizer({ job, progress, status }) {
+        const target = scanTargetName(job);
+        const currentTab = currentCrawlTab(job);
+        const previewImageUrl = latestPreviewImageUrl(job);
+        const frameUrl = liveFrameUrl(job, currentTab);
+        const crawlTrail = crawlTrailFromLogs(job);
+        const steps = scanStepsForJob(job, progress, status);
+        const logs = visibleScanLogs(job, status);
+        return e(
+          "div",
+          { className: "scan-layout", "aria-label": "Audit scanning activity" },
+          e(
+            "div",
+            { className: `scan-frame ${frameUrl ? "has-live" : ""} ${previewImageUrl ? "has-preview" : ""}` },
+            e("span", { className: "scan-corner tl" }),
+            e("span", { className: "scan-corner tr" }),
+            e("span", { className: "scan-corner bl" }),
+            e("span", { className: "scan-corner br" }),
+            e("span", { className: "scan-dot one" }),
+            e("span", { className: "scan-dot two" }),
+            e("span", { className: "scan-dot three" }),
+            previewImageUrl
+              ? e("img", { className: "scan-real-shot", src: previewImageUrl, alt: `Captured page preview for ${target}` })
+              : e("div", { className: "scan-empty-state" }, e("strong", null, "Waiting for first captured page"), e("span", null, "The real website screenshot will appear here as soon as Playwright saves it.")),
+            frameUrl && e("iframe", { className: "scan-live-frame", src: frameUrl, title: `Live website preview for ${target}`, sandbox: "allow-scripts allow-same-origin allow-forms allow-popups" }),
+            e("span", { className: "sr-only" }, previewImageUrl ? `Analyzing captured page for ${target}` : `Opening live website preview for ${target}`)
+          ),
+            e(
+              "div",
+              { className: "scan-panel" },
+            steps.map((step) => e("div", { className: `scan-step ${step.active ? "active" : ""} ${step.complete ? "complete" : ""}`, key: step.label }, step.label)),
+            logs.length > 0 && e("div", { className: "scan-log" }, logs.map((line, index) => e("div", { key: `${index}-${line}` }, line)))
+          )
+        );
+      }
+
+      function StatusStrip({ job, isStopping, onOpen, onStop }) {
+        const progress = job?.progress || 0;
+        const canStop = ["queued", "running"].includes(job?.status);
+        return e(
+          "div",
+          { className: "status-strip" },
+          e("div", null, e("strong", null, `${jobDescriptor(job)}: ${job.status || "queued"}`), e("div", null, job.stage || "Preparing process")),
+          e("div", { className: "progress-wrap", "aria-label": `Progress ${progress}%` }, e("div", { className: "progress", style: { width: `${progress}%` } })),
+          e(
+            "div",
+            { className: "success-actions", style: { marginTop: 0 } },
+            canStop && e("button", { className: "ghost stop-button", type: "button", onClick: onStop, disabled: isStopping }, isStopping ? "Stopping..." : "Stop"),
+            e("button", { className: "ghost", type: "button", onClick: onOpen }, "Details")
+          )
+        );
+      }
+
+      function ProgressModal({ job, error, isStopping, onClose, onStop }) {
+        const progress = job?.progress || 0;
+        const status = job?.status || (error ? "failed" : "queued");
+        const isMobileLiveJob = job?.type === "mobile" && job?.inputType !== "screenshot";
+        const isLocalReport = Boolean(job?.resultUrl && String(job.resultUrl).startsWith("/artifacts/"));
+        const isActiveJob = ["queued", "running"].includes(status);
+        const completedEyebrow = isMobileLiveJob ? "Artifacts ready" : isLocalReport ? "Local report ready" : "Deployment ready";
+        const completedHeading = isMobileLiveJob ? "Mobile extraction is complete." : isLocalReport ? "Your report is ready locally." : "Your report is deployed.";
+        const completedMessage = isMobileLiveJob
+          ? job?.stage || "The first Android screen, hierarchy, and structured extraction artifacts are ready."
+          : isLocalReport
+            ? job?.error || job?.stage || "The report was generated and served locally because Vercel deployment did not complete."
+            : job?.stage || "Deployment completed.";
+        const eyebrow = status === "completed" ? completedEyebrow : status === "cancelled" ? "Stopped" : status === "failed" ? "Action needed" : "Audit running";
+        const heading =
+          status === "completed"
+            ? completedHeading
+            : status === "cancelled"
+              ? "The audit was stopped."
+              : status === "failed"
+                ? "The audit could not finish."
+                : isMobileLiveJob
+                  ? "Running the Android extraction."
+                  : "Building the audit report.";
+        const message = status === "completed" ? completedMessage : status === "cancelled" ? "Audit stopped by user." : error || job?.error || job?.stage || "Preparing process...";
+
+        return e(
+          "div",
+          { className: "modal-backdrop" },
+          e(
+            "section",
+            { className: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Audit progress" },
+            e(
+              "div",
+              { className: "modal-head" },
+              e("div", { className: "ey-pill" }, eyebrow),
+              e("button", { className: "ghost", type: "button", onClick: onClose, "aria-label": "Close audit progress" }, e(Icon, { name: "close" }))
+            ),
+            e("h2", null, heading),
+            e("p", { className: "stage" }, message),
+            e(ScanVisualizer, { job, progress, status }),
+            e("div", { className: "progress-wrap", "aria-label": `Progress ${progress}%` }, e("div", { className: "progress", style: { width: `${progress}%` } })),
+            isActiveJob &&
+              e(
+                "div",
+                { className: "success-actions" },
+                e("button", { className: "ghost stop-button", type: "button", onClick: onStop, disabled: isStopping }, isStopping ? "Stopping audit..." : "Stop audit"),
+                e("button", { className: "ghost", type: "button", onClick: onClose }, "Hide")
+              ),
+            status === "completed" &&
+              e(
+                "div",
+                { className: "success-actions" },
+                !isMobileLiveJob && job.resultUrl && e("a", { className: "primary", href: job.resultUrl, target: "_blank", rel: "noreferrer" }, "Open Audit Report", e(Icon, { name: "arrow" })),
+                e("button", { className: "ghost", type: "button", onClick: onClose }, "Close")
+              ),
+            status === "completed" &&
+              isMobileLiveJob &&
+              job?.outputDir &&
+              e("div", { className: "artifact-summary" }, e("strong", null, "Saved artifact directory"), e("div", { className: "artifact-path" }, job.outputDir)),
+            ["failed", "cancelled"].includes(status) && e("div", { className: "success-actions" }, e("button", { className: "ghost", type: "button", onClick: onClose }, "Close"))
+          )
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById("root")).render(e(App));
+    </script>
+    <script src="https://chaingpt-web.s3.us-east-2.amazonaws.com/assets/js/main-script-no-reviews.js" type="module" async></script>
+  </body>
+</html>

@@ -1,0 +1,14 @@
+C:\ngrok\ngrok.exe config add-authtoken 3Cs6K4pqbUlren564D8yWBknms0_6pqbU3eKqtQRWyATjFbPT
+ngrok        
+
+run:
+docker stop ux-ui-auditor
+docker rm ux-ui-auditor
+docker run --name ux-ui-auditor --env-file .env -p 10000:10000 ux-ui-auditor
+
+test:
+
+http://localhost:10000
+
+distant machine test:
+https://voice-cherisher-comment.ngrok-free.dev
