@@ -236,6 +236,12 @@
         color: white;
       }
 
+      .compact {
+        min-height: 46px;
+        padding: 0 18px;
+        white-space: nowrap;
+      }
+
       .ghost {
         border-color: rgba(196, 196, 208, 0.22);
         min-height: 46px;
@@ -572,7 +578,8 @@
         font-weight: 850;
       }
 
-      .field input {
+      .field input,
+      .field select {
         background: rgba(45, 46, 56, 0.62);
         border: 1px solid rgba(196, 196, 208, 0.18);
         border-radius: 18px;
@@ -583,13 +590,56 @@
         width: 100%;
       }
 
+      .field select {
+        appearance: none;
+      }
+
       .field input::placeholder {
         color: rgba(196, 196, 208, 0.44);
       }
 
-      .field input:focus {
+      .field input:focus,
+      .field select:focus {
         border-color: rgba(255, 230, 0, 0.8);
         box-shadow: 0 0 0 4px rgba(255, 230, 0, 0.12);
+      }
+
+      .field-note {
+        color: var(--muted);
+        font-size: 0.9rem;
+        line-height: 1.45;
+        margin-top: 10px;
+      }
+
+      .warning-note {
+        color: #ffd7a3;
+      }
+
+      .mobile-discovery-panel {
+        align-items: center;
+        background: rgba(45, 46, 56, 0.46);
+        border: 1px solid rgba(196, 196, 208, 0.18);
+        border-radius: 18px;
+        display: flex;
+        gap: 16px;
+        justify-content: space-between;
+        margin-top: 20px;
+        padding: 16px;
+      }
+
+      .mobile-discovery-panel strong,
+      .mobile-discovery-panel span {
+        display: block;
+      }
+
+      .mobile-discovery-panel strong {
+        color: var(--text);
+      }
+
+      .mobile-discovery-panel span {
+        color: var(--muted);
+        font-size: 0.92rem;
+        margin-top: 4px;
       }
 
       .field-grid {
@@ -1765,7 +1815,35 @@
       async function apiFetch(path, options) {
         const requestOptions = { ...(options || {}) };
         requestOptions.headers = buildApiHeaders(requestOptions.headers);
-        return fetch(buildApiUrl(path), requestOptions);
+        const targetUrl = buildApiUrl(path);
+        try {
+          return await fetch(targetUrl, requestOptions);
+        } catch (_error) {
+          const base = API_BASE_URL || window.location.origin;
+          throw new Error(`Unable to reach backend API at ${base}. Confirm the Python server is running and config.js points to the active backend URL.`);
+        }
+      }
+
+      async function readApiJson(response, fallbackMessage) {
+        const contentType = response.headers.get("content-type") || "";
+        const text = await response.text();
+        const cleanText = text.trim();
+        const looksLikeJson = cleanText.startsWith("{") || cleanText.startsWith("[");
+
+        if (cleanText && (contentType.includes("application/json") || looksLikeJson)) {
+          try {
+            return JSON.parse(cleanText);
+          } catch (_error) {
+            throw new Error(`Backend returned malformed JSON from ${response.url || "the API"}.`);
+          }
+        }
+
+        if (!cleanText && response.ok) {
+          return {};
+        }
+
+        const preview = cleanText ? ` Preview: ${cleanText.slice(0, 120)}` : "";
+        throw new Error(`${fallbackMessage || "Backend returned a non-JSON response."} Check src/ui/static/config.js and confirm the API URL is the active backend/ngrok URL.${preview}`);
       }
 
       function App() {
@@ -1782,6 +1860,8 @@
         const [mobileDeviceName, setMobileDeviceName] = useState("Android Emulator");
         const [mobilePlatformVersion, setMobilePlatformVersion] = useState("");
         const [mobileUdid, setMobileUdid] = useState("");
+        const [mobileDiscovery, setMobileDiscovery] = useState(null);
+        const [isDiscoveringMobile, setIsDiscoveringMobile] = useState(false);
         const [screenshotFiles, setScreenshotFilesState] = useState([]);
         const [job, setJob] = useState(null);
         const [error, setError] = useState("");
@@ -1800,8 +1880,8 @@
           if (isSubmitting) return false;
           if (isWebsiteUrlAudit) return url.trim().length > 3;
           if (isScreenshotAudit) return screenshotFiles.length > 0;
-          return mobileAppPackage.trim().length > 1 && mobileAppActivity.trim().length > 1;
-        }, [isMobileLiveAudit, isScreenshotAudit, isSubmitting, isWebsiteUrlAudit, mobileAppActivity, mobileAppPackage, screenshotFiles.length, url]);
+          return isMobileLiveAudit;
+        }, [isMobileLiveAudit, isScreenshotAudit, isSubmitting, isWebsiteUrlAudit, screenshotFiles.length, url]);
 
         const completionText = useMemo(() => {
           if (isMobileLiveAudit) return "Review the generated first-screen artifacts and structured mobile evidence.";
@@ -1829,6 +1909,12 @@
         }, []);
 
         useEffect(() => {
+          if (!isMobileLiveAudit || mobileDiscovery || isDiscoveringMobile) return undefined;
+          discoverMobileTarget(false);
+          return undefined;
+        }, [isMobileLiveAudit, mobileDiscovery, isDiscoveringMobile]);
+
+        useEffect(() => {
           function syncPageFromHash() {
             setActivePage(pageFromHash());
           }
@@ -1847,7 +1933,7 @@
           const poll = async () => {
             try {
               const response = await apiFetch(`/api/audits/${job.id}`);
-              const payload = await response.json();
+              const payload = await readApiJson(response, "Unable to refresh the audit status.");
               if (!cancelled && response.ok) {
                 setJob(payload);
               }
@@ -1901,6 +1987,54 @@
           setScreenshotFilesState((current) => current.map((item) => (item.id === id ? { ...item, label } : item)));
         }
 
+        function applyDiscoveredMobileTarget(target, force) {
+          if (!target) return;
+          setMobileAppPackage((current) => (force || !current.trim() ? target.appPackage || current : current));
+          setMobileAppActivity((current) => (force || !current.trim() ? target.appActivity || current : current));
+          setMobileAppLabel((current) => {
+            const clean = (current || "").trim();
+            if (!force && clean && clean !== "Android App Audit") return current;
+            return target.appLabel || clean || "Android App Audit";
+          });
+        }
+
+        function applyMobileDiscovery(payload, forceTarget) {
+          setMobileDiscovery(payload);
+          const defaults = payload?.defaults || {};
+          setMobileAppiumUrl((current) => current.trim() ? current : defaults.appiumUrl || "http://127.0.0.1:4723");
+          setMobileDeviceName((current) => current.trim() && current !== "Android Emulator" ? current : defaults.deviceName || current || "Android Emulator");
+          setMobilePlatformVersion((current) => current.trim() ? current : defaults.platformVersion || "");
+          setMobileUdid((current) => current.trim() ? current : defaults.udid || "");
+
+          const apps = Array.isArray(payload?.launchableApps) ? payload.launchableApps : [];
+          const target = payload?.currentApp || apps[0] || null;
+          applyDiscoveredMobileTarget(target, forceTarget);
+        }
+
+        async function discoverMobileTarget(forceTarget = false) {
+          setIsDiscoveringMobile(true);
+          try {
+            const response = await apiFetch("/api/mobile/discovery");
+            const payload = await readApiJson(response, "Unable to detect the connected Android app.");
+            if (!response.ok) {
+              throw new Error(payload.error || "Unable to detect the connected Android app.");
+            }
+            applyMobileDiscovery(payload, forceTarget);
+            return payload;
+          } catch (discoveryError) {
+            setError(discoveryError.message || "Unable to detect the connected Android app.");
+            return null;
+          } finally {
+            setIsDiscoveringMobile(false);
+          }
+        }
+
+        function selectDiscoveredApp(indexValue) {
+          const apps = Array.isArray(mobileDiscovery?.launchableApps) ? mobileDiscovery.launchableApps : [];
+          const target = apps[Number(indexValue)];
+          applyDiscoveredMobileTarget(target, true);
+        }
+
         function handleUploadDrop(event) {
           event.preventDefault();
           setImageFiles(event.dataTransfer.files);
@@ -1947,7 +2081,7 @@
               });
             }
 
-            const payload = await response.json();
+            const payload = await readApiJson(response, "Unable to start the audit.");
             if (!response.ok) {
               throw new Error(payload.error || "Unable to start the audit.");
             }
@@ -1966,7 +2100,7 @@
           setIsStopping(true);
           try {
             const response = await apiFetch(`/api/audits/${job.id}/cancel`, { method: "POST" });
-            const payload = await response.json();
+            const payload = await readApiJson(response, "Unable to stop the audit.");
             if (!response.ok) {
               throw new Error(payload.error || "Unable to stop the audit.");
             }
@@ -2105,13 +2239,17 @@
                   }),
                 isMobileLiveAudit &&
                   e(MobileFields, {
+                    isDiscoveringMobile,
                     mobileAppActivity,
+                    mobileDiscovery,
                     mobileAppLabel,
                     mobileAppPackage,
                     mobileAppiumUrl,
                     mobileDeviceName,
                     mobilePlatformVersion,
                     mobileUdid,
+                    onDiscoverMobileTarget: () => discoverMobileTarget(true),
+                    onSelectDiscoveredApp: selectDiscoveredApp,
                     setMobileAppActivity,
                     setMobileAppLabel,
                     setMobileAppPackage,
@@ -2299,9 +2437,38 @@
       }
 
       function MobileFields(props) {
+        const launchableApps = Array.isArray(props.mobileDiscovery?.launchableApps) ? props.mobileDiscovery.launchableApps : [];
+        const discoveryWarnings = Array.isArray(props.mobileDiscovery?.warnings) ? props.mobileDiscovery.warnings : [];
         return e(
           React.Fragment,
           null,
+          e(
+            "div",
+            { className: "mobile-discovery-panel" },
+            e(
+              "div",
+              null,
+              e("strong", null, "Connected Android target"),
+              e("span", null, props.mobileDiscovery?.selectedDevice?.udid ? `${props.mobileDiscovery.selectedDevice.deviceName || "Android Device"} (${props.mobileDiscovery.selectedDevice.udid})` : "Detect the emulator/device and launchable app automatically.")
+            ),
+            e("button", { className: "secondary compact", type: "button", onClick: props.onDiscoverMobileTarget, disabled: props.isDiscoveringMobile }, props.isDiscoveringMobile ? "Detecting..." : "Detect app")
+          ),
+          launchableApps.length > 0 &&
+            e(
+              "div",
+              { className: "field" },
+              e("label", { htmlFor: "mobile-detected-app" }, "Detected launchable apps"),
+              e(
+                "select",
+                { id: "mobile-detected-app", onChange: (event) => props.onSelectDiscoveredApp(event.target.value), defaultValue: "" },
+                e("option", { value: "", disabled: true }, "Choose detected app"),
+                launchableApps.map((app, index) =>
+                  e("option", { key: `${app.appPackage}-${app.appActivity}-${index}`, value: String(index) }, `${app.appLabel || app.appPackage} - ${app.appPackage}`)
+                )
+              )
+            ),
+          discoveryWarnings.length > 0 &&
+            e("div", { className: "field-note warning-note" }, discoveryWarnings.slice(0, 2).join(" ")),
           e(
             "div",
             { className: "field" },

@@ -39,6 +39,13 @@ SCREENSHOT_LOG_RE = re.compile(r"screenshot saved:\s*(?P<path>.+)$", re.IGNORECA
 SAFE_FILENAME_RE = re.compile(r"[^a-zA-Z0-9._-]+")
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 FOREGROUND_ACTIVITY_RE = re.compile(r"(?P<package>[A-Za-z0-9._$]+)/(?P<activity>[A-Za-z0-9._$/-]+)")
+ANDROID_SYSTEM_PACKAGE_PREFIXES = (
+    "android",
+    "com.android.",
+    "com.google.android.",
+    "com.google.android.apps.nexuslauncher",
+    "com.google.android.inputmethod",
+)
 
 load_dotenv(ROOT_DIR / ".env")
 
@@ -368,6 +375,30 @@ def _friendly_app_label(package_name: str, activity_name: str = "") -> str:
     return " ".join(part.capitalize() for part in re.split(r"\s+", raw))
 
 
+def _is_android_system_package(package_name: str) -> bool:
+    clean = str(package_name or "").strip().lower()
+    if not clean:
+        return True
+    return any(clean == prefix.rstrip(".") or clean.startswith(prefix) for prefix in ANDROID_SYSTEM_PACKAGE_PREFIXES)
+
+
+def _find_launchable_app_for_package(launchable_apps: list[dict[str, str]], package_name: str) -> dict[str, str] | None:
+    clean_package = str(package_name or "").strip()
+    if not clean_package:
+        return None
+    for app in launchable_apps:
+        if str(app.get("appPackage") or "").strip() == clean_package:
+            return app
+    return None
+
+
+def _first_user_launchable_app(launchable_apps: list[dict[str, str]]) -> dict[str, str] | None:
+    for app in launchable_apps:
+        if not _is_android_system_package(str(app.get("appPackage") or "")):
+            return app
+    return launchable_apps[0] if launchable_apps else None
+
+
 def _parse_adb_devices(raw_output: str) -> list[dict[str, str]]:
     devices: list[dict[str, str]] = []
     for line in (raw_output or "").splitlines():
@@ -485,14 +516,24 @@ def _mobile_discovery_payload() -> dict[str, Any]:
         except Exception as exc:
             warnings.append(f"Unable to list launchable apps: {exc}")
 
-    if current_package and current_activity:
-        current_app = {
-            "appPackage": current_package,
-            "appActivity": current_activity,
-            "appLabel": _friendly_app_label(current_package, current_activity),
-        }
-        if (current_package, current_activity) not in {(app["appPackage"], app["appActivity"]) for app in launchable_apps}:
+    if current_package and not _is_android_system_package(current_package):
+        launchable_current = _find_launchable_app_for_package(launchable_apps, current_package)
+        if launchable_current:
+            current_app = launchable_current
+        elif current_activity:
+            current_app = {
+                "appPackage": current_package,
+                "appActivity": current_activity,
+                "appLabel": _friendly_app_label(current_package, current_activity),
+            }
+            warnings.append(
+                "The foreground app was detected, but no launcher activity was found for it. "
+                "If session creation fails, choose a detected launchable app manually."
+            )
             launchable_apps = [current_app, *launchable_apps]
+
+    if not current_app:
+        current_app = _first_user_launchable_app(launchable_apps)
 
     return {
         "adbPath": adb_path,
@@ -1132,12 +1173,32 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
                     worker = threading.Thread(target=_run_audit_job, args=(job["id"],), daemon=True)
                 elif audit_type == "mobile":
                     app_label = str(data.get("appLabel") or "Android App Audit").strip() or "Android App Audit"
-                    app_package = _validate_required_text(str(data.get("appPackage") or ""), "Android app package")
-                    app_activity = _validate_required_text(str(data.get("appActivity") or ""), "Android app activity")
+                    app_package = str(data.get("appPackage") or "").strip()
+                    app_activity = str(data.get("appActivity") or "").strip()
                     appium_url = str(data.get("appiumUrl") or "http://127.0.0.1:4723").strip() or "http://127.0.0.1:4723"
                     device_name = str(data.get("deviceName") or "Android Emulator").strip() or "Android Emulator"
                     platform_version = str(data.get("platformVersion") or "").strip()
                     udid = str(data.get("udid") or "").strip()
+
+                    if not app_package or not app_activity:
+                        discovery = _mobile_discovery_payload()
+                        discovered_target = discovery.get("currentApp")
+                        if not discovered_target:
+                            launchable_apps = discovery.get("launchableApps") or []
+                            discovered_target = launchable_apps[0] if launchable_apps else None
+                        if isinstance(discovered_target, dict):
+                            app_package = app_package or str(discovered_target.get("appPackage") or "").strip()
+                            app_activity = app_activity or str(discovered_target.get("appActivity") or "").strip()
+                            if app_label == "Android App Audit":
+                                app_label = str(discovered_target.get("appLabel") or app_label).strip() or app_label
+                        defaults = discovery.get("defaults") if isinstance(discovery, dict) else {}
+                        if isinstance(defaults, dict):
+                            device_name = device_name or str(defaults.get("deviceName") or "Android Emulator")
+                            platform_version = platform_version or str(defaults.get("platformVersion") or "")
+                            udid = udid or str(defaults.get("udid") or "")
+
+                    app_package = _validate_required_text(app_package, "Android app package")
+                    app_activity = _validate_required_text(app_activity, "Android app activity")
                     job = _new_mobile_job(
                         app_label=app_label,
                         app_package=app_package,
