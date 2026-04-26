@@ -513,6 +513,36 @@ python -m src.report.generate_audit_report --website-menu shared/generated/websi
 
 The frontend is a static site under [src/ui/static/index.html](C:/dev/UX-UI_-Agent/src/ui/static/index.html). It is served locally by [src/ui/server.py](C:/dev/UX-UI_-Agent/src/ui/server.py), and it can also be deployed independently as a static site.
 
+## Production Deployment
+
+Use the Docker deployment for the full app. The audit backend is a long-running Python service that runs Playwright and starts subprocesses, so it should be deployed as a container or VPS service. Vercel is used by this project for the generated static audit reports, not as the primary backend runtime.
+
+Docker build and run:
+
+```bash
+docker build -t ux-ui-auditor .
+docker run --env-file .env -p 10000:10000 ux-ui-auditor
+```
+
+Then open:
+
+```text
+http://localhost:10000
+```
+
+Required production defaults:
+
+```bash
+HOST=0.0.0.0
+PORT=10000
+AUDIT_BROWSER_HEADLESS=1
+AUDIT_BROWSER_TYPE=chromium
+AUDIT_BROWSER_CHANNEL=
+AUDIT_PAGE_CONCURRENCY=2
+```
+
+If you deploy on Render, use the included `render.yaml` blueprint or create a Docker web service with `/health` as the health check path.
+
 For the Vercel + local backend demo setup:
 
 - deploy `src/ui/static` as the static frontend
@@ -546,6 +576,17 @@ npm i -g vercel
 vercel login
 vercel link --yes
 ```
+
+For Docker auto-deploy, add these values to `.env`:
+
+```bash
+VERCEL_TOKEN=your_vercel_token
+VERCEL_ORG_ID=your_org_id
+VERCEL_PROJECT_ID=your_project_id
+VERCEL_SCOPE=your_team_slug_or_username
+```
+
+`VERCEL_SCOPE` is optional for personal accounts, but useful when the project belongs to a team.
 
 ## Notes
 

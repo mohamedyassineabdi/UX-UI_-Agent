@@ -112,13 +112,10 @@ def _build_runner_config(args: argparse.Namespace) -> MobileRunnerConfig:
     defaults = _mobile_defaults()
     initialization_defaults = defaults.get("initialization", {})
     exploration_defaults = defaults.get("exploration", {})
-    capture_defaults = defaults.get("capture", {})
     return MobileRunnerConfig(
         settle_delay_ms=args.settle_delay_ms,
         stabilization_timeout_ms=args.stabilization_timeout_ms,
         stabilization_poll_ms=args.stabilization_poll_ms,
-        transition_wait_timeout_ms=int(capture_defaults.get("transitionWaitTimeoutMs", 9000)),
-        transition_wait_poll_ms=int(capture_defaults.get("transitionWaitPollMs", 700)),
         initialization_max_back_presses=int(initialization_defaults.get("maxBackPresses", 2)),
         initialization_post_back_delay_ms=int(initialization_defaults.get("postBackDelayMs", 900)),
         initialization_max_relaunches=int(initialization_defaults.get("maxRelaunches", 1)),
@@ -133,8 +130,6 @@ def _build_explorer_config() -> ExplorerConfig:
     return ExplorerConfig(
         max_screens=int(exploration_defaults.get("maxScreens", 12)),
         max_actions_total=int(exploration_defaults.get("maxActionsTotal", 24)),
-        max_onboarding_screens=int(exploration_defaults.get("maxOnboardingScreens", 24)),
-        max_onboarding_actions=int(exploration_defaults.get("maxOnboardingActions", 48)),
         max_actions_per_screen=int(exploration_defaults.get("maxActionsPerScreen", 6)),
         max_scrolls_per_path=int(exploration_defaults.get("maxScrollsPerPath", 3)),
         max_backtrack_steps=int(exploration_defaults.get("maxBacktrackSteps", 2)),

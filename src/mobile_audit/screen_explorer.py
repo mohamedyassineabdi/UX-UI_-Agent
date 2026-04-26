@@ -16,8 +16,6 @@ class ExplorerConfig:
     max_actions_per_screen: int = 6
     max_scrolls_per_path: int = 3
     max_backtrack_steps: int = 2
-    max_onboarding_screens: int = 24
-    max_onboarding_actions: int = 48
 
 
 @dataclass(slots=True)
@@ -49,20 +47,6 @@ class BoundedScreenExplorer:
         self._tested_action_signatures: set[tuple[Any, ...]] = set()
         self._screen_counter = 1
         self._interaction_counter = 1
-
-    def _screen_budget_counts(self) -> tuple[int, int]:
-        onboarding_screens = sum(1 for screen in self._screens if self._screen_type(screen) == "onboarding_screen")
-        non_onboarding_screens = len(self._screens) - onboarding_screens
-        return onboarding_screens, non_onboarding_screens
-
-    def _action_budget_counts(self) -> tuple[int, int]:
-        onboarding_actions = sum(
-            1
-            for interaction in self._interactions
-            if str(interaction.get("result_details", {}).get("source_screen_type") or "") == "onboarding_screen"
-        )
-        non_onboarding_actions = len(self._interactions) - onboarding_actions
-        return onboarding_actions, non_onboarding_actions
 
     def _next_screen_id(self) -> str:
         screen_id = f"screen_{self._screen_counter:03d}"
@@ -124,9 +108,7 @@ class BoundedScreenExplorer:
         resolved["available_labels"] = sorted(labels)
         resolved["screen_type"] = screen.get("semantic", {}).get("screen_type") or screen.get("meta", {}).get("screen_type") or "unknown"
         resolved["surface_profile"] = resolved["screen_type"]
-        resolved["screen_title_guess"] = str(screen.get("screen_title_guess") or "")
         resolved["visible_text_count"] = len(screen.get("visible_text", []))
-        resolved["visible_text"] = list(screen.get("visible_text", []))[:20]
         resolved["screen_bounds"] = list(screen.get("meta", {}).get("screen_bounds_union") or [0, 0, 0, 0])
         return resolved
 
@@ -290,14 +272,6 @@ class BoundedScreenExplorer:
             return "navigation"
         return "navigation"
 
-    def _capture_transition_target(self, source_screen: dict[str, Any]) -> dict[str, Any]:
-        initial_capture = self.runner.capture_current_screen(screen_id="pending_screen")
-        return self.runner.wait_for_transition_target(
-            source_screen,
-            initial_capture,
-            screen_id="pending_screen",
-        )
-
     def _current_capture(self, screen_id_prefix: str = "probe") -> dict[str, Any]:
         return self.runner.inspect_current_screen(
             screen_id=f"{screen_id_prefix}_{self._interaction_counter:03d}",
@@ -359,7 +333,7 @@ class BoundedScreenExplorer:
                 f"final={candidate.get('selection_score', 0)})."
             )
             action_type = self._perform_candidate_action(candidate)
-            follow_up_capture = self._capture_transition_target(updated_screen)
+            follow_up_capture = self.runner.capture_current_screen(screen_id="pending_screen")
             target_screen, is_new = self._maybe_register_target(follow_up_capture)
             result = self._detect_result(updated_screen, follow_up_capture["screen"])
             target_screen_id = (
@@ -381,7 +355,7 @@ class BoundedScreenExplorer:
                 target_screen_id=target_screen_id,
                 target_screen=follow_up_capture["screen"],
             )
-            if is_new and not self._should_stop(self._screen_type(follow_up_capture["screen"])):
+            if is_new and not self._should_stop():
                 self._explore_capture(follow_up_capture, scroll_depth=0)
             return True
         except Exception as exc:
@@ -411,25 +385,10 @@ class BoundedScreenExplorer:
             self.device_manager.press_back()
         return False
 
-    def _should_stop(self, current_screen_type: Optional[str] = None) -> bool:
-        onboarding_screens, non_onboarding_screens = self._screen_budget_counts()
-        onboarding_actions, non_onboarding_actions = self._action_budget_counts()
-
-        if len(self._screens) >= (self.config.max_screens + self.config.max_onboarding_screens):
-            return True
-        if len(self._interactions) >= (self.config.max_actions_total + self.config.max_onboarding_actions):
-            return True
-
-        screen_type = current_screen_type or (self._screen_type(self._screens[-1]) if self._screens else "unknown")
-        if screen_type == "onboarding_screen":
-            return (
-                onboarding_screens >= self.config.max_onboarding_screens
-                or onboarding_actions >= self.config.max_onboarding_actions
-            )
-
+    def _should_stop(self) -> bool:
         return (
-            non_onboarding_screens >= self.config.max_screens
-            or non_onboarding_actions >= self.config.max_actions_total
+            len(self._interactions) >= self.config.max_actions_total
+            or len(self._screens) >= self.config.max_screens
         )
 
     def _maybe_register_target(self, capture: dict[str, Any]) -> tuple[dict[str, Any], bool]:
@@ -450,7 +409,7 @@ class BoundedScreenExplorer:
         disabled_progression_visible = self._has_disabled_progression(source_screen)
         max_onboarding_choice_attempts = 5 if disabled_progression_visible else 2
         for candidate in ranked:
-            if executed_on_screen >= self.config.max_actions_per_screen or self._should_stop(source_screen_type):
+            if executed_on_screen >= self.config.max_actions_per_screen or self._should_stop():
                 return True
 
             action_category = str(candidate.get("action_category") or "")
@@ -477,7 +436,7 @@ class BoundedScreenExplorer:
                     f"final={candidate.get('selection_score', 0)})"
                 )
                 action_type = self._perform_candidate_action(candidate)
-                follow_up_capture = self._capture_transition_target(source_screen)
+                follow_up_capture = self.runner.capture_current_screen(screen_id="pending_screen")
                 target_screen, is_new = self._maybe_register_target(follow_up_capture)
                 result = self._detect_result(source_screen, follow_up_capture["screen"])
                 target_screen_id = (
@@ -520,12 +479,12 @@ class BoundedScreenExplorer:
                     print("[mobile] Continued onboarding immediately after a valid selection state.")
                     return False
                 if result == "content_shift":
-                    if is_new and not self._should_stop(self._screen_type(follow_up_capture["screen"])):
+                    if is_new and not self._should_stop():
                         self._explore_capture(follow_up_capture, scroll_depth=0)
                     print("[mobile] In-place screen state changed after tap; continuing exploration from the updated state.")
                     return False
                 if result in {"navigation", "modal_open"}:
-                    if is_new and not self._should_stop(self._screen_type(follow_up_capture["screen"])):
+                    if is_new and not self._should_stop():
                         self._explore_capture(follow_up_capture, scroll_depth=0)
                     if source_screen_type == "onboarding_screen" and action_category == "progression":
                         print("[mobile] Onboarding progression succeeded; moving deeper instead of continuing sibling exploration on this step.")
@@ -547,7 +506,7 @@ class BoundedScreenExplorer:
                     print("[mobile] State recovery failed after tap error. Stopping this branch.")
                     return False
 
-        if source_screen_type == "onboarding_screen" and not self._should_stop(source_screen_type):
+        if source_screen_type == "onboarding_screen" and not self._should_stop():
             if inert_onboarding_choices or not progression_visible:
                 if not self._reveal_onboarding_progression(source_capture, phase_context):
                     return False
@@ -605,7 +564,7 @@ class BoundedScreenExplorer:
                     f"final={candidate.get('selection_score', 0)})"
                 )
                 self._tap_center(candidate.get("bounds") or [])
-                follow_up_capture = self._capture_transition_target(revealed_screen)
+                follow_up_capture = self.runner.capture_current_screen(screen_id="pending_screen")
                 target_screen, follow_up_is_new = self._maybe_register_target(follow_up_capture)
                 result = self._detect_result(revealed_screen, follow_up_capture["screen"])
                 target_screen_id = (
@@ -627,12 +586,12 @@ class BoundedScreenExplorer:
                     target_screen_id=target_screen_id,
                     target_screen=follow_up_capture["screen"],
                 )
-                if follow_up_is_new and not self._should_stop(self._screen_type(follow_up_capture["screen"])):
+                if follow_up_is_new and not self._should_stop():
                     self._explore_capture(follow_up_capture, scroll_depth=0)
                 print("[mobile] Onboarding progression continued after reveal; moving deeper into the app flow.")
                 return False
 
-            if is_new and not self._should_stop(self._screen_type(revealed_capture["screen"])):
+            if is_new and not self._should_stop():
                 self._explore_capture(revealed_capture, scroll_depth=0)
                 return False
         except Exception as exc:
@@ -649,7 +608,7 @@ class BoundedScreenExplorer:
         return True
 
     def _explore_scroll(self, source_capture: dict[str, Any], scroll_depth: int) -> None:
-        if self._should_stop(self._screen_type(source_capture["screen"])):
+        if self._should_stop():
             return
         if scroll_depth >= self.config.max_scrolls_per_path:
             return
@@ -695,7 +654,7 @@ class BoundedScreenExplorer:
                 target_screen_id=target_screen.get("screen_id") or "",
                 target_screen=follow_up_capture["screen"],
             )
-            if is_new and not self._should_stop(self._screen_type(follow_up_capture["screen"])):
+            if is_new and not self._should_stop():
                 self._explore_capture(follow_up_capture, scroll_depth=scroll_depth + 1)
         except Exception as exc:
             self._record_interaction(
@@ -715,7 +674,7 @@ class BoundedScreenExplorer:
             return
         if fingerprint in self._completed_fingerprints or fingerprint in self._active_fingerprints:
             return
-        if self._should_stop(self._screen_type(screen)):
+        if self._should_stop():
             return
 
         self._active_fingerprints.add(fingerprint)

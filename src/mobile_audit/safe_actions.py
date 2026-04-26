@@ -141,17 +141,6 @@ def _looks_like_onboarding_choice(label: str) -> bool:
     return 1 <= word_count <= 5
 
 
-def _looks_like_questionnaire_surface(context: dict[str, Any]) -> bool:
-    surface_profile = _text(context.get("surface_profile") or context.get("screen_type"))
-    if surface_profile == "onboarding_screen":
-        return True
-    if surface_profile not in {"unknown", ""}:
-        return False
-    title = _text(context.get("screen_title_guess"))
-    visible_text = " | ".join(_text(value) for value in (context.get("visible_text") or []))
-    return bool(title.endswith("?") or "assessment" in visible_text.lower())
-
-
 def _apply_contextual_adjustments(
     normalized_label: str,
     base_safety_score: int,
@@ -345,16 +334,16 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
                 "selection_reason": selection_reason,
             }
 
-    if _looks_like_questionnaire_surface(context) and _looks_like_onboarding_choice(label):
+    if surface_profile == "onboarding_screen" and _looks_like_onboarding_choice(label):
         return {
             **tappable,
             "action_category": "onboarding_choice",
             "safe_action": "safe",
-            "safe_reason": "bounded questionnaire or onboarding choice selection",
+            "safe_reason": "bounded onboarding choice selection",
             "safety_score": 86,
             "exploration_score": 84,
             "selection_score": 170,
-            "selection_reason": "selecting a bounded questionnaire option helps progress into the actual product experience",
+            "selection_reason": "selecting an onboarding option helps progress into the actual product experience",
         }
 
     for pattern, reason in UNSAFE_PATTERNS:

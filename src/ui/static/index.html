@@ -572,8 +572,7 @@
         font-weight: 850;
       }
 
-      .field input,
-      .field select {
+      .field input {
         background: rgba(45, 46, 56, 0.62);
         border: 1px solid rgba(196, 196, 208, 0.18);
         border-radius: 18px;
@@ -588,59 +587,15 @@
         color: rgba(196, 196, 208, 0.44);
       }
 
-      .field input:focus,
-      .field select:focus {
+      .field input:focus {
         border-color: rgba(255, 230, 0, 0.8);
         box-shadow: 0 0 0 4px rgba(255, 230, 0, 0.12);
-      }
-
-      .field select {
-        appearance: none;
-        cursor: pointer;
-        padding-right: 52px;
-      }
-
-      .field select option {
-        background: #1a1a24;
-        color: var(--text);
       }
 
       .field-grid {
         display: grid;
         gap: 16px;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .discovery-panel {
-        background: rgba(45, 46, 56, 0.42);
-        border: 1px solid rgba(196, 196, 208, 0.14);
-        border-radius: 18px;
-        display: grid;
-        gap: 14px;
-        margin-top: 24px;
-        padding: 16px;
-      }
-
-      .discovery-meta {
-        color: var(--muted);
-        font-size: 0.92rem;
-        line-height: 1.5;
-      }
-
-      .discovery-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-      }
-
-      .inline-note {
-        color: var(--muted);
-        font-size: 0.88rem;
-        line-height: 1.45;
-      }
-
-      .inline-note.warning {
-        color: #ffd6a3;
       }
 
       .choice-stack {
@@ -888,8 +843,10 @@
 
       .modal-backdrop {
         align-items: center;
-        background: rgba(0, 0, 0, 0.62);
-        backdrop-filter: blur(12px);
+        background:
+          radial-gradient(circle at 50% 8%, rgba(255, 230, 0, 0.1), transparent 28rem),
+          rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(18px);
         display: flex;
         inset: 0;
         justify-content: center;
@@ -902,15 +859,29 @@
         background:
           radial-gradient(circle at 86% 0%, rgba(255, 230, 0, 0.12), transparent 12rem),
           radial-gradient(circle at 74% 8%, rgba(247, 125, 30, 0.14), transparent 16rem),
+          radial-gradient(circle at 12% 18%, rgba(132, 0, 255, 0.16), transparent 18rem),
           rgba(26, 26, 36, 0.98);
         border: 1px solid rgba(196, 196, 208, 0.18);
-        border-radius: 18px;
-        box-shadow: var(--shadow);
-        max-height: min(760px, 88vh);
-        max-width: 760px;
+        border-radius: 28px;
+        box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        max-height: min(900px, 92vh);
+        max-width: 1060px;
         overflow: auto;
-        padding: 30px;
+        padding: clamp(26px, 4vw, 46px);
+        position: relative;
         width: 100%;
+      }
+
+      .modal::before {
+        background:
+          linear-gradient(90deg, transparent, rgba(255, 230, 0, 0.42), transparent);
+        content: "";
+        height: 1px;
+        left: 30px;
+        opacity: 0.7;
+        position: absolute;
+        right: 30px;
+        top: 0;
       }
 
       .modal-head {
@@ -921,15 +892,473 @@
       }
 
       .modal h2 {
-        font-size: clamp(1.8rem, 4vw, 2.55rem);
-        margin: 18px 0 12px;
+        font-size: clamp(2.4rem, 5.2vw, 4.45rem);
+        letter-spacing: 0;
+        line-height: 1.05;
+        margin: 24px 0 14px;
+        max-width: 790px;
       }
 
       .stage {
         color: var(--muted);
         font-weight: 750;
         line-height: 1.5;
-        margin: 0 0 22px;
+        margin: 0 0 26px;
+        max-width: 720px;
+      }
+
+      .scan-layout {
+        align-items: stretch;
+        display: grid;
+        gap: 22px;
+        grid-template-columns: minmax(360px, 1fr) minmax(230px, 0.45fr);
+        margin: 28px 0 26px;
+      }
+
+      .scan-frame {
+        aspect-ratio: 16 / 9;
+        background:
+          radial-gradient(circle at 50% 42%, rgba(255, 50, 255, 0.1), transparent 32%),
+          rgba(5, 5, 12, 0.72);
+        border: 1px solid rgba(255, 230, 0, 0.22);
+        border-radius: 22px;
+        box-shadow: inset 0 0 60px rgba(255, 230, 0, 0.07);
+        min-height: 320px;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .scan-frame::before,
+      .scan-frame::after {
+        content: "";
+        left: 12%;
+        position: absolute;
+        right: 12%;
+      }
+
+      .scan-frame::before {
+        animation: scanLineMove 6.5s ease-in-out infinite;
+        background: linear-gradient(90deg, transparent, rgba(255, 230, 0, 0.96), transparent);
+        box-shadow: 0 0 24px rgba(255, 230, 0, 0.62);
+        height: 3px;
+        top: 0;
+        z-index: 4;
+      }
+
+      .scan-frame::after {
+        animation: scanSweep 2.6s ease-in-out infinite;
+        background: linear-gradient(180deg, transparent, rgba(255, 50, 255, 0.26), transparent);
+        height: 34%;
+        top: -22%;
+        z-index: 4;
+      }
+
+      .scan-corner {
+        border-color: rgba(255, 255, 255, 0.95);
+        border-style: solid;
+        height: 84px;
+        position: absolute;
+        width: 84px;
+        z-index: 3;
+      }
+
+      .scan-corner.tl {
+        border-width: 10px 0 0 10px;
+        border-radius: 26px 0 0 0;
+        left: 32px;
+        top: 32px;
+      }
+
+      .scan-corner.tr {
+        border-width: 10px 10px 0 0;
+        border-radius: 0 26px 0 0;
+        right: 32px;
+        top: 32px;
+      }
+
+      .scan-corner.bl {
+        border-width: 0 0 10px 10px;
+        border-radius: 0 0 0 26px;
+        bottom: 32px;
+        left: 32px;
+      }
+
+      .scan-corner.br {
+        border-width: 0 10px 10px 0;
+        border-radius: 0 0 26px 0;
+        bottom: 32px;
+        right: 32px;
+      }
+
+      .scan-core {
+        background: rgba(7, 7, 13, 0.72);
+        border: 1px solid rgba(255, 230, 0, 0.22);
+        border-radius: 14px;
+        left: 22px;
+        max-width: min(360px, calc(100% - 44px));
+        min-width: 0;
+        padding: 12px 14px;
+        position: absolute;
+        text-align: left;
+        top: 22px;
+        transform: none;
+        z-index: 6;
+      }
+
+      .scan-core strong {
+        color: white;
+        display: block;
+        font-size: clamp(0.94rem, 1.35vw, 1.12rem);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .scan-core span {
+        color: var(--yellow);
+        font-size: 0.78rem;
+        font-weight: 850;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .scan-real-shot {
+        background: rgba(255, 255, 255, 0.04);
+        animation: realPageScroll 11s ease-in-out infinite;
+        display: block;
+        height: 100%;
+        inset: 0;
+        object-fit: cover;
+        object-position: top center;
+        position: absolute;
+        width: 100%;
+        z-index: 3;
+      }
+
+      .scan-frame.has-preview .scan-live-frame {
+        opacity: 0;
+      }
+
+      .scan-live-frame {
+        background: rgba(5, 5, 12, 0.92);
+        border: 0;
+        display: block;
+        height: 100%;
+        inset: 0;
+        pointer-events: none;
+        position: absolute;
+        transition: opacity 0.25s ease;
+        width: 100%;
+        z-index: 2;
+      }
+
+      .scan-frame.has-live .scan-real-shot {
+        opacity: 0.72;
+      }
+
+      .scan-empty-state {
+        align-items: center;
+        color: var(--muted);
+        display: grid;
+        font-weight: 850;
+        gap: 10px;
+        inset: 0;
+        justify-items: center;
+        padding: 28px;
+        position: absolute;
+        text-align: center;
+        z-index: 1;
+      }
+
+      .scan-empty-state strong {
+        color: white;
+        font-size: 1.15rem;
+      }
+
+      .scan-browser {
+        background: rgba(12, 12, 20, 0.82);
+        border: 1px solid rgba(255, 230, 0, 0.18);
+        border-radius: 16px;
+        box-shadow: 0 22px 58px rgba(0, 0, 0, 0.32);
+        bottom: 22px;
+        left: 50%;
+        min-width: min(640px, calc(100% - 84px));
+        overflow: hidden;
+        position: absolute;
+        transform: translateX(-50%);
+        z-index: 5;
+      }
+
+      .scan-browser-top {
+        align-items: center;
+        background: rgba(255, 255, 255, 0.06);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        display: grid;
+        gap: 10px;
+        grid-template-columns: auto 1fr;
+        min-height: 42px;
+        padding: 8px 12px;
+      }
+
+      .scan-browser-dots {
+        display: flex;
+        gap: 6px;
+      }
+
+      .scan-browser-dots span {
+        border-radius: 999px;
+        height: 9px;
+        width: 9px;
+      }
+
+      .scan-browser-dots span:nth-child(1) {
+        background: #ff5f57;
+      }
+
+      .scan-browser-dots span:nth-child(2) {
+        background: #ffbd2e;
+      }
+
+      .scan-browser-dots span:nth-child(3) {
+        background: #28c840;
+      }
+
+      .scan-browser-address {
+        background: rgba(0, 0, 0, 0.22);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 999px;
+        color: #f1edf8;
+        font-size: 0.78rem;
+        font-weight: 800;
+        overflow: hidden;
+        padding: 7px 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .scan-browser-body {
+        display: none;
+        gap: 10px;
+        padding: 13px 14px 15px;
+        position: relative;
+      }
+
+      .scan-browser-label {
+        color: var(--yellow);
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .scan-browser-title {
+        color: white;
+        font-size: 0.92rem;
+        font-weight: 850;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .crawl-preview {
+        background:
+          linear-gradient(90deg, rgba(255, 230, 0, 0.08), transparent 38%),
+          rgba(0, 0, 0, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 12px;
+        display: grid;
+        gap: 9px;
+        overflow: hidden;
+        padding: 11px;
+        position: relative;
+      }
+
+      .crawl-preview::after {
+        animation: analyzeSweep 2.1s ease-in-out infinite;
+        background: linear-gradient(90deg, transparent, rgba(255, 230, 0, 0.34), rgba(255, 50, 255, 0.22), transparent);
+        content: "";
+        inset: 0 auto 0 -55%;
+        position: absolute;
+        width: 46%;
+      }
+
+      .crawl-nav {
+        display: flex;
+        gap: 7px;
+        overflow: hidden;
+        position: relative;
+        z-index: 1;
+      }
+
+      .crawl-nav span {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 999px;
+        flex: 0 0 auto;
+        height: 9px;
+        width: 54px;
+      }
+
+      .crawl-page-lines {
+        display: grid;
+        gap: 7px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .crawl-page-lines span {
+        background: rgba(255, 255, 255, 0.14);
+        border-radius: 999px;
+        display: block;
+        height: 8px;
+      }
+
+      .crawl-page-lines span:nth-child(1) {
+        background: rgba(255, 230, 0, 0.4);
+        width: 64%;
+      }
+
+      .crawl-page-lines span:nth-child(2) {
+        width: 88%;
+      }
+
+      .crawl-page-lines span:nth-child(3) {
+        width: 72%;
+      }
+
+      .crawl-trail {
+        display: grid;
+        gap: 6px;
+      }
+
+      .crawl-trail-item {
+        align-items: center;
+        color: #d7d7df;
+        display: grid;
+        font-size: 0.75rem;
+        font-weight: 800;
+        gap: 8px;
+        grid-template-columns: 8px 1fr;
+        min-width: 0;
+      }
+
+      .crawl-trail-item::before {
+        background: rgba(196, 196, 208, 0.5);
+        border-radius: 999px;
+        content: "";
+        height: 7px;
+        width: 7px;
+      }
+
+      .crawl-trail-item.active::before {
+        animation: pulseDot 1.2s ease-in-out infinite;
+        background: var(--yellow);
+        box-shadow: 0 0 14px rgba(255, 230, 0, 0.58);
+      }
+
+      .crawl-trail-item span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .scan-dot {
+        animation: pulseDot 1.45s ease-in-out infinite;
+        background: var(--yellow);
+        border-radius: 999px;
+        box-shadow: 0 0 24px rgba(255, 230, 0, 0.72);
+        height: 10px;
+        position: absolute;
+        width: 10px;
+        z-index: 2;
+      }
+
+      .scan-dot.one {
+        left: 22%;
+        top: 36%;
+      }
+
+      .scan-dot.two {
+        animation-delay: 0.24s;
+        right: 24%;
+        top: 62%;
+      }
+
+      .scan-dot.three {
+        animation-delay: 0.48s;
+        bottom: 24%;
+        left: 46%;
+      }
+
+      .scan-panel {
+        background: rgba(5, 5, 12, 0.58);
+        border: 1px solid rgba(196, 196, 208, 0.16);
+        border-radius: 22px;
+        display: grid;
+        gap: 14px;
+        padding: 20px;
+      }
+
+      .scan-step {
+        align-items: center;
+        color: var(--muted);
+        display: grid;
+        font-size: 0.91rem;
+        font-weight: 850;
+        gap: 12px;
+        grid-template-columns: 13px 1fr;
+        line-height: 1.35;
+      }
+
+      .scan-step::before {
+        background: rgba(196, 196, 208, 0.28);
+        border-radius: 999px;
+        content: "";
+        height: 10px;
+        width: 10px;
+      }
+
+      .scan-step.active::before {
+        animation: pulseDot 1.25s ease-in-out infinite;
+        background: var(--yellow);
+        box-shadow: 0 0 16px rgba(255, 230, 0, 0.72);
+      }
+
+      .scan-step.complete {
+        color: white;
+      }
+
+      .scan-step.complete::before {
+        background: #ffe600;
+        box-shadow: 0 0 12px rgba(255, 230, 0, 0.42);
+      }
+
+      .scan-log {
+        border-top: 1px solid rgba(196, 196, 208, 0.14);
+        color: #aaa6b8;
+        display: grid;
+        font-family: "Cascadia Mono", Consolas, monospace;
+        font-size: 0.76rem;
+        gap: 8px;
+        line-height: 1.45;
+        margin-top: 6px;
+        padding-top: 14px;
+      }
+
+      .scan-log div {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .modal .progress-wrap {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        height: 14px;
+      }
+
+      .modal .progress {
+        background: linear-gradient(90deg, var(--yellow) 0%, var(--orange) 38%, var(--pink) 74%, var(--purple) 100%);
+        box-shadow: 0 0 22px rgba(255, 50, 255, 0.3);
       }
 
       .log {
@@ -980,6 +1409,67 @@
         margin-top: 22px;
       }
 
+      @keyframes scanSweep {
+        0% {
+          opacity: 0;
+          transform: translateY(0);
+        }
+        16% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(390%);
+        }
+      }
+
+      @keyframes scanLineMove {
+        0%,
+        100% {
+          opacity: 0.56;
+          transform: translateY(48px);
+        }
+        50% {
+          opacity: 1;
+          transform: translateY(calc(min(56.25vw, 100vh) - 120px));
+        }
+      }
+
+      @keyframes pulseDot {
+        0%,
+        100% {
+          opacity: 0.42;
+          transform: scale(0.85);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.2);
+        }
+      }
+
+      @keyframes analyzeSweep {
+        0% {
+          transform: translateX(0);
+        }
+        100% {
+          transform: translateX(340%);
+        }
+      }
+
+      @keyframes realPageScroll {
+        0%,
+        12% {
+          object-position: top center;
+        }
+        48%,
+        64% {
+          object-position: bottom center;
+        }
+        100% {
+          object-position: top center;
+        }
+      }
+
       .footer-mark {
         align-items: center;
         color: var(--yellow);
@@ -1007,6 +1497,10 @@
       @media (max-width: 1040px) {
         .hero,
         .launch-section {
+          grid-template-columns: 1fr;
+        }
+
+        .scan-layout {
           grid-template-columns: 1fr;
         }
 
@@ -1045,6 +1539,50 @@
         .hero h1,
         .launch-copy h2 {
           font-size: clamp(2.52rem, 12vw, 3.2rem);
+        }
+
+        .modal {
+          border-radius: 22px;
+          max-height: 94vh;
+          padding: 22px;
+        }
+
+        .modal h2 {
+          font-size: clamp(2.05rem, 12vw, 3rem);
+        }
+
+        .scan-frame {
+          min-height: 240px;
+        }
+
+        .scan-corner {
+          height: 58px;
+          width: 58px;
+        }
+
+        .scan-corner.tl,
+        .scan-corner.tr {
+          top: 22px;
+        }
+
+        .scan-corner.bl,
+        .scan-corner.br {
+          bottom: 22px;
+        }
+
+        .scan-corner.tl,
+        .scan-corner.bl {
+          left: 22px;
+        }
+
+        .scan-corner.tr,
+        .scan-corner.br {
+          right: 22px;
+        }
+
+        .scan-browser {
+          min-width: calc(100% - 56px);
+          top: 67%;
         }
 
         .hero-visual {
@@ -1112,7 +1650,7 @@
       <div class="unlimited-solutions"></div>
     </div>
     <script>
-      const { useCallback, useEffect, useMemo, useRef, useState } = React;
+      const { useEffect, useMemo, useRef, useState } = React;
       const e = React.createElement;
 
       function Icon({ name }) {
@@ -1244,11 +1782,6 @@
         const [mobileDeviceName, setMobileDeviceName] = useState("Android Emulator");
         const [mobilePlatformVersion, setMobilePlatformVersion] = useState("");
         const [mobileUdid, setMobileUdid] = useState("");
-        const [mobileDiscovery, setMobileDiscovery] = useState(null);
-        const [mobileDiscoveryError, setMobileDiscoveryError] = useState("");
-        const [isDiscoveringMobile, setIsDiscoveringMobile] = useState(false);
-        const [hasAttemptedMobileDiscovery, setHasAttemptedMobileDiscovery] = useState(false);
-        const [selectedLaunchableApp, setSelectedLaunchableApp] = useState("");
         const [screenshotFiles, setScreenshotFilesState] = useState([]);
         const [job, setJob] = useState(null);
         const [error, setError] = useState("");
@@ -1263,69 +1796,12 @@
         const isMobileLiveAudit = experienceType === "mobile" && mobileInputType === "live";
         const screenshotSurfaceType = experienceType === "mobile" ? "mobile_app" : "website";
 
-        const applyDiscoveredApp = useCallback((app) => {
-          if (!app || typeof app !== "object") return;
-          const appPackage = String(app.appPackage || "").trim();
-          const appActivity = String(app.appActivity || "").trim();
-          const appLabel = String(app.appLabel || "").trim();
-          if (appPackage) setMobileAppPackage(appPackage);
-          if (appActivity) setMobileAppActivity(appActivity);
-          if (appLabel && (!mobileAppLabel.trim() || mobileAppLabel.trim() === "Android App Audit")) {
-            setMobileAppLabel(appLabel);
-          }
-        }, [mobileAppLabel]);
-
-        const discoverMobileEnvironment = useCallback(async ({ prefillCurrentApp = true } = {}) => {
-          setMobileDiscoveryError("");
-          setIsDiscoveringMobile(true);
-          try {
-            const response = await apiFetch("/api/mobile/discovery");
-            const payload = await response.json();
-            if (!response.ok) {
-              throw new Error(payload.error || "Unable to inspect the connected Android device.");
-            }
-            setMobileDiscovery(payload);
-
-            const defaults = payload.defaults || {};
-            if (String(defaults.appiumUrl || "").trim() && (!mobileAppiumUrl.trim() || mobileAppiumUrl.trim() === "http://127.0.0.1:4723")) {
-              setMobileAppiumUrl(String(defaults.appiumUrl || "").trim());
-            }
-            if (String(defaults.deviceName || "").trim() && (!mobileDeviceName.trim() || mobileDeviceName.trim() === "Android Emulator")) {
-              setMobileDeviceName(String(defaults.deviceName || "").trim());
-            }
-            if (String(defaults.platformVersion || "").trim() && !mobilePlatformVersion.trim()) {
-              setMobilePlatformVersion(String(defaults.platformVersion || "").trim());
-            }
-            if (String(defaults.udid || "").trim() && !mobileUdid.trim()) {
-              setMobileUdid(String(defaults.udid || "").trim());
-            }
-
-            const apps = Array.isArray(payload.launchableApps) ? payload.launchableApps : [];
-            if (apps.length && !selectedLaunchableApp) {
-              const currentApp = payload.currentApp;
-              const fallbackApp = currentApp && currentApp.appPackage && currentApp.appActivity ? currentApp : apps[0];
-              setSelectedLaunchableApp(`${fallbackApp.appPackage}|${fallbackApp.appActivity}`);
-            }
-
-            if (prefillCurrentApp && payload.currentApp && !mobileAppPackage.trim() && !mobileAppActivity.trim()) {
-              applyDiscoveredApp(payload.currentApp);
-            }
-          } catch (discoveryError) {
-            setMobileDiscoveryError(discoveryError.message || "Unable to inspect the Android environment.");
-          } finally {
-            setIsDiscoveringMobile(false);
-          }
-        }, [applyDiscoveredApp, mobileAppActivity, mobileAppPackage, mobileAppiumUrl, mobileDeviceName, mobilePlatformVersion, mobileUdid, selectedLaunchableApp]);
-
         const canStart = useMemo(() => {
           if (isSubmitting) return false;
           if (isWebsiteUrlAudit) return url.trim().length > 3;
           if (isScreenshotAudit) return screenshotFiles.length > 0;
-          const hasManualTarget = mobileAppPackage.trim().length > 1 && mobileAppActivity.trim().length > 1;
-          const hasDetectedCurrent = !!(mobileDiscovery?.currentApp?.appPackage && mobileDiscovery?.currentApp?.appActivity);
-          const hasDetectedLaunchable = Array.isArray(mobileDiscovery?.launchableApps) && mobileDiscovery.launchableApps.length > 0;
-          return hasManualTarget || hasDetectedCurrent || hasDetectedLaunchable;
-        }, [isMobileLiveAudit, isScreenshotAudit, isSubmitting, isWebsiteUrlAudit, mobileAppActivity, mobileAppPackage, mobileDiscovery, screenshotFiles.length, url]);
+          return mobileAppPackage.trim().length > 1 && mobileAppActivity.trim().length > 1;
+        }, [isMobileLiveAudit, isScreenshotAudit, isSubmitting, isWebsiteUrlAudit, mobileAppActivity, mobileAppPackage, screenshotFiles.length, url]);
 
         const completionText = useMemo(() => {
           if (isMobileLiveAudit) return "Review the generated first-screen artifacts and structured mobile evidence.";
@@ -1345,12 +1821,6 @@
             return current;
           });
         }, [experienceType]);
-
-        useEffect(() => {
-          if (!isMobileLiveAudit || hasAttemptedMobileDiscovery) return;
-          setHasAttemptedMobileDiscovery(true);
-          discoverMobileEnvironment({ prefillCurrentApp: true });
-        }, [discoverMobileEnvironment, hasAttemptedMobileDiscovery, isMobileLiveAudit]);
 
         useEffect(() => {
           return () => {
@@ -1455,26 +1925,14 @@
               screenshotFiles.forEach((item) => formData.append("screenshots", item.file));
               response = await apiFetch("/api/audits", { method: "POST", body: formData });
             } else if (isMobileLiveAudit) {
-              const detectedCurrentApp = mobileDiscovery?.currentApp || null;
-              const detectedLaunchableApps = Array.isArray(mobileDiscovery?.launchableApps) ? mobileDiscovery.launchableApps : [];
-              const selectedDetectedApp = detectedLaunchableApps.find((item) => `${item.appPackage}|${item.appActivity}` === selectedLaunchableApp) || null;
-              const launchTarget = (
-                mobileAppPackage.trim() && mobileAppActivity.trim()
-                  ? { appPackage: mobileAppPackage.trim(), appActivity: mobileAppActivity.trim() }
-                  : selectedDetectedApp
-                    ? { appPackage: String(selectedDetectedApp.appPackage || "").trim(), appActivity: String(selectedDetectedApp.appActivity || "").trim() }
-                    : detectedCurrentApp && detectedCurrentApp.appPackage && detectedCurrentApp.appActivity
-                      ? { appPackage: String(detectedCurrentApp.appPackage || "").trim(), appActivity: String(detectedCurrentApp.appActivity || "").trim() }
-                      : { appPackage: "", appActivity: "" }
-              );
               response = await apiFetch("/api/audits", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   auditType: "mobile",
                   appLabel: mobileAppLabel.trim() || "Android App Audit",
-                  appPackage: launchTarget.appPackage,
-                  appActivity: launchTarget.appActivity,
+                  appPackage: mobileAppPackage.trim(),
+                  appActivity: mobileAppActivity.trim(),
                   appiumUrl: mobileAppiumUrl.trim() || "http://127.0.0.1:4723",
                   deviceName: mobileDeviceName.trim() || "Android Emulator",
                   platformVersion: mobilePlatformVersion.trim(),
@@ -1647,8 +2105,6 @@
                   }),
                 isMobileLiveAudit &&
                   e(MobileFields, {
-                    mobileDiscovery,
-                    mobileDiscoveryError,
                     mobileAppActivity,
                     mobileAppLabel,
                     mobileAppPackage,
@@ -1656,15 +2112,6 @@
                     mobileDeviceName,
                     mobilePlatformVersion,
                     mobileUdid,
-                    isDiscoveringMobile,
-                    onRefreshDiscovery: () => discoverMobileEnvironment({ prefillCurrentApp: false }),
-                    onUseCurrentApp: () => applyDiscoveredApp(mobileDiscovery?.currentApp),
-                    onUseSelectedApp: () => {
-                      const apps = Array.isArray(mobileDiscovery?.launchableApps) ? mobileDiscovery.launchableApps : [];
-                      const match = apps.find((item) => `${item.appPackage}|${item.appActivity}` === selectedLaunchableApp);
-                      applyDiscoveredApp(match);
-                    },
-                    selectedLaunchableApp,
                     setMobileAppActivity,
                     setMobileAppLabel,
                     setMobileAppPackage,
@@ -1672,7 +2119,6 @@
                     setMobileDeviceName,
                     setMobilePlatformVersion,
                     setMobileUdid,
-                    setSelectedLaunchableApp,
                   }),
                 error && e("div", { className: "error" }, error),
                 e(
@@ -1853,64 +2299,9 @@
       }
 
       function MobileFields(props) {
-        const selectedDevice = props.mobileDiscovery?.selectedDevice || null;
-        const currentApp = props.mobileDiscovery?.currentApp || null;
-        const launchableApps = Array.isArray(props.mobileDiscovery?.launchableApps) ? props.mobileDiscovery.launchableApps : [];
-        const warnings = Array.isArray(props.mobileDiscovery?.warnings) ? props.mobileDiscovery.warnings : [];
         return e(
           React.Fragment,
           null,
-          e(
-            "div",
-            { className: "discovery-panel" },
-            e("div", { className: "field-legend" }, "Auto-detect mobile environment"),
-            e(
-              "div",
-              { className: "discovery-meta" },
-              selectedDevice
-                ? `Connected device: ${selectedDevice.deviceName || "Android Device"}${selectedDevice.platformVersion ? ` • Android ${selectedDevice.platformVersion}` : ""}${selectedDevice.udid ? ` • ${selectedDevice.udid}` : ""}`
-                : "Inspect the connected emulator or device to prefill mobile audit inputs."
-            ),
-            e(
-              "div",
-              { className: "discovery-actions" },
-              e("button", { className: "ghost", type: "button", onClick: props.onRefreshDiscovery, disabled: props.isDiscoveringMobile }, props.isDiscoveringMobile ? "Detecting..." : "Refresh device info"),
-              e("button", { className: "ghost", type: "button", onClick: props.onUseCurrentApp, disabled: !currentApp }, currentApp ? `Use current app (${currentApp.appLabel})` : "Use current app")
-            ),
-            launchableApps.length > 0 &&
-              e(
-                React.Fragment,
-                null,
-                e(
-                  "div",
-                  { className: "field" },
-                  e("label", { htmlFor: "mobile-launchable-app" }, "Installed launchable app"),
-                  e(
-                    "select",
-                    {
-                      id: "mobile-launchable-app",
-                      value: props.selectedLaunchableApp,
-                      onChange: (event) => props.setSelectedLaunchableApp(event.target.value),
-                    },
-                    e("option", { value: "" }, "Select an installed app"),
-                    launchableApps.map((item) =>
-                      e(
-                        "option",
-                        { key: `${item.appPackage}|${item.appActivity}`, value: `${item.appPackage}|${item.appActivity}` },
-                        `${item.appLabel} • ${item.appPackage}`
-                      )
-                    )
-                  )
-                ),
-                e(
-                  "div",
-                  { className: "discovery-actions" },
-                  e("button", { className: "ghost", type: "button", onClick: props.onUseSelectedApp, disabled: !props.selectedLaunchableApp }, "Use selected app")
-                )
-              ),
-            props.mobileDiscoveryError && e("div", { className: "inline-note warning" }, props.mobileDiscoveryError),
-            warnings.length > 0 && warnings.map((warning, index) => e("div", { className: "inline-note warning", key: `mobile-warning-${index}` }, warning))
-          ),
           e(
             "div",
             { className: "field" },
@@ -1924,13 +2315,13 @@
               "div",
               { className: "field" },
               e("label", { htmlFor: "mobile-app-package" }, "App package"),
-              e("input", { id: "mobile-app-package", value: props.mobileAppPackage, placeholder: "Auto-detected if left blank", onChange: (event) => props.setMobileAppPackage(event.target.value), autoComplete: "off" })
+              e("input", { id: "mobile-app-package", value: props.mobileAppPackage, placeholder: "com.example.app", onChange: (event) => props.setMobileAppPackage(event.target.value), autoComplete: "off" })
             ),
             e(
               "div",
               { className: "field" },
               e("label", { htmlFor: "mobile-app-activity" }, "Launch activity"),
-              e("input", { id: "mobile-app-activity", value: props.mobileAppActivity, placeholder: "Auto-detected if left blank", onChange: (event) => props.setMobileAppActivity(event.target.value), autoComplete: "off" })
+              e("input", { id: "mobile-app-activity", value: props.mobileAppActivity, placeholder: "com.example.app.MainActivity", onChange: (event) => props.setMobileAppActivity(event.target.value), autoComplete: "off" })
             )
           ),
           e(
@@ -1979,6 +2370,167 @@
         return type || "audit";
       }
 
+      function scanTargetName(job) {
+        if (!job) return "Target website";
+        if (job.url) {
+          try {
+            return new URL(job.url).hostname.replace(/^www\./, "");
+          } catch (_error) {
+            return job.url;
+          }
+        }
+        return job.siteName || job.appLabel || "Audit target";
+      }
+
+      function currentCrawlTab(job) {
+        const fallbackUrl = job?.url || "";
+        const fallbackTitle = job?.stage || "Preparing browser tab";
+        const logs = Array.isArray(job?.logs) ? [...job.logs].reverse() : [];
+        const urlPattern = /(https?:\/\/[^\s]+)/i;
+
+        for (const rawLine of logs) {
+          const line = String(rawLine || "");
+          const urlMatch = line.match(urlPattern);
+          if (!urlMatch) continue;
+          const url = urlMatch[1].replace(/[.,)]$/, "");
+          const startMatch = line.match(/\]\s*([^>\n]+?)\s*->\s*https?:\/\//);
+          return {
+            url,
+            title: startMatch ? startMatch[1].trim() : "Opening crawled page",
+          };
+        }
+
+        return {
+          url: fallbackUrl,
+          title: fallbackUrl ? "Opening website tab" : fallbackTitle,
+        };
+      }
+
+      function artifactUrlFromPath(rawPath) {
+        const value = String(rawPath || "").trim().replace(/\\/g, "/");
+        if (!value) return "";
+        const markers = ["shared/output/", "shared/generated/"];
+        for (const marker of markers) {
+          const index = value.indexOf(marker);
+          if (index !== -1) {
+            return buildApiUrl(`/artifacts/${encodeURI(value.slice(index))}`);
+          }
+        }
+        return "";
+      }
+
+      function latestPreviewImageUrl(job) {
+        const fromJob = artifactUrlFromPath(job?.previewImagePath);
+        if (fromJob) return fromJob;
+
+        const logs = Array.isArray(job?.logs) ? [...job.logs].reverse() : [];
+        for (const rawLine of logs) {
+          const line = String(rawLine || "");
+          const match = line.match(/screenshot saved:\s*(.+)$/i);
+          if (!match) continue;
+          const fromLog = artifactUrlFromPath(match[1]);
+          if (fromLog) return fromLog;
+        }
+
+        const screenshotPaths = Array.isArray(job?.screenshotPaths) ? job.screenshotPaths : [];
+        if (screenshotPaths.length) return artifactUrlFromPath(screenshotPaths[0]);
+        return "";
+      }
+
+      function liveFrameUrl(job, currentTab) {
+        const candidate = currentTab?.url || job?.url || "";
+        if (!candidate) return "";
+        try {
+          const parsed = new URL(candidate);
+          return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : "";
+        } catch (_error) {
+          return "";
+        }
+      }
+
+      function crawlTrailFromLogs(job) {
+        const logs = Array.isArray(job?.logs) ? job.logs : [];
+        const pages = [];
+        const seen = new Set();
+        for (const rawLine of logs) {
+          const line = String(rawLine || "");
+          const match = line.match(/\[START\s+(\d+)\/(\d+)\]\s*([^>\n]+?)\s*->\s*(https?:\/\/[^\s]+)/);
+          if (!match) continue;
+          const url = match[4].replace(/[.,)]$/, "");
+          if (seen.has(url)) continue;
+          seen.add(url);
+          pages.push({
+            index: Number(match[1]),
+            total: Number(match[2]),
+            title: match[3].trim(),
+            url,
+          });
+        }
+        if (!pages.length && job?.url) {
+          pages.push({ index: 1, total: 1, title: "Home", url: job.url });
+        }
+        return pages.slice(-4);
+      }
+
+      function scanStepsForJob(job, progress, status) {
+        const isScreenshot = job?.inputType === "screenshot";
+        const isMobile = job?.type === "mobile" && !isScreenshot;
+        const labels = isMobile
+          ? ["Connecting to device", "Launching app", "Reading hierarchy", "Capturing artifacts", "Preparing output"]
+          : isScreenshot
+            ? ["Loading screenshots", "Reading visual hierarchy", "Checking trust signals", "Writing report", "Publishing result"]
+            : ["Crawling website", "Opening pages", "Extracting UI evidence", "Building audit report", "Publishing result"];
+        const activeIndex = status === "completed" ? labels.length - 1 : Math.min(labels.length - 1, Math.floor((progress || 0) / 22));
+        return labels.map((label, index) => ({ label, active: index === activeIndex, complete: index < activeIndex || status === "completed" }));
+      }
+
+      function visibleScanLogs(job, status) {
+        if (status === "completed") return [];
+        return (Array.isArray(job?.logs) ? job.logs : [])
+          .filter((line) => {
+            const text = String(line || "");
+            return !/SyntaxError|internal\/modules|Traceback|RuntimeError|File "\/app/.test(text);
+          })
+          .slice(-4)
+          .filter(Boolean);
+      }
+
+      function ScanVisualizer({ job, progress, status }) {
+        const target = scanTargetName(job);
+        const currentTab = currentCrawlTab(job);
+        const previewImageUrl = latestPreviewImageUrl(job);
+        const frameUrl = liveFrameUrl(job, currentTab);
+        const crawlTrail = crawlTrailFromLogs(job);
+        const steps = scanStepsForJob(job, progress, status);
+        const logs = visibleScanLogs(job, status);
+        return e(
+          "div",
+          { className: "scan-layout", "aria-label": "Audit scanning activity" },
+          e(
+            "div",
+            { className: `scan-frame ${frameUrl ? "has-live" : ""} ${previewImageUrl ? "has-preview" : ""}` },
+            e("span", { className: "scan-corner tl" }),
+            e("span", { className: "scan-corner tr" }),
+            e("span", { className: "scan-corner bl" }),
+            e("span", { className: "scan-corner br" }),
+            e("span", { className: "scan-dot one" }),
+            e("span", { className: "scan-dot two" }),
+            e("span", { className: "scan-dot three" }),
+            previewImageUrl
+              ? e("img", { className: "scan-real-shot", src: previewImageUrl, alt: `Captured page preview for ${target}` })
+              : e("div", { className: "scan-empty-state" }, e("strong", null, "Waiting for first captured page"), e("span", null, "The real website screenshot will appear here as soon as Playwright saves it.")),
+            frameUrl && e("iframe", { className: "scan-live-frame", src: frameUrl, title: `Live website preview for ${target}`, sandbox: "allow-scripts allow-same-origin allow-forms allow-popups" }),
+            e("span", { className: "sr-only" }, previewImageUrl ? `Analyzing captured page for ${target}` : `Opening live website preview for ${target}`)
+          ),
+            e(
+              "div",
+              { className: "scan-panel" },
+            steps.map((step) => e("div", { className: `scan-step ${step.active ? "active" : ""} ${step.complete ? "complete" : ""}`, key: step.label }, step.label)),
+            logs.length > 0 && e("div", { className: "scan-log" }, logs.map((line, index) => e("div", { key: `${index}-${line}` }, line)))
+          )
+        );
+      }
+
       function StatusStrip({ job, isStopping, onOpen, onStop }) {
         const progress = job?.progress || 0;
         const canStop = ["queued", "running"].includes(job?.status);
@@ -2000,12 +2552,15 @@
         const progress = job?.progress || 0;
         const status = job?.status || (error ? "failed" : "queued");
         const isMobileLiveJob = job?.type === "mobile" && job?.inputType !== "screenshot";
+        const isLocalReport = Boolean(job?.resultUrl && String(job.resultUrl).startsWith("/artifacts/"));
         const isActiveJob = ["queued", "running"].includes(status);
-        const completedEyebrow = isMobileLiveJob ? "Artifacts ready" : "Deployment ready";
-        const completedHeading = isMobileLiveJob ? "Mobile extraction is complete." : "Your report is deployed.";
+        const completedEyebrow = isMobileLiveJob ? "Artifacts ready" : isLocalReport ? "Local report ready" : "Deployment ready";
+        const completedHeading = isMobileLiveJob ? "Mobile extraction is complete." : isLocalReport ? "Your report is ready locally." : "Your report is deployed.";
         const completedMessage = isMobileLiveJob
           ? job?.stage || "The first Android screen, hierarchy, and structured extraction artifacts are ready."
-          : job?.stage || "Deployment completed.";
+          : isLocalReport
+            ? job?.error || job?.stage || "The report was generated and served locally because Vercel deployment did not complete."
+            : job?.stage || "Deployment completed.";
         const eyebrow = status === "completed" ? completedEyebrow : status === "cancelled" ? "Stopped" : status === "failed" ? "Action needed" : "Audit running";
         const heading =
           status === "completed"
@@ -2033,6 +2588,7 @@
             ),
             e("h2", null, heading),
             e("p", { className: "stage" }, message),
+            e(ScanVisualizer, { job, progress, status }),
             e("div", { className: "progress-wrap", "aria-label": `Progress ${progress}%` }, e("div", { className: "progress", style: { width: `${progress}%` } })),
             isActiveJob &&
               e(
@@ -2045,7 +2601,7 @@
               e(
                 "div",
                 { className: "success-actions" },
-                !isMobileLiveJob && job.resultUrl && e("a", { className: "primary", href: job.resultUrl, target: "_blank", rel: "noreferrer" }, "Open Vercel Report", e(Icon, { name: "arrow" })),
+                !isMobileLiveJob && job.resultUrl && e("a", { className: "primary", href: job.resultUrl, target: "_blank", rel: "noreferrer" }, "Open Audit Report", e(Icon, { name: "arrow" })),
                 e("button", { className: "ghost", type: "button", onClick: onClose }, "Close")
               ),
             status === "completed" &&

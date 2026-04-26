@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import cgi
 import json
 import mimetypes
 import os
@@ -12,14 +11,16 @@ import sys
 import threading
 import time
 import uuid
+from dataclasses import dataclass, field
+from email import policy
+from email.parser import BytesParser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote, urlparse
+from urllib.parse import quote, unquote, urlparse
 
 from dotenv import load_dotenv
-from src.mobile_audit.device_manager import adb_stdout, resolve_adb_executable
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -34,6 +35,7 @@ MOBILE_AUDIT_DIR = GENERATED_DIR / "mobile-audits"
 
 URL_RE = re.compile(r"https://[^\s]+")
 STAGE_RE = re.compile(r"\[(?P<current>\d+)/(?P<total>\d+)\]\s*(?P<label>.+)")
+SCREENSHOT_LOG_RE = re.compile(r"screenshot saved:\s*(?P<path>.+)$", re.IGNORECASE)
 SAFE_FILENAME_RE = re.compile(r"[^a-zA-Z0-9._-]+")
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 FOREGROUND_ACTIVITY_RE = re.compile(r"(?P<package>[A-Za-z0-9._$]+)/(?P<activity>[A-Za-z0-9._$/-]+)")
@@ -45,6 +47,37 @@ JOBS_LOCK = threading.Lock()
 JOB_PROCESSES: dict[str, subprocess.Popen[str]] = {}
 JOB_PROCESSES_LOCK = threading.Lock()
 CANCELLED_RETURN_CODE = -999
+
+
+def _adb_stdout(*args: str, **kwargs: Any) -> str:
+    from src.mobile_audit.device_manager import adb_stdout
+
+    return adb_stdout(*args, **kwargs)
+
+
+def _resolve_adb_executable() -> str:
+    from src.mobile_audit.device_manager import resolve_adb_executable
+
+    return resolve_adb_executable()
+
+
+@dataclass
+class UploadedFile:
+    filename: str
+    data: bytes
+
+
+@dataclass
+class MultipartForm:
+    fields: dict[str, list[str]] = field(default_factory=dict)
+    files: dict[str, list[UploadedFile]] = field(default_factory=dict)
+
+    def getfirst(self, name: str, default: str = "") -> str:
+        values = self.fields.get(name) or []
+        return values[0] if values else default
+
+    def getfiles(self, name: str) -> list[UploadedFile]:
+        return list(self.files.get(name) or [])
 
 
 def _env_host(default: str = "0.0.0.0") -> str:
@@ -101,6 +134,7 @@ def _new_screenshot_job(site_name: str, screenshot_paths: list[Path], screenshot
         "siteName": site_name,
         "screenshotPaths": [str(path) for path in screenshot_paths],
         "screenshotLabels": screenshot_labels,
+        "previewImagePath": str(screenshot_paths[0]) if screenshot_paths else "",
         "status": "queued",
         "stage": "Queued",
         "progress": 0,
@@ -149,51 +183,6 @@ def _new_mobile_job(
     }
 
 
-def _resolve_mobile_launch_target(
-    requested_package: str,
-    requested_activity: str,
-) -> tuple[str, str, str]:
-    app_package = str(requested_package or "").strip()
-    app_activity = str(requested_activity or "").strip()
-    discovery = _mobile_discovery_payload()
-    current_app = discovery.get("currentApp") or {}
-    launchable_apps = list(discovery.get("launchableApps") or [])
-
-    def _candidate_matches(candidate: dict[str, Any]) -> bool:
-        candidate_package = str(candidate.get("appPackage") or "").strip()
-        candidate_activity = str(candidate.get("appActivity") or "").strip()
-        if app_package and candidate_package != app_package:
-            return False
-        if app_activity and candidate_activity != app_activity:
-            return False
-        return bool(candidate_package and candidate_activity)
-
-    preferred: dict[str, Any] | None = None
-    if app_package or app_activity:
-        preferred = next((item for item in launchable_apps if _candidate_matches(item)), None)
-        if not preferred and _candidate_matches(current_app):
-            preferred = current_app
-    else:
-        if _candidate_matches(current_app):
-            preferred = current_app
-        elif launchable_apps:
-            preferred = launchable_apps[0]
-
-    if preferred:
-        return (
-            str(preferred.get("appPackage") or "").strip(),
-            str(preferred.get("appActivity") or "").strip(),
-            str(preferred.get("appLabel") or "").strip() or "Android App Audit",
-        )
-
-    if app_package and app_activity:
-        return app_package, app_activity, ""
-
-    raise ValueError(
-        "Unable to auto-detect a launchable Android app. Open the target app first or choose one from the detected installed apps."
-    )
-
-
 def _snapshot_job(job: dict[str, Any]) -> dict[str, Any]:
     safe = dict(job)
     safe["logs"] = list(job.get("logs", []))[-200:]
@@ -220,6 +209,9 @@ def _append_log(job_id: str, line: str) -> None:
         urls = URL_RE.findall(clean_line)
         if urls:
             job["resultUrl"] = urls[-1].rstrip(".,)")
+        screenshot_match = SCREENSHOT_LOG_RE.search(clean_line)
+        if screenshot_match:
+            job["previewImagePath"] = screenshot_match.group("path").strip()
 
 
 def _set_job(job_id: str, **updates: Any) -> None:
@@ -279,17 +271,6 @@ def _derive_mobile_failure_error(job_id: str, exit_code: int) -> str:
         return (
             "Mobile app audit failed because adb could not be resolved. Install Android "
             "platform-tools and make adb available to both the backend and the Appium process."
-        )
-    if "Cannot mkdir" in combined or "did not become ready before Appium session creation" in combined:
-        return (
-            "Mobile app audit failed before Appium could start because adb could not initialize its "
-            "working directory or the emulator never became ready. Check emulator availability and "
-            "ensure adb can write its Android user-home directory."
-        )
-    if "not exported from uid" in combined or "Permission Denial: starting Intent" in combined:
-        return (
-            "Mobile app audit failed because the selected launch activity is not exported and cannot be "
-            "started by adb/Appium. Use the app's launcher activity instead of the current foreground activity."
         )
     if "Appium session creation failed" in combined:
         return (
@@ -417,7 +398,7 @@ def _foreground_activity(adb_path: str, udid: str = "") -> tuple[str, str]:
         ("shell", "dumpsys", "window", "windows"),
     ):
         try:
-            dumps = adb_stdout(*command, udid=udid or None, timeout_ms=15000, adb_path=adb_path)
+            dumps = _adb_stdout(*command, udid=udid or None, timeout_ms=15000, adb_path=adb_path)
         except Exception:
             dumps = ""
         if not dumps:
@@ -439,7 +420,7 @@ def _launchable_apps(adb_path: str, udid: str = "") -> list[dict[str, str]]:
     output = ""
     for command in commands:
         try:
-            output = adb_stdout(*command, udid=udid or None, timeout_ms=20000, adb_path=adb_path)
+            output = _adb_stdout(*command, udid=udid or None, timeout_ms=20000, adb_path=adb_path)
         except Exception:
             output = ""
         if output:
@@ -472,8 +453,8 @@ def _launchable_apps(adb_path: str, udid: str = "") -> list[dict[str, str]]:
 
 
 def _mobile_discovery_payload() -> dict[str, Any]:
-    adb_path = resolve_adb_executable()
-    devices = _parse_adb_devices(adb_stdout("devices", "-l", timeout_ms=10000, adb_path=adb_path))
+    adb_path = _resolve_adb_executable()
+    devices = _parse_adb_devices(_adb_stdout("devices", "-l", timeout_ms=10000, adb_path=adb_path))
     online_devices = [device for device in devices if device.get("state") == "device"]
     selected = online_devices[0] if online_devices else (devices[0] if devices else None)
     selected_udid = str((selected or {}).get("udid") or "")
@@ -488,11 +469,11 @@ def _mobile_discovery_payload() -> dict[str, Any]:
 
     if selected_udid:
         try:
-            model = adb_stdout("shell", "getprop", "ro.product.model", udid=selected_udid, timeout_ms=8000, adb_path=adb_path)
+            model = _adb_stdout("shell", "getprop", "ro.product.model", udid=selected_udid, timeout_ms=8000, adb_path=adb_path)
         except Exception as exc:
             warnings.append(f"Unable to read device model: {exc}")
         try:
-            platform_version = adb_stdout("shell", "getprop", "ro.build.version.release", udid=selected_udid, timeout_ms=8000, adb_path=adb_path)
+            platform_version = _adb_stdout("shell", "getprop", "ro.build.version.release", udid=selected_udid, timeout_ms=8000, adb_path=adb_path)
         except Exception as exc:
             warnings.append(f"Unable to read platform version: {exc}")
         try:
@@ -504,24 +485,14 @@ def _mobile_discovery_payload() -> dict[str, Any]:
         except Exception as exc:
             warnings.append(f"Unable to list launchable apps: {exc}")
 
-    if current_package:
-        preferred_launchable = next((app for app in launchable_apps if app["appPackage"] == current_package), None)
-        if preferred_launchable:
-            current_app = {
-                **preferred_launchable,
-                "foregroundActivity": current_activity,
-                "foregroundLabel": _friendly_app_label(current_package, current_activity) if current_activity else preferred_launchable["appLabel"],
-            }
-        elif current_activity:
-            current_app = {
-                "appPackage": current_package,
-                "appActivity": current_activity,
-                "appLabel": _friendly_app_label(current_package, current_activity),
-                "foregroundActivity": current_activity,
-                "foregroundLabel": _friendly_app_label(current_package, current_activity),
-            }
-            if (current_package, current_activity) not in {(app["appPackage"], app["appActivity"]) for app in launchable_apps}:
-                launchable_apps = [current_app, *launchable_apps]
+    if current_package and current_activity:
+        current_app = {
+            "appPackage": current_package,
+            "appActivity": current_activity,
+            "appLabel": _friendly_app_label(current_package, current_activity),
+        }
+        if (current_package, current_activity) not in {(app["appPackage"], app["appActivity"]) for app in launchable_apps}:
+            launchable_apps = [current_app, *launchable_apps]
 
     return {
         "adbPath": adb_path,
@@ -553,21 +524,45 @@ def _safe_upload_name(raw_name: str, index: int, suffix_source: str = "") -> str
     return f"{index:03d}-{cleaned}{suffix}"
 
 
-def _read_multipart_form(handler: BaseHTTPRequestHandler) -> cgi.FieldStorage:
-    environ = {
-        "REQUEST_METHOD": "POST",
-        "CONTENT_TYPE": handler.headers.get("Content-Type", ""),
-        "CONTENT_LENGTH": handler.headers.get("Content-Length", "0"),
-    }
-    return cgi.FieldStorage(fp=handler.rfile, headers=handler.headers, environ=environ)
+def _read_multipart_form(handler: BaseHTTPRequestHandler) -> MultipartForm:
+    content_type = handler.headers.get("Content-Type", "")
+    length = int(handler.headers.get("Content-Length", "0") or "0")
+    if not content_type.startswith("multipart/form-data"):
+        raise ValueError("Request must use multipart/form-data.")
+    if length <= 0:
+        raise ValueError("Multipart request body is empty.")
+
+    raw_body = handler.rfile.read(length)
+    message_bytes = (
+        f"Content-Type: {content_type}\r\n"
+        "MIME-Version: 1.0\r\n"
+        "\r\n"
+    ).encode("utf-8") + raw_body
+    message = BytesParser(policy=policy.default).parsebytes(message_bytes)
+    if not message.is_multipart():
+        raise ValueError("Multipart request body could not be parsed.")
+
+    form = MultipartForm()
+    for part in message.iter_parts():
+        name = part.get_param("name", header="content-disposition")
+        if not name:
+            continue
+        payload = part.get_payload(decode=True) or b""
+        filename = part.get_filename()
+        if filename:
+            form.files.setdefault(name, []).append(UploadedFile(filename=filename, data=payload))
+            continue
+        charset = part.get_content_charset() or "utf-8"
+        form.fields.setdefault(name, []).append(payload.decode(charset, errors="replace"))
+    return form
 
 
-def _field_value(form: cgi.FieldStorage, name: str, default: str = "") -> str:
+def _field_value(form: MultipartForm, name: str, default: str = "") -> str:
     value = form.getfirst(name, default)
     return str(value or default).strip()
 
 
-def _field_json_array(form: cgi.FieldStorage, name: str) -> list[str]:
+def _field_json_array(form: MultipartForm, name: str) -> list[str]:
     raw = _field_value(form, name, "[]")
     try:
         parsed = json.loads(raw)
@@ -578,13 +573,11 @@ def _field_json_array(form: cgi.FieldStorage, name: str) -> list[str]:
     return [str(item or "").strip() for item in parsed]
 
 
-def _field_items(form: cgi.FieldStorage, name: str) -> list[cgi.FieldStorage]:
-    value = form[name] if name in form else []
-    items = value if isinstance(value, list) else [value]
-    return [item for item in items if getattr(item, "filename", "")]
+def _field_items(form: MultipartForm, name: str) -> list[UploadedFile]:
+    return [item for item in form.getfiles(name) if item.filename]
 
 
-def _save_screenshot_uploads(form: cgi.FieldStorage, job_id: str, labels: list[str]) -> list[Path]:
+def _save_screenshot_uploads(form: MultipartForm, job_id: str, labels: list[str]) -> list[Path]:
     upload_dir = SCREENSHOT_AUDIT_DIR / job_id / "uploads"
     upload_dir.mkdir(parents=True, exist_ok=True)
 
@@ -593,8 +586,7 @@ def _save_screenshot_uploads(form: cgi.FieldStorage, job_id: str, labels: list[s
         label = labels[index - 1] if index - 1 < len(labels) else ""
         filename = _safe_upload_name(label or item.filename, index, suffix_source=item.filename)
         target = upload_dir / filename
-        with target.open("wb") as output:
-            shutil.copyfileobj(item.file, output)
+        target.write_bytes(item.data)
         if target.stat().st_size <= 0:
             target.unlink(missing_ok=True)
             continue
@@ -606,7 +598,29 @@ def _save_screenshot_uploads(form: cgi.FieldStorage, job_id: str, labels: list[s
     return saved_paths
 
 
-def _run_command(job_id: str, command: list[str], *, stage: str, progress: int) -> int:
+def _artifact_url_for_path(path: Path) -> str:
+    target = path if path.is_absolute() else ROOT_DIR / path
+    try:
+        rel = target.resolve().relative_to(ROOT_DIR.resolve())
+    except ValueError:
+        return ""
+    return f"/artifacts/{quote(rel.as_posix(), safe='/')}"
+
+
+def _inside(path: Path, parent: Path) -> bool:
+    try:
+        path.resolve().relative_to(parent.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def _packaged_report_url(static_dir: Path) -> str:
+    index_path = static_dir / "index.html"
+    return _artifact_url_for_path(index_path) if index_path.exists() else ""
+
+
+def _run_command(job_id: str, command: list[str], *, stage: str, progress: int, env_overrides: dict[str, str] | None = None) -> int:
     if _finish_if_cancelled(job_id):
         return CANCELLED_RETURN_CODE
 
@@ -614,6 +628,8 @@ def _run_command(job_id: str, command: list[str], *, stage: str, progress: int) 
     _append_log(job_id, f"$ {' '.join(command)}")
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
+    if env_overrides:
+        env.update(env_overrides)
     process = subprocess.Popen(
         command,
         cwd=str(ROOT_DIR),
@@ -663,7 +679,13 @@ def _run_audit_job(job_id: str) -> None:
         "--mode",
         mode,
     ]
-    pipeline_code = _run_command(job_id, pipeline_command, stage="Running audit pipeline", progress=5)
+    pipeline_code = _run_command(
+        job_id,
+        pipeline_command,
+        stage="Running audit pipeline",
+        progress=5,
+        env_overrides={"GTM_AUTO_DEPLOY": "0"},
+    )
     if pipeline_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
         return
     if pipeline_code != 0:
@@ -694,6 +716,17 @@ def _run_audit_job(job_id: str) -> None:
     with JOBS_LOCK:
         result_url = JOBS[job_id].get("resultUrl", "")
     if deploy_code != 0:
+        local_report_url = _packaged_report_url(vercel_dir)
+        if local_report_url:
+            _set_job(
+                job_id,
+                status="completed",
+                stage="Completed with local report",
+                progress=100,
+                resultUrl=local_report_url,
+                error="Vercel deployment failed, so the packaged report is being served locally by this app.",
+            )
+            return
         _set_job(
             job_id,
             status="failed",
@@ -704,6 +737,10 @@ def _run_audit_job(job_id: str) -> None:
         )
         return
     if not result_url:
+        local_report_url = _packaged_report_url(vercel_dir)
+        if local_report_url:
+            _set_job(job_id, status="completed", stage="Completed with local report", progress=100, resultUrl=local_report_url)
+            return
         _set_job(
             job_id,
             status="failed",
@@ -795,6 +832,17 @@ def _run_screenshot_audit_job(job_id: str) -> None:
     with JOBS_LOCK:
         result_url = JOBS[job_id].get("resultUrl", "")
     if deploy_code != 0:
+        local_report_url = _packaged_report_url(vercel_dir)
+        if local_report_url:
+            _set_job(
+                job_id,
+                status="completed",
+                stage="Completed with local report",
+                progress=100,
+                resultUrl=local_report_url,
+                error="Vercel deployment failed, so the packaged report is being served locally by this app.",
+            )
+            return
         _set_job(
             job_id,
             status="failed",
@@ -805,6 +853,10 @@ def _run_screenshot_audit_job(job_id: str) -> None:
         )
         return
     if not result_url:
+        local_report_url = _packaged_report_url(vercel_dir)
+        if local_report_url:
+            _set_job(job_id, status="completed", stage="Completed with local report", progress=100, resultUrl=local_report_url)
+            return
         _set_job(
             job_id,
             status="failed",
@@ -987,6 +1039,18 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
                 return
             self._send_file(target)
             return
+        if parsed.path.startswith("/artifacts/"):
+            rel = unquote(parsed.path.removeprefix("/artifacts/")).replace("\\", "/").lstrip("/")
+            target = (ROOT_DIR / rel).resolve()
+            allowed_roots = [
+                (ROOT_DIR / "shared" / "output").resolve(),
+                (ROOT_DIR / "shared" / "generated").resolve(),
+            ]
+            if not any(_inside(target, root) for root in allowed_roots):
+                self.send_error(HTTPStatus.FORBIDDEN, "Forbidden")
+                return
+            self._send_file(target)
+            return
         if not parsed.path.startswith("/api/"):
             rel = unquote(parsed.path.lstrip("/"))
             if rel:
@@ -1068,12 +1132,8 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
                     worker = threading.Thread(target=_run_audit_job, args=(job["id"],), daemon=True)
                 elif audit_type == "mobile":
                     app_label = str(data.get("appLabel") or "Android App Audit").strip() or "Android App Audit"
-                    app_package, app_activity, detected_label = _resolve_mobile_launch_target(
-                        str(data.get("appPackage") or ""),
-                        str(data.get("appActivity") or ""),
-                    )
-                    if app_label == "Android App Audit" and detected_label:
-                        app_label = detected_label
+                    app_package = _validate_required_text(str(data.get("appPackage") or ""), "Android app package")
+                    app_activity = _validate_required_text(str(data.get("appActivity") or ""), "Android app activity")
                     appium_url = str(data.get("appiumUrl") or "http://127.0.0.1:4723").strip() or "http://127.0.0.1:4723"
                     device_name = str(data.get("deviceName") or "Android Emulator").strip() or "Android Emulator"
                     platform_version = str(data.get("platformVersion") or "").strip()

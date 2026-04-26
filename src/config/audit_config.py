@@ -1,13 +1,40 @@
+import os
+
+
+def _env_bool(name, default):
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_int(name, default):
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+def _env_text(name, default=""):
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip()
+
+
 AUDIT_CONFIG = {
     "browser": {
-        "headless": False,
-        "browserType": "chromium",
-        "channel": "chrome",
-        "slowMoMs": 120,
-        "ignoreHttpsErrors": True,
+        "headless": _env_bool("AUDIT_BROWSER_HEADLESS", True),
+        "browserType": _env_text("AUDIT_BROWSER_TYPE", "chromium") or "chromium",
+        "channel": _env_text("AUDIT_BROWSER_CHANNEL", ""),
+        "slowMoMs": _env_int("AUDIT_BROWSER_SLOW_MO_MS", 0),
+        "ignoreHttpsErrors": _env_bool("AUDIT_BROWSER_IGNORE_HTTPS_ERRORS", True),
         "viewport": {
-            "width": 1440,
-            "height": 900,
+            "width": _env_int("AUDIT_BROWSER_VIEWPORT_WIDTH", 1440),
+            "height": _env_int("AUDIT_BROWSER_VIEWPORT_HEIGHT", 900),
         },
     },
     "navigation": {
@@ -219,7 +246,7 @@ AUDIT_CONFIG = {
         "captureSuccessfulInteractionScreenshots": True,
     },
     "execution": {
-        "pageConcurrency": 5,
+        "pageConcurrency": _env_int("AUDIT_PAGE_CONCURRENCY", 2),
     },
     "mobileAudit": {
         "appium": {
@@ -248,8 +275,6 @@ AUDIT_CONFIG = {
             "settleDelayMs": 1200,
             "stabilizationTimeoutMs": 10000,
             "stabilizationPollMs": 700,
-            "transitionWaitTimeoutMs": 9000,
-            "transitionWaitPollMs": 700,
         },
         "initialization": {
             "maxBackPresses": 2,
@@ -260,8 +285,6 @@ AUDIT_CONFIG = {
         "exploration": {
             "maxScreens": 40,
             "maxActionsTotal": 96,
-            "maxOnboardingScreens": 80,
-            "maxOnboardingActions": 160,
             "maxActionsPerScreen": 8,
             "maxScrollsPerPath": 5,
             "maxBacktrackSteps": 4,

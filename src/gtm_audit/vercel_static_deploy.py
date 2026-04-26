@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import re
 import shutil
 import subprocess
@@ -116,13 +118,42 @@ def _vercel_executable() -> str:
     return executable
 
 
+def _env(name: str) -> str:
+    return os.getenv(name, "").strip()
+
+
+def _ensure_vercel_project_link(static_dir: Path) -> None:
+    org_id = _env("VERCEL_ORG_ID")
+    project_id = _env("VERCEL_PROJECT_ID")
+    if not org_id or not project_id:
+        return
+
+    vercel_dir = static_dir / ".vercel"
+    vercel_dir.mkdir(parents=True, exist_ok=True)
+    project_json = vercel_dir / "project.json"
+    project_json.write_text(
+        json.dumps({"orgId": org_id, "projectId": project_id}, indent=2),
+        encoding="utf-8",
+    )
+
+
 def deploy_to_vercel(static_dir: Path, *, production: bool = True) -> str:
     executable = _vercel_executable()
-    command = [executable, "deploy", str(static_dir), "--yes"]
+    static_dir = static_dir if static_dir.is_absolute() else ROOT_DIR / static_dir
+    _ensure_vercel_project_link(static_dir)
+
+    command = [executable, "deploy", ".", "--yes"]
     if production:
         command.append("--prod")
+    vercel_token = _env("VERCEL_TOKEN")
+    if vercel_token:
+        command.extend(["--token", vercel_token])
+    vercel_scope = _env("VERCEL_SCOPE")
+    if vercel_scope:
+        command.extend(["--scope", vercel_scope])
     completed = subprocess.run(
         command,
+        cwd=str(static_dir),
         check=False,
         text=True,
         stdout=subprocess.PIPE,
@@ -135,7 +166,9 @@ def deploy_to_vercel(static_dir: Path, *, production: bool = True) -> str:
         lowered = output.lower()
         if "login" in lowered or "auth" in lowered or "not authenticated" in lowered:
             raise RuntimeError("Vercel deployment failed because the CLI is not authenticated. Run: vercel login")
-        raise RuntimeError(f"Vercel deployment failed with exit code {completed.returncode}.")
+        output_tail = "\n".join(output.splitlines()[-12:]).strip()
+        detail = f"\n\nVercel output:\n{output_tail}" if output_tail else ""
+        raise RuntimeError(f"Vercel deployment failed with exit code {completed.returncode}.{detail}")
     urls = re.findall(r"https://[^\s]+", output)
     return urls[-1] if urls else ""
 

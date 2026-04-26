@@ -23,8 +23,6 @@ class MobileRunnerConfig:
     scroll_percent: float = 0.82
     slider_post_delay_ms: int = 900
     slider_drag_duration_ms: int = 500
-    transition_wait_timeout_ms: int = 9000
-    transition_wait_poll_ms: int = 700
 
 
 class MobileRunner:
@@ -91,72 +89,6 @@ class MobileRunner:
 
     def capture_current_screen(self, screen_id: str = "screen_001") -> dict[str, Any]:
         return self.inspect_current_screen(screen_id=screen_id, include_screenshot=True)
-
-    def is_loading_like_surface(self, screen: dict[str, Any]) -> bool:
-        visible_text = [str(value or "").strip() for value in screen.get("visible_text", []) if str(value or "").strip()]
-        tappable_count = len(screen.get("tappables", []))
-        screen_type = self._screen_type(screen)
-        title = str(screen.get("screen_title_guess") or "").strip()
-        if tappable_count > 0:
-            return False
-        if screen_type not in {"unknown", "onboarding_screen"}:
-            return False
-        if len(visible_text) == 1 and visible_text[0] == "100%":
-            return True
-        if title in {"100%", "Loading", "Please wait"} and len(visible_text) <= 2:
-            return True
-        return False
-
-    def wait_for_transition_target(
-        self,
-        source_screen: dict[str, Any],
-        initial_capture: dict[str, Any],
-        *,
-        screen_id: str = "pending_screen",
-    ) -> dict[str, Any]:
-        candidate = initial_capture
-        candidate_screen = candidate["screen"]
-        if not self.is_loading_like_surface(candidate_screen):
-            return candidate
-
-        source_fingerprint = str(source_screen.get("screen_fingerprint") or "")
-        source_activity = str(source_screen.get("activity_name") or "")
-        deadline = time.time() + (self.config.transition_wait_timeout_ms / 1000.0)
-        poll_s = max(0.1, self.config.transition_wait_poll_ms / 1000.0)
-
-        print(
-            "[mobile] Transitional loading screen detected; waiting for the next stable surface. "
-            f"title={candidate_screen.get('screen_title_guess') or '(untitled)'} "
-            f"activity={candidate_screen.get('activity_name') or '(unknown)'}"
-        )
-
-        while time.time() < deadline:
-            time.sleep(poll_s)
-            probe = self.inspect_current_screen(screen_id=screen_id, include_screenshot=True)
-            probe_screen = probe["screen"]
-            probe_fingerprint = str(probe_screen.get("screen_fingerprint") or "")
-            probe_activity = str(probe_screen.get("activity_name") or "")
-
-            if probe_fingerprint == source_fingerprint:
-                continue
-            if self.is_loading_like_surface(probe_screen):
-                candidate = probe
-                candidate_screen = probe_screen
-                continue
-            if probe_activity and probe_activity != source_activity:
-                print(
-                    "[mobile] Transition settled on a new activity surface: "
-                    f"{probe_activity} ({probe_screen.get('screen_title_guess') or '(untitled)'})"
-                )
-            else:
-                print(
-                    "[mobile] Transition settled on a new in-app surface: "
-                    f"{probe_screen.get('screen_title_guess') or '(untitled)'}"
-                )
-            return probe
-
-        print("[mobile] Transition wait timed out; keeping the last observed loading-like surface.")
-        return candidate
 
     def _largest_scrollable_bounds(self, screen: dict[str, Any]) -> list[int]:
         scrollables = [
