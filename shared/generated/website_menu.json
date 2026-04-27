@@ -11,23 +11,60 @@
       "name": "Accueil",
       "url": "https://weefizz.com/index.html",
       "type": "menu",
-      "children": []
+      "children": [
+        {
+          "name": "General",
+          "type": "section",
+          "children": [
+            {
+              "name": "Accueil",
+              "type": "link",
+              "url": "https://weefizz.com/index.html",
+              "children": []
+            },
+            {
+              "name": "Contact",
+              "type": "link",
+              "url": "https://weefizz.com/contact.html",
+              "children": []
+            },
+            {
+              "name": "Demander une démo",
+              "type": "link",
+              "url": "https://calendar.app.google/RfDGqcEcm7hdHTky5",
+              "children": []
+            },
+            {
+              "name": "Technologie",
+              "type": "link",
+              "url": "https://weefizz.com/technologie.html",
+              "children": []
+            },
+            {
+              "name": "WeeFizz Fashion",
+              "type": "link",
+              "url": "https://weefizz.com/fashion.html",
+              "children": []
+            },
+            {
+              "name": "WeeFizz PRO",
+              "type": "link",
+              "url": "https://weefizz.com/pro.html",
+              "children": []
+            }
+          ]
+        }
+      ]
     },
     {
       "name": "Contact",
-      "url": "https://weefizz.com/contactfr.html",
-      "type": "menu",
+      "url": "https://weefizz.com/contact.html",
+      "type": "link",
       "children": []
     },
     {
-      "name": "Qui sommes nous ?",
-      "url": "https://weefizz.com/qui-sommes-nousfr.html",
-      "type": "menu",
-      "children": []
-    },
-    {
-      "name": "Solutions",
-      "url": null,
+      "name": "Technologie",
+      "url": "https://weefizz.com/technologie.html",
       "type": "menu",
       "children": [
         {
@@ -35,24 +72,164 @@
           "type": "section",
           "children": [
             {
-              "name": "Solutions",
+              "name": "Accueil",
               "type": "link",
-              "url": "https://weefizz.com/#",
+              "url": "https://weefizz.com/index.html",
+              "children": []
+            },
+            {
+              "name": "Contact",
+              "type": "link",
+              "url": "https://weefizz.com/contact.html",
+              "children": []
+            },
+            {
+              "name": "Demander une démo",
+              "type": "link",
+              "url": "https://calendar.app.google/RfDGqcEcm7hdHTky5",
+              "children": []
+            },
+            {
+              "name": "Technologie",
+              "type": "link",
+              "url": "https://weefizz.com/technologie.html",
+              "children": []
+            },
+            {
+              "name": "WeeFizz Fashion",
+              "type": "link",
+              "url": "https://weefizz.com/fashion.html",
+              "children": []
+            },
+            {
+              "name": "WeeFizz PRO",
+              "type": "link",
+              "url": "https://weefizz.com/pro.html",
               "children": []
             }
           ]
         }
       ]
+    },
+    {
+      "name": "WeeFizz accueil",
+      "url": "https://weefizz.com/index.html",
+      "type": "link",
+      "children": []
+    },
+    {
+      "name": "WeeFizz Fashion",
+      "url": "https://weefizz.com/fashion.html",
+      "type": "menu",
+      "children": [
+        {
+          "name": "General",
+          "type": "section",
+          "children": [
+            {
+              "name": "Accueil",
+              "type": "link",
+              "url": "https://weefizz.com/index.html",
+              "children": []
+            },
+            {
+              "name": "Contact",
+              "type": "link",
+              "url": "https://weefizz.com/contact.html",
+              "children": []
+            },
+            {
+              "name": "Demander une démo",
+              "type": "link",
+              "url": "https://calendar.app.google/RfDGqcEcm7hdHTky5",
+              "children": []
+            },
+            {
+              "name": "Technologie",
+              "type": "link",
+              "url": "https://weefizz.com/technologie.html",
+              "children": []
+            },
+            {
+              "name": "WeeFizz Fashion",
+              "type": "link",
+              "url": "https://weefizz.com/fashion.html",
+              "children": []
+            },
+            {
+              "name": "WeeFizz PRO",
+              "type": "link",
+              "url": "https://weefizz.com/pro.html",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "WeeFizz PRO",
+      "url": "https://weefizz.com/pro.html",
+      "type": "menu",
+      "children": [
+        {
+          "name": "General",
+          "type": "section",
+          "children": [
+            {
+              "name": "Accueil",
+              "type": "link",
+              "url": "https://weefizz.com/index.html",
+              "children": []
+            },
+            {
+              "name": "Contact",
+              "type": "link",
+              "url": "https://weefizz.com/contact.html",
+              "children": []
+            },
+            {
+              "name": "Demander une démo",
+              "type": "link",
+              "url": "https://calendar.app.google/RfDGqcEcm7hdHTky5",
+              "children": []
+            },
+            {
+              "name": "Technologie",
+              "type": "link",
+              "url": "https://weefizz.com/technologie.html",
+              "children": []
+            },
+            {
+              "name": "WeeFizz Fashion",
+              "type": "link",
+              "url": "https://weefizz.com/fashion.html",
+              "children": []
+            },
+            {
+              "name": "WeeFizz PRO",
+              "type": "link",
+              "url": "https://weefizz.com/pro.html",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "✕",
+      "url": null,
+      "type": "menu",
+      "children": []
     }
   ],
   "extra": {
     "desktop": {
-      "forms_detected": 1,
-      "total_internal_links": 30,
+      "forms_detected": 0,
+      "total_internal_links": 27,
       "external_links": 4,
-      "title": "WeeFizz – Prise de mesure à distance pour vêtements professionnels",
-      "page_size_kb": 37.93,
-      "images_found": 31,
+      "title": "WeeFizz — La data morphologique entre l'humain et le vêtement",
+      "page_size_kb": 84.69,
+      "images_found": 20,
       "mode": "desktop",
       "page_language": "fr",
       "ai_recovery": {
@@ -65,12 +242,12 @@
       }
     },
     "mobile": {
-      "forms_detected": 1,
-      "total_internal_links": 30,
+      "forms_detected": 0,
+      "total_internal_links": 27,
       "external_links": 4,
-      "title": "WeeFizz – Prise de mesure à distance pour vêtements professionnels",
-      "page_size_kb": 37.98,
-      "images_found": 31,
+      "title": "WeeFizz — La data morphologique entre l'humain et le vêtement",
+      "page_size_kb": 82.71,
+      "images_found": 20,
       "mode": "mobile",
       "page_language": "fr",
       "ai_recovery": {
@@ -82,12 +259,12 @@
         "error": "Ollama request failed: Client error '400 Bad Request' for url 'http://127.0.0.1:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400"
       }
     },
-    "menu_count": 4,
+    "menu_count": 7,
     "navbar_score": 11.0,
     "source_container": "merged(desktop+mobile)",
     "sitemap_found": "https://weefizz.com/sitemap.xml",
     "robots_txt": "https://weefizz.com/robots.txt",
-    "crawl_time_ms": 88750
+    "crawl_time_ms": 109892
   },
   "requested_language": "en-US",
   "language_warning": "Requested English, but detected page language was fr."
