@@ -615,6 +615,44 @@
         color: #ffd7a3;
       }
 
+      .backend-panel {
+        background: rgba(45, 46, 56, 0.46);
+        border: 1px solid rgba(196, 196, 208, 0.18);
+        border-radius: 18px;
+        margin-top: 20px;
+        padding: 18px;
+      }
+
+      .backend-panel-header {
+        align-items: start;
+        display: flex;
+        gap: 16px;
+        justify-content: space-between;
+      }
+
+      .backend-panel-header strong,
+      .backend-panel-header span {
+        display: block;
+      }
+
+      .backend-panel-header span {
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.45;
+        margin-top: 4px;
+      }
+
+      .backend-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .backend-status {
+        color: #cfeecf;
+      }
+
       .mobile-discovery-panel {
         align-items: center;
         background: rgba(45, 46, 56, 0.46);
@@ -1786,41 +1824,66 @@
         return rawConfig;
       }
 
+      const BACKEND_OVERRIDE_STORAGE_KEY = "UX_UI_AUDITOR_API_BASE_URL";
       const APP_CONFIG = readInjectedConfig();
-      const API_BASE_URL = normalizeApiBaseUrl(APP_CONFIG.apiBaseUrl || "");
+      const DEFAULT_API_BASE_URL = normalizeApiBaseUrl(APP_CONFIG.apiBaseUrl || "");
 
-      function isCrossOriginApi() {
-        if (!API_BASE_URL) return false;
+      function getConfiguredApiBaseUrl() {
+        const localOverride = window.localStorage.getItem(BACKEND_OVERRIDE_STORAGE_KEY) || "";
+        return normalizeApiBaseUrl(localOverride || DEFAULT_API_BASE_URL);
+      }
+
+      function persistApiBaseUrlOverride(value) {
+        const normalized = normalizeApiBaseUrl(value);
+        if (normalized) {
+          window.localStorage.setItem(BACKEND_OVERRIDE_STORAGE_KEY, normalized);
+        } else {
+          window.localStorage.removeItem(BACKEND_OVERRIDE_STORAGE_KEY);
+        }
+        return getConfiguredApiBaseUrl();
+      }
+
+      function clearApiBaseUrlOverride() {
+        window.localStorage.removeItem(BACKEND_OVERRIDE_STORAGE_KEY);
+        return getConfiguredApiBaseUrl();
+      }
+
+      function isCrossOriginApi(apiBaseUrl) {
+        const resolvedApiBaseUrl = normalizeApiBaseUrl(apiBaseUrl === undefined ? getConfiguredApiBaseUrl() : apiBaseUrl);
+        if (!resolvedApiBaseUrl) return false;
         try {
-          return new URL(API_BASE_URL).origin !== window.location.origin;
+          return new URL(resolvedApiBaseUrl).origin !== window.location.origin;
         } catch (_error) {
           return false;
         }
       }
 
-      function buildApiHeaders(extraHeaders) {
+      function buildApiHeaders(extraHeaders, apiBaseUrl) {
+        const resolvedApiBaseUrl = normalizeApiBaseUrl(apiBaseUrl === undefined ? getConfiguredApiBaseUrl() : apiBaseUrl);
         const headers = new Headers(extraHeaders || {});
-        if (isCrossOriginApi() && API_BASE_URL.includes("ngrok")) {
+        if (isCrossOriginApi(resolvedApiBaseUrl) && resolvedApiBaseUrl.includes("ngrok")) {
           headers.set("ngrok-skip-browser-warning", "true");
         }
         return headers;
       }
 
-      function buildApiUrl(path) {
-        if (!API_BASE_URL) return path;
-        if (!path.startsWith("/")) return `${API_BASE_URL}/${path}`;
-        return `${API_BASE_URL}${path}`;
+      function buildApiUrl(path, apiBaseUrl) {
+        const resolvedApiBaseUrl = normalizeApiBaseUrl(apiBaseUrl === undefined ? getConfiguredApiBaseUrl() : apiBaseUrl);
+        if (!resolvedApiBaseUrl) return path;
+        if (!path.startsWith("/")) return `${resolvedApiBaseUrl}/${path}`;
+        return `${resolvedApiBaseUrl}${path}`;
       }
 
-      async function apiFetch(path, options) {
+      async function apiFetch(path, options, apiBaseUrl) {
+        const resolvedApiBaseUrl = normalizeApiBaseUrl(apiBaseUrl === undefined ? getConfiguredApiBaseUrl() : apiBaseUrl);
         const requestOptions = { ...(options || {}) };
-        requestOptions.headers = buildApiHeaders(requestOptions.headers);
-        const targetUrl = buildApiUrl(path);
+        requestOptions.headers = buildApiHeaders(requestOptions.headers, resolvedApiBaseUrl);
+        const targetUrl = buildApiUrl(path, resolvedApiBaseUrl);
         try {
           return await fetch(targetUrl, requestOptions);
         } catch (_error) {
-          const base = API_BASE_URL || window.location.origin;
-          throw new Error(`Unable to reach backend API at ${base}. Confirm the Python server is running and config.js points to the active backend URL.`);
+          const base = resolvedApiBaseUrl || window.location.origin;
+          throw new Error(`Unable to reach backend API at ${base}. Confirm the Python server is running and update the Backend API URL in this form.`);
         }
       }
 
@@ -1843,7 +1906,7 @@
         }
 
         const preview = cleanText ? ` Preview: ${cleanText.slice(0, 120)}` : "";
-        throw new Error(`${fallbackMessage || "Backend returned a non-JSON response."} Check src/ui/static/config.js and confirm the API URL is the active backend/ngrok URL.${preview}`);
+        throw new Error(`${fallbackMessage || "Backend returned a non-JSON response."} Confirm the Backend API URL points to the active backend or ngrok URL.${preview}`);
       }
 
       function App() {
@@ -1865,6 +1928,10 @@
         const [screenshotFiles, setScreenshotFilesState] = useState([]);
         const [job, setJob] = useState(null);
         const [error, setError] = useState("");
+        const [apiBaseUrl, setApiBaseUrl] = useState(getConfiguredApiBaseUrl);
+        const [backendUrlInput, setBackendUrlInput] = useState(getConfiguredApiBaseUrl);
+        const [backendStatus, setBackendStatus] = useState("");
+        const [isCheckingBackend, setIsCheckingBackend] = useState(false);
         const [isModalOpen, setIsModalOpen] = useState(false);
         const [isSubmitting, setIsSubmitting] = useState(false);
         const [isStopping, setIsStopping] = useState(false);
@@ -1906,6 +1973,11 @@
           return () => {
             screenshotFilesRef.current.forEach((item) => window.URL.revokeObjectURL(item.previewUrl));
           };
+        }, []);
+
+        useEffect(() => {
+          setApiBaseUrl(getConfiguredApiBaseUrl());
+          setBackendUrlInput(getConfiguredApiBaseUrl());
         }, []);
 
         useEffect(() => {
@@ -1956,6 +2028,49 @@
             window.history.pushState(null, "", hash);
           }
           window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        function handleSaveBackendUrl() {
+          const nextApiBaseUrl = persistApiBaseUrlOverride(backendUrlInput);
+          setApiBaseUrl(nextApiBaseUrl);
+          setBackendUrlInput(nextApiBaseUrl);
+          setBackendStatus(
+            nextApiBaseUrl
+              ? `Backend override saved: ${nextApiBaseUrl}`
+              : "Backend override cleared. Using same-origin API routes."
+          );
+          setError("");
+        }
+
+        function handleResetBackendUrl() {
+          const nextApiBaseUrl = clearApiBaseUrlOverride();
+          setApiBaseUrl(nextApiBaseUrl);
+          setBackendUrlInput(nextApiBaseUrl);
+          setBackendStatus(
+            nextApiBaseUrl
+              ? `Using the default backend URL from config.js: ${nextApiBaseUrl}`
+              : "Using same-origin API routes."
+          );
+        }
+
+        async function handleCheckBackend() {
+          const candidateApiBaseUrl = normalizeApiBaseUrl(backendUrlInput || apiBaseUrl);
+          const targetLabel = candidateApiBaseUrl || window.location.origin;
+          setIsCheckingBackend(true);
+          setBackendStatus("");
+          try {
+            const response = await apiFetch("/health", { method: "GET" }, candidateApiBaseUrl);
+            const payload = await readApiJson(response, `Unable to reach backend health endpoint at ${targetLabel}.`);
+            if (!response.ok) {
+              throw new Error(payload.error || `Backend health check failed at ${targetLabel}.`);
+            }
+            setBackendStatus(`Backend reachable: ${targetLabel}`);
+            setError("");
+          } catch (healthError) {
+            setBackendStatus(healthError.message || `Unable to reach backend health endpoint at ${targetLabel}.`);
+          } finally {
+            setIsCheckingBackend(false);
+          }
         }
 
         function setImageFiles(fileList) {
@@ -2152,6 +2267,16 @@
                 { className: "audit-panel", onSubmit: handleSubmit },
                 e("h2", null, "Start here"),
                 e("p", { className: "panel-subtitle" }, "Configure your audit parameters"),
+                e(BackendApiFields, {
+                  apiBaseUrl,
+                  backendStatus,
+                  backendUrlInput,
+                  isCheckingBackend,
+                  onCheckBackend: handleCheckBackend,
+                  onResetBackendUrl: handleResetBackendUrl,
+                  onSaveBackendUrl: handleSaveBackendUrl,
+                  setBackendUrlInput,
+                }),
                 e("div", { className: "field-legend" }, "Choose Experience"),
                 e(
                   "div",
@@ -2362,6 +2487,49 @@
               e("button", { type: "button", className: mode === "detailed" ? "active" : "", onClick: () => setMode("detailed") }, "Detailed audit"),
               e("button", { type: "button", className: mode === "gtm" ? "active" : "", onClick: () => setMode("gtm") }, e(Icon, { name: "check" }), "GTM audit")
             )
+          )
+        );
+      }
+
+      function BackendApiFields({ apiBaseUrl, backendStatus, backendUrlInput, isCheckingBackend, onCheckBackend, onResetBackendUrl, onSaveBackendUrl, setBackendUrlInput }) {
+        return e(
+          "section",
+          { className: "backend-panel", "aria-labelledby": "backend-api-heading" },
+          e(
+            "div",
+            { className: "backend-panel-header" },
+            e(
+              "div",
+              null,
+              e("strong", { id: "backend-api-heading" }, "Backend API"),
+              e(
+                "span",
+                null,
+                "Point this frontend at the current Python backend URL. Use the public ngrok or deployed backend origin, for example ",
+                "https://your-backend.ngrok-free.dev"
+              )
+            )
+          ),
+          e(
+            "div",
+            { className: "field" },
+            e("label", { htmlFor: "backend-api-url" }, "Backend API URL"),
+            e("input", {
+              id: "backend-api-url",
+              value: backendUrlInput,
+              placeholder: "https://your-backend.ngrok-free.dev",
+              onChange: (event) => setBackendUrlInput(event.target.value),
+              autoComplete: "url",
+            }),
+            e("div", { className: "field-note" }, `Active backend: ${apiBaseUrl || "same-origin API routes"}`),
+            backendStatus && e("div", { className: "field-note backend-status" }, backendStatus)
+          ),
+          e(
+            "div",
+            { className: "backend-actions" },
+            e("button", { className: "secondary compact", type: "button", onClick: onSaveBackendUrl }, "Save URL"),
+            e("button", { className: "secondary compact", type: "button", onClick: onCheckBackend, disabled: isCheckingBackend }, isCheckingBackend ? "Checking..." : "Test Connection"),
+            e("button", { className: "secondary compact", type: "button", onClick: onResetBackendUrl }, "Reset")
           )
         );
       }

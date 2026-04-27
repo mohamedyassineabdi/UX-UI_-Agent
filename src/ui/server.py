@@ -99,6 +99,13 @@ def _env_port(default: int = 8787) -> int:
         return default
 
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _now() -> float:
     return time.time()
 
@@ -720,6 +727,8 @@ def _run_audit_job(job_id: str) -> None:
         "--mode",
         mode,
     ]
+    if mode == "gtm" and _env_flag("GTM_SKIP_VISION", default=False):
+        pipeline_command.append("--skip-vision")
     pipeline_code = _run_command(
         job_id,
         pipeline_command,
@@ -799,6 +808,17 @@ def _run_screenshot_audit_job(job_id: str) -> None:
         site_name = str(job.get("siteName") or "Screenshot Audit")
         screenshot_labels = [str(label).strip() for label in job.get("screenshotLabels", []) if str(label).strip()]
         surface_type = _normalize_surface_type(str(job.get("surfaceType") or "website"))
+
+    if _env_flag("SCREENSHOT_AUDITS_DISABLED", default=False):
+        _set_job(
+            job_id,
+            status="failed",
+            error=(
+                "Screenshot audits are disabled for this deployment. "
+                "Deploy a compatible multimodal model backend first, then unset SCREENSHOT_AUDITS_DISABLED."
+            ),
+        )
+        return
 
     job_dir = SCREENSHOT_AUDIT_DIR / job_id
     audit_json = job_dir / "screenshot_gtm_audit.json"
@@ -918,6 +938,17 @@ def _run_mobile_audit_job(job_id: str) -> None:
         device_name = str(job.get("deviceName") or "Android Emulator").strip() or "Android Emulator"
         platform_version = str(job.get("platformVersion") or "").strip()
         udid = str(job.get("udid") or "").strip()
+
+    if _env_flag("MOBILE_AUDITS_DISABLED", default=False):
+        _set_job(
+            job_id,
+            status="failed",
+            error=(
+                "Mobile live audits are disabled for this deployment. "
+                "Run mobile audits on a machine with Appium and an attached device or emulator."
+            ),
+        )
+        return
 
     output_dir = MOBILE_AUDIT_DIR / job_id
     _set_job(job_id, status="running", stage="Launching Android extraction", progress=5)

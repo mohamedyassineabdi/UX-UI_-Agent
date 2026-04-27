@@ -1,8 +1,10 @@
 services:
   - type: web
     name: ux-ui-auditor
-    env: docker
+    runtime: docker
     healthCheckPath: /health
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     envVars:
       - key: PYTHONUNBUFFERED
         value: "1"
@@ -12,9 +14,27 @@ services:
         value: "10000"
       - key: AUDIT_BROWSER_HEADLESS
         value: "1"
+      - key: AUDIT_BROWSER_TYPE
+        value: "chromium"
       - key: AUDIT_PAGE_CONCURRENCY
         value: "2"
       - key: CRAWLER_USE_AI_NAV
         value: "0"
       - key: USE_AI_NAV
         value: "0"
+      - key: GTM_SKIP_VISION
+        value: "1"
+      - key: GTM_VISION_VERIFY_SPOTLIGHTS
+        value: "0"
+      - key: SCREENSHOT_AUDIT_LLM_REFINEMENT
+        value: "0"
+      - key: SCREENSHOT_AUDITS_DISABLED
+        value: "1"
+      - key: MOBILE_AUDITS_DISABLED
+        value: "1"
+      - key: AI_REVIEW_BACKEND
+        value: "openai"
+      - key: AI_REVIEW_MODEL
+        value: "gpt-4.1-mini"
+      - key: OPENAI_API_KEY
+        sync: false
