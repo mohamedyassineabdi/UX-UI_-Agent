@@ -164,27 +164,29 @@
       .hero h1,
       .launch-copy h2 {
         color: var(--text);
-        font-size: clamp(3.2rem, 6.2vw, 5.9rem);
+        font-size: clamp(3rem, 5.6vw, 5.2rem);
         font-weight: 700;
-        line-height: 1.11;
-        margin: 38px 0 28px;
-        max-width: 680px;
+        letter-spacing: -0.03em;
+        line-height: 1.08;
+        margin: 34px 0 24px;
+        max-width: 720px;
       }
 
       .accent {
-        background: linear-gradient(90deg, var(--yellow) 0%, var(--orange) 42%, var(--pink) 72%, var(--purple) 100%);
+        background: linear-gradient(90deg, #fff3a6 0%, #ffd44d 36%, #ffb347 100%);
         -webkit-background-clip: text;
         background-clip: text;
         color: transparent;
+        display: inline-block;
       }
 
       .hero-copy,
       .launch-copy p {
         color: #e6e6ea;
-        font-size: clamp(1.05rem, 1.35vw, 1.22rem);
-        line-height: 1.58;
+        font-size: clamp(1.05rem, 1.3vw, 1.16rem);
+        line-height: 1.62;
         margin: 0;
-        max-width: 610px;
+        max-width: 580px;
       }
 
       .hero-actions {
@@ -192,6 +194,118 @@
         flex-wrap: wrap;
         gap: 16px;
         margin-top: 38px;
+      }
+
+      .hero-actions .hero-liquid-button {
+        backdrop-filter: blur(20px) saturate(170%);
+        -webkit-backdrop-filter: blur(20px) saturate(170%);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.07)),
+          linear-gradient(130deg, rgba(255, 214, 82, 0.14), rgba(255, 255, 255, 0.04) 40%, rgba(80, 170, 255, 0.08));
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.32),
+          inset 0 -16px 34px rgba(255, 255, 255, 0.04),
+          0 18px 44px rgba(0, 0, 0, 0.28);
+        color: #f8f8fb;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .hero-actions .hero-liquid-button::before {
+        background: linear-gradient(120deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.08) 34%, rgba(255, 255, 255, 0) 72%);
+        border-radius: inherit;
+        content: "";
+        inset: 1px;
+        opacity: 0.88;
+        pointer-events: none;
+        position: absolute;
+      }
+
+      .hero-actions .hero-liquid-button::after {
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.26), transparent);
+        content: "";
+        height: 180%;
+        left: -36%;
+        opacity: 0.5;
+        pointer-events: none;
+        position: absolute;
+        top: -38%;
+        transform: rotate(18deg);
+        transition: transform 0.28s ease, opacity 0.28s ease;
+        width: 40%;
+      }
+
+      .hero-actions .hero-liquid-button > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      .hero-actions .hero-liquid-button .icon {
+        margin-left: 2px;
+      }
+
+      .hero-actions .hero-liquid-button:hover {
+        border-color: rgba(255, 255, 255, 0.3);
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.4),
+          inset 0 -18px 36px rgba(255, 255, 255, 0.06),
+          0 24px 56px rgba(0, 0, 0, 0.34);
+        transform: translateY(-2px) scale(1.01);
+      }
+
+      .hero-actions .hero-liquid-button:hover::after {
+        opacity: 0.8;
+        transform: translateX(24px) rotate(18deg);
+      }
+
+      .hero-actions .hero-liquid-button.primary {
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.08)),
+          radial-gradient(circle at 18% 18%, rgba(255, 234, 144, 0.34), transparent 32%),
+          radial-gradient(circle at 84% 22%, rgba(255, 177, 71, 0.22), transparent 34%),
+          linear-gradient(135deg, rgba(255, 219, 88, 0.18), rgba(242, 146, 43, 0.12) 52%, rgba(255, 255, 255, 0.04));
+        border-color: rgba(255, 214, 82, 0.24);
+      }
+
+      .hero-actions .hero-liquid-button.secondary {
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05)),
+          radial-gradient(circle at 20% 20%, rgba(73, 102, 255, 0.16), transparent 30%),
+          radial-gradient(circle at 82% 24%, rgba(50, 255, 255, 0.12), transparent 32%),
+          linear-gradient(135deg, rgba(22, 24, 34, 0.66), rgba(39, 42, 56, 0.48));
+      }
+
+      .hero-proof {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        margin-top: 24px;
+        max-width: 680px;
+      }
+
+      .hero-proof-card {
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        min-height: 92px;
+        padding: 14px 16px;
+      }
+
+      .hero-proof-card strong {
+        color: #fff7cf;
+        display: block;
+        font-size: 1rem;
+        margin-bottom: 6px;
+      }
+
+      .hero-proof-card span {
+        color: var(--muted);
+        display: block;
+        font-size: 0.9rem;
+        line-height: 1.45;
       }
 
       .primary,
@@ -266,7 +380,7 @@
       }
 
       .hero-visual {
-        min-height: 600px;
+        min-height: 560px;
         position: relative;
       }
 
@@ -280,13 +394,13 @@
         border: 1px solid rgba(255, 230, 0, 0.12);
         border-radius: 24px;
         box-shadow: var(--shadow);
-        height: min(68vh, 620px);
-        min-height: 540px;
+        height: min(62vh, 560px);
+        min-height: 500px;
         overflow: hidden;
         position: absolute;
         right: 0;
-        top: 24px;
-        width: min(100%, 580px);
+        top: 10px;
+        width: min(100%, 560px);
       }
 
       .visual-card::before {
@@ -305,7 +419,7 @@
       }
 
       .chaingpt-robot-card .webgl {
-        inset: -8% -10% -4%;
+        inset: -12% -10% -2%;
         pointer-events: none;
         position: absolute;
         z-index: 2;
@@ -316,7 +430,7 @@
         height: 100% !important;
         max-width: none;
         object-fit: contain;
-        transform: translateY(7%) scale(1.68);
+        transform: translateY(-1%) scale(1.9);
         transform-origin: center center;
         width: 100% !important;
       }
@@ -1520,18 +1634,6 @@
         }
       }
 
-      .footer-mark {
-        align-items: center;
-        color: var(--yellow);
-        display: flex;
-        justify-content: flex-end;
-        padding: 18px clamp(22px, 7vw, 88px) 28px;
-      }
-
-      .footer-mark .brand-logo {
-        width: clamp(132px, 10vw, 172px);
-      }
-
       .sr-only {
         clip: rect(0 0 0 0);
         border: 0;
@@ -1559,15 +1661,24 @@
           padding-top: 54px;
         }
 
+        .hero-copy {
+          max-width: 100%;
+        }
+
+        .hero-proof {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          max-width: 100%;
+        }
+
         .hero-visual {
-          min-height: 520px;
+          min-height: 480px;
         }
 
         .visual-card {
           left: 50%;
           right: auto;
           transform: translateX(-50%);
-          width: min(100%, 660px);
+          width: min(100%, 620px);
         }
 
       }
@@ -1586,9 +1697,43 @@
           padding-inline: 18px;
         }
 
+        .app-shell {
+          background:
+            radial-gradient(circle at 82% 4%, rgba(247, 125, 30, 0.24), transparent 14rem),
+            radial-gradient(circle at 10% 8%, rgba(50, 255, 255, 0.1), transparent 12rem),
+            linear-gradient(180deg, #09090f 0%, #12121b 50%, #1a1a24 100%);
+        }
+
+        .app-shell::before {
+          opacity: 0.28;
+        }
+
         .hero h1,
         .launch-copy h2 {
-          font-size: clamp(2.52rem, 12vw, 3.2rem);
+          font-size: clamp(2.2rem, 11vw, 2.9rem);
+          line-height: 1.08;
+          margin: 26px 0 18px;
+        }
+
+        .hero-copy,
+        .launch-copy p {
+          font-size: 0.98rem;
+          line-height: 1.56;
+        }
+
+        .hero-actions {
+          flex-direction: column;
+        }
+
+        .hero-actions .hero-liquid-button,
+        .hero-actions .primary,
+        .hero-actions .secondary {
+          width: 100%;
+        }
+
+        .hero-proof {
+          grid-template-columns: 1fr;
+          margin-top: 18px;
         }
 
         .modal {
@@ -1636,17 +1781,20 @@
         }
 
         .hero-visual {
-          min-height: 470px;
+          min-height: 360px;
         }
 
         .visual-card {
-          min-height: 440px;
+          min-height: 340px;
+          top: 0;
         }
 
-        .robot-portrait {
-          height: 410px;
-          transform: translateX(-50%) scale(0.82);
-          transform-origin: bottom center;
+        .chaingpt-robot-card .webgl {
+          inset: -10% -18% 0;
+        }
+
+        .chaingpt-robot-card .webgl canvas {
+          transform: translateY(-2%) scale(1.55);
         }
 
         .field-grid,
@@ -2302,7 +2450,6 @@
               )
             )
           ),
-          e("footer", { className: "footer-mark" }, e(BrandLockup)),
           isModalOpen && job && e(ProgressModal, { job, error, isStopping, onClose: () => setIsModalOpen(false), onStop: handleStopAudit })
         );
       }
@@ -2322,12 +2469,19 @@
               e("span", { className: "accent" }, "Fix Faster."),
               " Scale Better."
             ),
-            e("p", { className: "hero-copy" }, "AI-powered UX/UI analysis that extracts evidence, evaluates quality, and delivers client-ready reports."),
+            e("p", { className: "hero-copy" }, "AI-powered UX audits that detect usability issues, capture evidence, and generate client-ready reports in minutes."),
             e(
               "div",
               { className: "hero-actions" },
-              e("button", { className: "primary", type: "button", onClick: onLaunch }, "Launch Audit", e(Icon, { name: "arrow" })),
-              e("button", { className: "secondary", type: "button", onClick: onLaunch }, "View Demo")
+              e("button", { className: "primary hero-liquid-button", type: "button", onClick: onLaunch }, "Start Free Audit", e(Icon, { name: "arrow" })),
+              e("button", { className: "secondary hero-liquid-button", type: "button", onClick: onLaunch }, "Try the Auditor")
+            ),
+            e(
+              "div",
+              { className: "hero-proof", "aria-label": "Product proof points" },
+              e("div", { className: "hero-proof-card" }, e("strong", null, "10x faster audits"), e("span", null, "Speed through heuristic reviews without losing evidence quality.")),
+              e("div", { className: "hero-proof-card" }, e("strong", null, "Client-ready reports"), e("span", null, "Deliver polished outputs with findings, rationale, and next steps.")),
+              e("div", { className: "hero-proof-card" }, e("strong", null, "Evidence-backed findings"), e("span", null, "Support usability, accessibility, and conversion recommendations with proof."))
             )
           ),
           e(
