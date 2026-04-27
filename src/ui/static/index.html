@@ -2848,7 +2848,6 @@
         const frameUrl = liveFrameUrl(job, currentTab);
         const crawlTrail = crawlTrailFromLogs(job);
         const steps = scanStepsForJob(job, progress, status);
-        const logs = visibleScanLogs(job, status);
         return e(
           "div",
           { className: "scan-layout", "aria-label": "Audit scanning activity" },
@@ -2871,8 +2870,7 @@
             e(
               "div",
               { className: "scan-panel" },
-            steps.map((step) => e("div", { className: `scan-step ${step.active ? "active" : ""} ${step.complete ? "complete" : ""}`, key: step.label }, step.label)),
-            logs.length > 0 && e("div", { className: "scan-log" }, logs.map((line, index) => e("div", { key: `${index}-${line}` }, line)))
+            steps.map((step) => e("div", { className: `scan-step ${step.active ? "active" : ""} ${step.complete ? "complete" : ""}`, key: step.label }, step.label))
           )
         );
       }
