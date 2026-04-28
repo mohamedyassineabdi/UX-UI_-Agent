@@ -131,6 +131,8 @@
         padding: 0 clamp(24px, 7vw, 132px);
         position: sticky;
         top: 0;
+        transform: translateY(0);
+        transition: opacity 0.18s ease, transform 0.18s ease;
         z-index: 30;
       }
 
@@ -145,6 +147,10 @@
         position: fixed;
         transform: translateX(-50%);
         width: 100%;
+      }
+
+      .topbar.is-fading {
+        pointer-events: none;
       }
 
       .view-home .brand-logo {
@@ -231,6 +237,10 @@
       .view-home .page {
         max-width: none;
         padding: 0;
+      }
+
+      .page {
+        overflow-x: hidden;
       }
 
       .hero {
@@ -845,27 +855,21 @@
 
       .launch-section {
         align-items: start;
+        background:
+          radial-gradient(circle at 50% 46%, rgba(255, 255, 255, 0.045), transparent 28rem),
+          radial-gradient(circle at 50% 100%, rgba(96, 70, 138, 0.18), transparent 34rem),
+          #0e0b13;
         display: grid;
         gap: clamp(36px, 6vw, 82px);
         grid-template-columns: minmax(280px, 0.62fr) minmax(0, 1fr);
-        padding: 42px 0 104px;
+        isolation: isolate;
+        overflow: hidden;
+        padding: 42px clamp(22px, 7vw, 96px) 104px;
+        position: relative;
       }
 
-      .view-home .launch-section {
-        display: none;
-      }
-
-      .view-audit .hero {
-        display: none;
-      }
-
-      .view-audit .page {
-        min-height: calc(100vh - 76px);
-      }
-
-      .view-audit .launch-section {
-        min-height: calc(100vh - 164px);
-        padding-top: clamp(48px, 6vw, 84px);
+      .launch-section:last-child {
+        padding-bottom: 140px;
       }
 
       .launch-copy {
@@ -2559,10 +2563,6 @@
         );
       }
 
-      function pageFromHash() {
-        return window.location.hash === "#audit" ? "audit" : "home";
-      }
-
       function normalizeApiBaseUrl(value) {
         return String(value || "").trim().replace(/\/+$/, "");
       }
@@ -2680,7 +2680,8 @@
         const [isModalOpen, setIsModalOpen] = useState(false);
         const [isSubmitting, setIsSubmitting] = useState(false);
         const [isStopping, setIsStopping] = useState(false);
-        const [activePage, setActivePage] = useState(pageFromHash);
+        const [topbarFade, setTopbarFade] = useState(0);
+        const auditSectionRef = useRef(null);
         const screenshotFilesRef = useRef([]);
 
         const isWebsiteUrlAudit = experienceType === "website" && websiteInputType === "url";
@@ -2727,15 +2728,39 @@
         }, [isMobileLiveAudit, mobileDiscovery, isDiscoveringMobile]);
 
         useEffect(() => {
-          function syncPageFromHash() {
-            setActivePage(pageFromHash());
+          function updateTopbarFade() {
+            const target = auditSectionRef.current;
+            if (!target) {
+              setTopbarFade(0);
+              return;
+            }
+
+            const scrollY = window.scrollY || window.pageYOffset || 0;
+            const auditTop = target.getBoundingClientRect().top + scrollY;
+            const fadeStart = Math.max(0, auditTop - window.innerHeight * 1.15);
+            const fadeEnd = Math.max(fadeStart + 1, auditTop - window.innerHeight * 0.15);
+            const fade = (scrollY - fadeStart) / (fadeEnd - fadeStart);
+            setTopbarFade(Math.min(1, Math.max(0, fade)));
           }
 
-          window.addEventListener("hashchange", syncPageFromHash);
-          window.addEventListener("popstate", syncPageFromHash);
+          let animationFrameId = 0;
+
+          function handleScroll() {
+            if (animationFrameId) return;
+            animationFrameId = window.requestAnimationFrame(() => {
+              animationFrameId = 0;
+              updateTopbarFade();
+            });
+          }
+
+          updateTopbarFade();
+          window.addEventListener("scroll", handleScroll, { passive: true });
+          window.addEventListener("resize", handleScroll);
+
           return () => {
-            window.removeEventListener("hashchange", syncPageFromHash);
-            window.removeEventListener("popstate", syncPageFromHash);
+            window.removeEventListener("scroll", handleScroll);
+            window.removeEventListener("resize", handleScroll);
+            if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
           };
         }, []);
 
@@ -2761,13 +2786,9 @@
           };
         }, [job?.id, job?.status]);
 
-        function showPage(page) {
-          const hash = page === "audit" ? "#audit" : "#home";
-          setActivePage(page);
-          if (window.location.hash !== hash) {
-            window.history.pushState(null, "", hash);
-          }
-          window.scrollTo({ top: 0, behavior: "smooth" });
+        function scrollToAudit() {
+          if (!auditSectionRef.current) return;
+          auditSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
         }
 
         function setImageFiles(fileList) {
@@ -2927,26 +2948,32 @@
 
         return e(
           "div",
-          { className: `app-shell view-${activePage}` },
+          { className: "app-shell view-home" },
           e(
             "header",
-            { className: "topbar" },
+            {
+              className: `topbar ${topbarFade > 0.86 ? "is-fading" : ""}`.trim(),
+              style: {
+                opacity: 1 - topbarFade,
+                transform: `translateX(-50%) translateY(${-topbarFade * 12}px)`,
+              },
+            },
             e(BrandLockup),
             e(
               "nav",
               { className: "home-nav", "aria-label": "Home navigation" },
               e("a", { href: "#features" }, "Features"),
               e("a", { href: "#about" }, "About"),
-              e("button", { type: "button", onClick: () => showPage("audit") }, "Launch")
+              e("button", { type: "button", onClick: scrollToAudit }, "Launch")
             )
           ),
           e(
             "main",
             { className: "page" },
-            e(Hero, { onLaunch: () => showPage("audit") }),
+            e(Hero, { onLaunch: scrollToAudit }),
             e(
               "section",
-              { className: "launch-section", id: "audit", "aria-labelledby": "launch-heading" },
+              { className: "launch-section", id: "audit", ref: auditSectionRef, "aria-labelledby": "launch-heading" },
               e(
                 "div",
                 { className: "launch-copy" },
@@ -2955,7 +2982,7 @@
                   "h2",
                   { id: "launch-heading" },
                   "Launch a ",
-                  e("span", { className: "accent" }, "motif-grade"),
+                  e("span", { className: "accent" }, "client ready"),
                   " audit"
                 ),
                 e("p", null, "A calmer setup surface for website and mobile reviews, with clearer decisions before the run starts."),
