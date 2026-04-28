@@ -120,6 +120,35 @@
         z-index: -1;
       }
 
+      .view-home.app-shell {
+        background:
+          radial-gradient(ellipse at 50% -6%, rgba(91, 73, 128, 0.38), rgba(26, 20, 38, 0.3) 18rem, transparent 50rem),
+          radial-gradient(ellipse at 50% 42vh, rgba(72, 56, 105, 0.2), transparent 62vh),
+          radial-gradient(ellipse at 52% 118vh, rgba(102, 82, 142, 0.16), transparent 76vh),
+          linear-gradient(180deg, #0d0a12 0%, #100d17 36%, #11101b 68%, #0d0a12 100%);
+      }
+
+      .view-home.app-shell::before {
+        background:
+          radial-gradient(ellipse at 50% 12%, rgba(187, 153, 255, 0.11), transparent 34rem),
+          radial-gradient(ellipse at 48% 78%, rgba(232, 103, 174, 0.055), transparent 40rem);
+        content: "";
+        filter: blur(38px);
+        height: 140vh;
+        left: 0;
+        opacity: 0.9;
+        pointer-events: none;
+        position: fixed;
+        right: 0;
+        top: -18vh;
+        transform: none;
+        z-index: 0;
+      }
+
+      .view-home.app-shell::after {
+        display: none;
+      }
+
       .topbar {
         align-items: center;
         backdrop-filter: blur(22px);
@@ -237,10 +266,32 @@
       .view-home .page {
         max-width: none;
         padding: 0;
+        position: relative;
+        z-index: 1;
       }
 
       .page {
         overflow-x: hidden;
+      }
+
+      .intro-sequence {
+        background: transparent;
+        isolation: isolate;
+        min-height: 188vh;
+        position: relative;
+      }
+
+      .intro-sequence::after {
+        background:
+          linear-gradient(180deg, rgba(13, 10, 18, 0) 0%, rgba(13, 10, 18, 0.24) 46%, rgba(13, 10, 18, 0) 100%);
+        bottom: -1px;
+        content: "";
+        height: 54vh;
+        left: 0;
+        pointer-events: none;
+        position: absolute;
+        right: 0;
+        z-index: 3;
       }
 
       .hero {
@@ -251,11 +302,14 @@
         min-height: 100vh;
         padding: 132px 24px 92px;
         position: relative;
-        background:
-          radial-gradient(circle at 50% 46%, rgba(255, 255, 255, 0.045), transparent 28rem),
-          radial-gradient(circle at 50% 100%, rgba(96, 70, 138, 0.18), transparent 34rem),
-          #0e0b13;
+        background: transparent;
         overflow: hidden;
+      }
+
+      .intro-sequence > .hero {
+        position: sticky;
+        top: 0;
+        z-index: 1;
       }
 
       .hero::before {
@@ -295,9 +349,14 @@
       .hero-content {
         align-items: center;
         display: grid;
+        filter: blur(var(--hero-blur, 0px));
         justify-items: center;
         max-width: 860px;
+        opacity: var(--hero-opacity, 1);
         text-align: center;
+        transform: translate3d(0, var(--hero-lift, 0px), 0) scale(var(--hero-scale, 1));
+        transform-origin: center;
+        will-change: opacity, filter, transform;
       }
 
       .hero > .hero-particles {
@@ -314,8 +373,145 @@
       .hero-particles-canvas {
         display: block;
         height: 100%;
-        opacity: 0.92;
+        opacity: var(--particle-opacity, 0.92);
+        transform: scale(var(--particle-scale, 1));
+        transform-origin: center;
         width: 100%;
+        will-change: opacity, transform;
+      }
+
+      .scroll-transition {
+        display: grid;
+        justify-items: center;
+        margin-top: -8vh;
+        min-height: 96vh;
+        overflow: hidden;
+        pointer-events: none;
+        position: relative;
+        z-index: 4;
+      }
+
+      .scroll-transition::before {
+        background:
+          radial-gradient(ellipse at center, rgba(180, 143, 255, 0.2), rgba(117, 112, 255, 0.08) 34%, transparent 68%),
+          radial-gradient(ellipse at 58% 52%, rgba(238, 103, 174, 0.1), transparent 62%);
+        content: "";
+        filter: blur(42px);
+        height: 28vh;
+        left: -8%;
+        opacity: var(--bridge-opacity, 0);
+        position: absolute;
+        right: -8%;
+        top: -12vh;
+      }
+
+      .transition-stage {
+        align-items: center;
+        display: grid;
+        justify-items: center;
+        min-height: 100vh;
+        opacity: var(--bridge-opacity, 0);
+        position: sticky;
+        top: 0;
+        transform: translate3d(0, var(--bridge-rise, 120px), 0) scale(var(--bridge-scale, 0.84));
+        transform-origin: center;
+        width: 100%;
+        will-change: opacity, transform;
+      }
+
+      .transition-portal {
+        aspect-ratio: 1;
+        border-radius: 999px;
+        display: grid;
+        filter:
+          drop-shadow(0 0 34px rgba(119, 110, 255, 0.34))
+          drop-shadow(0 0 72px rgba(239, 104, 180, 0.22));
+        place-items: center;
+        position: relative;
+        width: min(62vw, 660px);
+      }
+
+      .transition-portal::before {
+        animation: portalSpin 18s linear infinite;
+        background:
+          conic-gradient(from 120deg, transparent 0 10%, rgba(88, 106, 255, 0.12) 15%, rgba(255, 255, 255, 0.82) 26%, rgba(242, 103, 183, 0.56) 37%, transparent 50%, rgba(152, 109, 255, 0.48) 66%, rgba(255, 255, 255, 0.68) 76%, transparent 88% 100%);
+        border-radius: inherit;
+        content: "";
+        inset: 10%;
+        -webkit-mask: radial-gradient(circle, transparent 0 55%, #000 57% 63%, transparent 66%);
+        mask: radial-gradient(circle, transparent 0 55%, #000 57% 63%, transparent 66%);
+        position: absolute;
+      }
+
+      .transition-portal::after {
+        animation: portalPulse 5.5s ease-in-out infinite alternate;
+        background:
+          radial-gradient(circle, rgba(255, 255, 255, 0.13) 0 18%, rgba(166, 127, 255, 0.13) 34%, rgba(239, 104, 180, 0.08) 48%, transparent 68%);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: inherit;
+        box-shadow:
+          inset 0 0 48px rgba(255, 255, 255, 0.05),
+          0 0 92px rgba(120, 105, 255, 0.16);
+        content: "";
+        inset: 27%;
+        position: absolute;
+      }
+
+      .transition-portal span {
+        animation: portalOrbit 13s linear infinite;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-left-color: rgba(255, 255, 255, 0.58);
+        border-radius: inherit;
+        inset: calc(17% + var(--ring-offset, 0px));
+        opacity: 0.72;
+        position: absolute;
+      }
+
+      .transition-portal span:nth-child(2) {
+        --ring-offset: 28px;
+        animation-duration: 19s;
+        animation-direction: reverse;
+        border-left-color: rgba(236, 104, 180, 0.58);
+        opacity: 0.5;
+      }
+
+      .transition-portal span:nth-child(3) {
+        --ring-offset: 56px;
+        animation-duration: 24s;
+        border-left-color: rgba(105, 119, 255, 0.55);
+        opacity: 0.38;
+      }
+
+      .transition-caption {
+        align-items: center;
+        backdrop-filter: blur(22px);
+        -webkit-backdrop-filter: blur(22px);
+        background: rgba(255, 255, 255, 0.035);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 999px;
+        box-shadow: 0 22px 70px rgba(0, 0, 0, 0.28);
+        color: rgba(247, 244, 255, 0.7);
+        display: inline-flex;
+        gap: 12px;
+        margin-top: -82px;
+        padding: 10px 18px;
+        position: relative;
+        z-index: 2;
+      }
+
+      .transition-caption span {
+        background: #f7f7f8;
+        border-radius: 999px;
+        color: #111018;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        padding: 7px 11px;
+        text-transform: uppercase;
+      }
+
+      .transition-caption strong {
+        font-size: 0.92rem;
       }
 
       .ey-pill {
@@ -855,17 +1051,40 @@
 
       .launch-section {
         align-items: start;
-        background:
-          radial-gradient(circle at 50% 46%, rgba(255, 255, 255, 0.045), transparent 28rem),
-          radial-gradient(circle at 50% 100%, rgba(96, 70, 138, 0.18), transparent 34rem),
-          #0e0b13;
+        background: transparent;
         display: grid;
         gap: clamp(36px, 6vw, 82px);
         grid-template-columns: minmax(280px, 0.62fr) minmax(0, 1fr);
         isolation: isolate;
         overflow: hidden;
-        padding: 42px clamp(22px, 7vw, 96px) 104px;
+        opacity: var(--audit-opacity, 1);
+        padding: clamp(92px, 12vh, 140px) clamp(22px, 7vw, 96px) 104px;
         position: relative;
+        transform: translate3d(0, var(--audit-rise, 0px), 0);
+        will-change: opacity, transform;
+      }
+
+      .launch-section::before {
+        background:
+          radial-gradient(ellipse at 50% 36%, rgba(171, 133, 255, 0.18), transparent 62%),
+          radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.06), transparent 50%);
+        content: "";
+        filter: blur(34px);
+        height: 64vh;
+        left: 0;
+        opacity: 0.58;
+        pointer-events: none;
+        position: absolute;
+        right: 0;
+        top: -38vh;
+        -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 28%, #000 72%, transparent 100%);
+        mask-image: linear-gradient(180deg, transparent 0%, #000 28%, #000 72%, transparent 100%);
+        z-index: 0;
+      }
+
+      .launch-section > * {
+        position: relative;
+        z-index: 1;
       }
 
       .launch-section:last-child {
@@ -874,11 +1093,44 @@
 
       .launch-copy {
         padding-top: 18px;
+        transform: translate3d(var(--audit-copy-x, 0px), 0, 0);
+        will-change: transform;
       }
 
       .launch-copy h2 {
         font-size: clamp(2.4rem, 4.1vw, 4rem);
         margin: 0 0 18px;
+      }
+
+      .launch-input-head {
+        align-items: center;
+        display: flex;
+        gap: 14px;
+        justify-content: space-between;
+        margin-bottom: 18px;
+      }
+
+      .launch-selected-label {
+        align-items: center;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(161, 154, 198, 0.14);
+        border-radius: 999px;
+        color: var(--muted);
+        display: inline-flex;
+        font-size: 0.78rem;
+        font-weight: 850;
+        letter-spacing: 0.16em;
+        padding: 10px 14px;
+        text-transform: uppercase;
+      }
+
+      .launch-back-button {
+        gap: 8px;
+        padding-inline: 16px;
+      }
+
+      .launch-back-button .icon {
+        transform: rotate(180deg);
       }
 
       .process-list {
@@ -933,6 +1185,8 @@
         border-radius: 34px;
         box-shadow: var(--shadow);
         padding: clamp(26px, 3vw, 38px);
+        transform: translate3d(var(--audit-panel-x, 0px), 0, 0);
+        will-change: transform;
       }
 
       .audit-panel h2 {
@@ -1120,13 +1374,41 @@
       }
 
       .upload-zone {
-        background: rgba(51, 52, 70, 0.46);
-        border: 1.5px dashed rgba(161, 154, 198, 0.28);
+        align-items: center;
+        background: #243148;
+        border: 2px dashed rgba(110, 122, 153, 0.58);
         border-radius: 22px;
         cursor: pointer;
         display: grid;
-        gap: 8px;
-        padding: 22px;
+        gap: 10px;
+        justify-items: center;
+        min-height: 220px;
+        overflow: hidden;
+        position: relative;
+        padding: 30px 22px;
+        text-align: center;
+      }
+
+      .upload-zone::before {
+        display: none;
+      }
+
+      .upload-zone-icon {
+        align-items: center;
+        background: rgba(8, 12, 22, 0.72);
+        border: 1px solid rgba(120, 131, 158, 0.4);
+        border-radius: 999px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        color: rgba(178, 186, 204, 0.9);
+        display: inline-flex;
+        height: 60px;
+        justify-content: center;
+        width: 60px;
+      }
+
+      .upload-zone-icon .icon {
+        height: 24px;
+        width: 24px;
       }
 
       .upload-zone:hover,
@@ -1137,17 +1419,36 @@
 
       .upload-zone strong {
         color: white;
+        font-size: 1.08rem;
+        font-weight: 500;
       }
 
       .upload-zone span {
-        color: var(--muted);
+        color: #8ea6d0;
         line-height: 1.45;
+        max-width: 420px;
+      }
+
+      .upload-zone input {
+        cursor: pointer;
+        height: 100%;
+        left: 0;
+        opacity: 0;
+        position: absolute;
+        top: 0;
+        width: 100%;
       }
 
       .upload-zone input {
         color: var(--muted);
-        margin-top: 8px;
+        height: 100%;
+        left: 0;
+        margin-top: 0;
         max-width: 100%;
+        opacity: 0;
+        position: absolute;
+        top: 0;
+        width: 100%;
       }
 
       .screenshot-grid {
@@ -1925,6 +2226,38 @@
         }
       }
 
+      @keyframes portalSpin {
+        0% {
+          transform: rotate(0deg) scale(0.98);
+        }
+        100% {
+          transform: rotate(360deg) scale(0.98);
+        }
+      }
+
+      @keyframes portalOrbit {
+        0% {
+          transform: rotate(0deg) scaleX(1.08) scaleY(0.72);
+        }
+        50% {
+          transform: rotate(180deg) scaleX(0.92) scaleY(0.78);
+        }
+        100% {
+          transform: rotate(360deg) scaleX(1.08) scaleY(0.72);
+        }
+      }
+
+      @keyframes portalPulse {
+        0% {
+          opacity: 0.48;
+          transform: scale(0.92);
+        }
+        100% {
+          opacity: 0.86;
+          transform: scale(1.08);
+        }
+      }
+
       @keyframes stageGlowShift {
         0% {
           opacity: 0.48;
@@ -2029,6 +2362,18 @@
           padding: 128px 24px 78px;
         }
 
+        .intro-sequence {
+          min-height: 176vh;
+        }
+
+        .scroll-transition {
+          min-height: 84vh;
+        }
+
+        .transition-portal {
+          width: min(76vw, 560px);
+        }
+
         .hero-copy {
           max-width: 100%;
         }
@@ -2130,6 +2475,28 @@
           gap: 0;
           min-height: 100vh;
           padding: 112px 20px 54px;
+        }
+
+        .intro-sequence {
+          min-height: 168vh;
+        }
+
+        .scroll-transition {
+          margin-top: -14vh;
+          min-height: 78vh;
+        }
+
+        .transition-portal {
+          width: min(112vw, 420px);
+        }
+
+        .transition-caption {
+          margin-top: -56px;
+          padding: 8px 12px;
+        }
+
+        .transition-caption strong {
+          font-size: 0.78rem;
         }
 
         .topbar-meta {
@@ -2304,12 +2671,6 @@
         return stem || `Screenshot ${index + 1}`;
       }
 
-      function formatFileSize(bytes) {
-        if (bytes < 1024) return `${bytes} B`;
-        if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-      }
-
       function ParticleField({ className = "" }) {
         const canvasRef = useRef(null);
 
@@ -2417,7 +2778,7 @@
           const particleSpread = 10;
           const particleBaseSize = 20;
           const sizeRandomness = 0.5;
-          const speed = 0.1;
+          const speed = 0.3;
           const cameraDistance = 20;
           const pixelRatio = 1;
           const palette = [[1, 1, 1], [1, 1, 1], [1, 1, 1]];
@@ -2681,6 +3042,8 @@
         const [isSubmitting, setIsSubmitting] = useState(false);
         const [isStopping, setIsStopping] = useState(false);
         const [topbarFade, setTopbarFade] = useState(0);
+        const [transitionProgress, setTransitionProgress] = useState(0);
+        const [launchStep, setLaunchStep] = useState("choose");
         const auditSectionRef = useRef(null);
         const screenshotFilesRef = useRef([]);
 
@@ -2732,6 +3095,7 @@
             const target = auditSectionRef.current;
             if (!target) {
               setTopbarFade(0);
+              setTransitionProgress(0);
               return;
             }
 
@@ -2740,7 +3104,12 @@
             const fadeStart = Math.max(0, auditTop - window.innerHeight * 1.15);
             const fadeEnd = Math.max(fadeStart + 1, auditTop - window.innerHeight * 0.15);
             const fade = (scrollY - fadeStart) / (fadeEnd - fadeStart);
+            const transitionStart = Math.max(0, auditTop - window.innerHeight * 1.55);
+            const transitionEnd = Math.max(transitionStart + 1, auditTop - window.innerHeight * 0.24);
+            const progress = (scrollY - transitionStart) / (transitionEnd - transitionStart);
+            const clampedProgress = Math.min(1, Math.max(0, progress));
             setTopbarFade(Math.min(1, Math.max(0, fade)));
+            setTransitionProgress(clampedProgress);
           }
 
           let animationFrameId = 0;
@@ -2789,6 +3158,15 @@
         function scrollToAudit() {
           if (!auditSectionRef.current) return;
           auditSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+
+        function selectExperience(nextExperienceType) {
+          setExperienceType(nextExperienceType);
+          setLaunchStep("input");
+        }
+
+        function goBackToExperienceChoice() {
+          setLaunchStep("choose");
         }
 
         function setImageFiles(fileList) {
@@ -2946,9 +3324,28 @@
           }
         }
 
+        const bridgeProgress = Math.min(1, Math.max(0, (transitionProgress - 0.12) / 0.58));
+        const auditReveal = Math.min(1, Math.max(0, (transitionProgress - 0.58) / 0.42));
+        const shellStyle = {
+          "--hero-opacity": String(Math.max(0.14, 1 - transitionProgress * 0.86)),
+          "--hero-lift": `${-transitionProgress * 112}px`,
+          "--hero-scale": String(1 + transitionProgress * 0.045),
+          "--hero-blur": `${transitionProgress * 9}px`,
+          "--particle-opacity": String(Math.max(0.48, 0.94 - transitionProgress * 0.34)),
+          "--particle-scale": String(1 + transitionProgress * 0.12),
+          "--bridge-opacity": String(bridgeProgress),
+          "--bridge-rise": `${(1 - bridgeProgress) * 118}px`,
+          "--bridge-scale": String(0.84 + bridgeProgress * 0.22),
+          "--bridge-glow": String(0.2 + bridgeProgress * 0.8),
+          "--audit-opacity": String(0.28 + auditReveal * 0.72),
+          "--audit-rise": `${(1 - auditReveal) * 76}px`,
+          "--audit-copy-x": `${(1 - auditReveal) * -58}px`,
+          "--audit-panel-x": `${(1 - auditReveal) * 58}px`,
+        };
+
         return e(
           "div",
-          { className: "app-shell view-home" },
+          { className: "app-shell view-home", style: shellStyle },
           e(
             "header",
             {
@@ -2970,7 +3367,12 @@
           e(
             "main",
             { className: "page" },
-            e(Hero, { onLaunch: scrollToAudit }),
+            e(
+              "div",
+              { className: "intro-sequence" },
+              e(Hero, { onLaunch: scrollToAudit }),
+              e(ScrollTransition)
+            ),
             e(
               "section",
               { className: "launch-section", id: "audit", ref: auditSectionRef, "aria-labelledby": "launch-heading" },
@@ -2985,95 +3387,118 @@
                   e("span", { className: "accent" }, "client ready"),
                   " audit"
                 ),
-                e("p", null, "A calmer setup surface for website and mobile reviews, with clearer decisions before the run starts."),
                 e(
                   "div",
                   { className: "process-list" },
-                  e(ProcessStep, { number: "1", title: "Choose the audit path", text: "Pick website or mobile, then decide whether the source is live or screenshot-based." }),
-                  e(ProcessStep, { number: "2", title: "Configure the source", text: "Enter the core inputs with one consistent, design-system style panel." }),
-                  e(ProcessStep, { number: "3", title: isMobileLiveAudit ? "Inspect artifacts" : "Open the output", text: completionText })
+                  e(ProcessStep, { number: "1", title: "Choose the audit path" }),
+                  e(ProcessStep, { number: "2", title: "Configure the source" }),
+                  e(ProcessStep, { number: "3", title: isMobileLiveAudit ? "Inspect artifacts" : "Open the output" })
                 )
               ),
               e(
                 "form",
                 { className: "audit-panel", onSubmit: handleSubmit },
                 e("h2", null, "Start a new run"),
-                e("p", { className: "panel-subtitle" }, "Configure the audit inputs inside the first Fabric Motif launcher pass."),
-                e("div", { className: "field-legend" }, "Choose Experience"),
-                e(
-                  "div",
-                  { className: "choice-stack", role: "radiogroup", "aria-label": "Experience type" },
-                  e(AuditChoice, {
-                    active: experienceType === "website",
-                    icon: "globe",
-                    onClick: () => setExperienceType("website"),
-                    title: "Website audit",
-                    text: "Audit a live website URL or uploaded website screenshots",
-                  }),
-                  e(AuditChoice, {
-                    active: experienceType === "mobile",
-                    icon: "phone",
-                    onClick: () => setExperienceType("mobile"),
-                    title: "Mobile app audit",
-                    text: "Audit a live mobile app session or uploaded app screenshots",
-                  })
-                ),
-                experienceType === "website" &&
+                launchStep === "choose" &&
                   e(
                     React.Fragment,
                     null,
-                    e("div", { className: "field-legend", style: { marginTop: "24px" } }, "Website Input"),
+                    e("div", { className: "field-legend" }, "Choose Experience"),
                     e(
                       "div",
-                      { className: "choice-stack", role: "radiogroup", "aria-label": "Website input type" },
+                      { className: "choice-stack", role: "radiogroup", "aria-label": "Experience type" },
                       e(AuditChoice, {
-                        active: websiteInputType === "url",
+                        active: experienceType === "website",
                         icon: "globe",
-                        onClick: () => setWebsiteInputType("url"),
-                        title: "Live URL",
-                        text: "Run the full crawl and evidence pipeline from a website URL",
+                        onClick: () => selectExperience("website"),
+                        title: "Website audit",
+                        text: "Audit a live website URL or uploaded website screenshots",
                       }),
                       e(AuditChoice, {
-                        active: websiteInputType === "screenshot",
-                        icon: "image",
-                        onClick: () => setWebsiteInputType("screenshot"),
-                        title: "Website screenshots",
-                        text: "Review uploaded website pages and flows as static screenshots",
+                        active: experienceType === "mobile",
+                        icon: "phone",
+                        onClick: () => selectExperience("mobile"),
+                        title: "Mobile app audit",
+                        text: "Audit a live mobile app session or uploaded app screenshots",
                       })
                     )
                   ),
-                experienceType === "mobile" &&
+                launchStep === "input" &&
                   e(
                     React.Fragment,
                     null,
-                    e("div", { className: "field-legend", style: { marginTop: "24px" } }, "Mobile Input"),
                     e(
                       "div",
-                      { className: "choice-stack", role: "radiogroup", "aria-label": "Mobile input type" },
-                      e(AuditChoice, {
-                        active: mobileInputType === "live",
-                        icon: "phone",
-                        onClick: () => setMobileInputType("live"),
-                        title: "Live app session",
-                        text: "Connect through Appium and extract structured mobile artifacts",
-                      }),
-                      e(AuditChoice, {
-                        active: mobileInputType === "screenshot",
-                        icon: "image",
-                        onClick: () => setMobileInputType("screenshot"),
-                        title: "App screenshots",
-                        text: "Review uploaded mobile app screens separately from website screenshots",
-                      })
-                    )
+                      { className: "launch-input-head" },
+                      e(
+                        "button",
+                        { className: "ghost compact launch-back-button", type: "button", onClick: goBackToExperienceChoice },
+                        e(Icon, { name: "arrow" }),
+                        "Back"
+                      ),
+                      e(
+                        "div",
+                        { className: "launch-selected-label" },
+                        experienceType === "mobile" ? "Mobile app audit" : "Website audit"
+                      )
+                    ),
+                    experienceType === "website" &&
+                      e(
+                        React.Fragment,
+                        null,
+                        e("div", { className: "field-legend", style: { marginTop: "8px" } }, "Website Input"),
+                        e(
+                          "div",
+                          { className: "choice-stack", role: "radiogroup", "aria-label": "Website input type" },
+                          e(AuditChoice, {
+                            active: websiteInputType === "url",
+                            icon: "globe",
+                            onClick: () => setWebsiteInputType("url"),
+                            title: "Live URL",
+                            text: "Run the full crawl and evidence pipeline from a website URL",
+                          }),
+                          e(AuditChoice, {
+                            active: websiteInputType === "screenshot",
+                            icon: "image",
+                            onClick: () => setWebsiteInputType("screenshot"),
+                            title: "Website screenshots",
+                            text: "Review uploaded website pages and flows as static screenshots",
+                          })
+                        )
+                      ),
+                    experienceType === "mobile" &&
+                      e(
+                        React.Fragment,
+                        null,
+                        e("div", { className: "field-legend", style: { marginTop: "8px" } }, "Mobile Input"),
+                        e(
+                          "div",
+                          { className: "choice-stack", role: "radiogroup", "aria-label": "Mobile input type" },
+                          e(AuditChoice, {
+                            active: mobileInputType === "live",
+                            icon: "phone",
+                            onClick: () => setMobileInputType("live"),
+                            title: "Live app session",
+                            text: "Connect through Appium and extract structured mobile artifacts",
+                          }),
+                          e(AuditChoice, {
+                            active: mobileInputType === "screenshot",
+                            icon: "image",
+                            onClick: () => setMobileInputType("screenshot"),
+                            title: "App screenshots",
+                            text: "Review uploaded mobile app screens separately from website screenshots",
+                          })
+                        )
+                      )
                   ),
-                isWebsiteUrlAudit &&
+                launchStep === "input" && isWebsiteUrlAudit &&
                   e(WebsiteFields, {
                     mode,
                     setMode,
                     url,
                     setUrl,
                   }),
-                isScreenshotAudit &&
+                launchStep === "input" && isScreenshotAudit &&
                   e(ScreenshotFields, {
                     experienceType,
                     handleUploadDrop,
@@ -3084,7 +3509,7 @@
                     siteName,
                     updateScreenshotLabel,
                   }),
-                isMobileLiveAudit &&
+                launchStep === "input" && isMobileLiveAudit &&
                   e(MobileFields, {
                     isDiscoveringMobile,
                     mobileAppActivity,
@@ -3106,21 +3531,22 @@
                     setMobileUdid,
                   }),
                 error && e("div", { className: "error" }, error),
-                e(
-                  "button",
-                  { className: "primary start-button", type: "submit", disabled: !canStart },
-                  isSubmitting
-                    ? "Starting audit..."
-                    : isScreenshotAudit
-                      ? experienceType === "mobile"
-                        ? "Start App Screenshot Audit"
-                        : "Start Website Screenshot Audit"
-                      : isMobileLiveAudit
-                        ? "Start Mobile Extraction"
-                        : "Start Website Audit",
-                  e(Icon, { name: "arrow" })
-                ),
-                job && e(StatusStrip, { job, isStopping, onOpen: () => setIsModalOpen(true), onStop: handleStopAudit })
+                launchStep === "input" &&
+                  e(
+                    "button",
+                    { className: "primary start-button", type: "submit", disabled: !canStart },
+                    isSubmitting
+                      ? "Starting audit..."
+                      : isScreenshotAudit
+                        ? experienceType === "mobile"
+                          ? "Start App Screenshot Audit"
+                          : "Start Website Screenshot Audit"
+                        : isMobileLiveAudit
+                          ? "Start Mobile Extraction"
+                          : "Start Website Audit",
+                    e(Icon, { name: "arrow" })
+                  ),
+                launchStep === "input" && job && e(StatusStrip, { job, isStopping, onOpen: () => setIsModalOpen(true), onStop: handleStopAudit })
               )
             )
           ),
@@ -3154,12 +3580,36 @@
         );
       }
 
+      function ScrollTransition() {
+        return e(
+          "section",
+          { className: "scroll-transition", "aria-hidden": "true" },
+          e(
+            "div",
+            { className: "transition-stage" },
+            e(
+              "div",
+              { className: "transition-portal" },
+              e("span"),
+              e("span"),
+              e("span")
+            ),
+            e(
+              "div",
+              { className: "transition-caption" },
+              e("span", null, "Scroll"),
+              e("strong", null, "Entering audit workspace")
+            )
+          )
+        );
+      }
+
       function ProcessStep({ number, title, text }) {
         return e(
           "div",
           { className: "process-step" },
           e("span", { className: "process-step-number" }, number),
-          e("div", null, e("strong", null, title), e("p", null, text))
+          e("div", null, e("strong", null, title))
         );
       }
 
@@ -3203,31 +3653,18 @@
       }
 
       function ScreenshotFields({ experienceType, handleUploadDrop, removeScreenshotFile, screenshotFiles, setImageFiles, setSiteName, siteName, updateScreenshotLabel }) {
-        const isMobileScreens = experienceType === "mobile";
-        const auditLabel = isMobileScreens ? "Mobile app screenshot audit label" : "Website screenshot audit label";
-        const auditPlaceholder = isMobileScreens ? "Client App Screenshots" : "Client Website Screenshots";
-        const uploadTitle = isMobileScreens ? "Upload mobile app screens" : "Upload website screenshots";
-        const uploadHint = isMobileScreens
-          ? "Add mobile app screens that represent onboarding, conversion, account, or key in-app journeys."
-          : "Add website pages or flows that represent homepage, proof, pricing, conversion, or other key journeys.";
         return e(
           React.Fragment,
           null,
           e(
             "div",
             { className: "field" },
-            e("label", { htmlFor: "screenshot-site-name" }, auditLabel),
-            e("input", { id: "screenshot-site-name", value: siteName, placeholder: auditPlaceholder, onChange: (event) => setSiteName(event.target.value) })
-          ),
-          e(
-            "div",
-            { className: "field" },
-            e("label", { htmlFor: "screenshot-files" }, "Screenshots"),
             e(
               "label",
               { className: "upload-zone", htmlFor: "screenshot-files", onDragOver: (event) => event.preventDefault(), onDrop: handleUploadDrop },
-              e("strong", null, uploadTitle),
-              e("span", null, uploadHint),
+              e("span", { className: "upload-zone-icon" }, e(Icon, { name: "upload" })),
+              e("strong", null, "Drop your image here or click to browse"),
+              
               e("input", {
                 id: "screenshot-files",
                 type: "file",
@@ -3254,7 +3691,7 @@
                       e(
                         "div",
                         { className: "screenshot-name-row" },
-                        e("small", { title: item.file.name }, `${item.file.name} (${formatFileSize(item.file.size)})`),
+                        e("small", { title: item.file.name }, item.file.name),
                         e("button", { className: "remove-screenshot", type: "button", onClick: () => removeScreenshotFile(item.id), "aria-label": `Remove ${item.label || item.file.name}` }, "X")
                       ),
                       e("input", {
