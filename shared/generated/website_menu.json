@@ -1,6 +1,6 @@
 {
-  "homepage": "https://weefizz.com/",
-  "language": "fr",
+  "homepage": "https://studiomorf.nl/",
+  "language": "en",
   "auth": {
     "signin": null,
     "signup": null
@@ -8,248 +8,76 @@
   "search": null,
   "navigation": [
     {
-      "name": "Accueil",
-      "url": "https://weefizz.com/index.html",
-      "type": "menu",
-      "children": [
-        {
-          "name": "General",
-          "type": "section",
-          "children": [
-            {
-              "name": "Accueil",
-              "type": "link",
-              "url": "https://weefizz.com/index.html",
-              "children": []
-            },
-            {
-              "name": "Contact",
-              "type": "link",
-              "url": "https://weefizz.com/contact.html",
-              "children": []
-            },
-            {
-              "name": "Demander une démo",
-              "type": "link",
-              "url": "https://calendar.app.google/RfDGqcEcm7hdHTky5",
-              "children": []
-            },
-            {
-              "name": "Technologie",
-              "type": "link",
-              "url": "https://weefizz.com/technologie.html",
-              "children": []
-            },
-            {
-              "name": "WeeFizz Fashion",
-              "type": "link",
-              "url": "https://weefizz.com/fashion.html",
-              "children": []
-            },
-            {
-              "name": "WeeFizz PRO",
-              "type": "link",
-              "url": "https://weefizz.com/pro.html",
-              "children": []
-            }
-          ]
-        }
-      ]
+      "name": "About",
+      "url": "https://studiomorf.nl/about",
+      "type": "link",
+      "children": []
+    },
+    {
+      "name": "Careers",
+      "url": "https://studiomorf.nl/careers",
+      "type": "link",
+      "children": []
     },
     {
       "name": "Contact",
-      "url": "https://weefizz.com/contact.html",
+      "url": "https://studiomorf.nl/contact",
       "type": "link",
       "children": []
     },
     {
-      "name": "Technologie",
-      "url": "https://weefizz.com/technologie.html",
-      "type": "menu",
-      "children": [
-        {
-          "name": "General",
-          "type": "section",
-          "children": [
-            {
-              "name": "Accueil",
-              "type": "link",
-              "url": "https://weefizz.com/index.html",
-              "children": []
-            },
-            {
-              "name": "Contact",
-              "type": "link",
-              "url": "https://weefizz.com/contact.html",
-              "children": []
-            },
-            {
-              "name": "Demander une démo",
-              "type": "link",
-              "url": "https://calendar.app.google/RfDGqcEcm7hdHTky5",
-              "children": []
-            },
-            {
-              "name": "Technologie",
-              "type": "link",
-              "url": "https://weefizz.com/technologie.html",
-              "children": []
-            },
-            {
-              "name": "WeeFizz Fashion",
-              "type": "link",
-              "url": "https://weefizz.com/fashion.html",
-              "children": []
-            },
-            {
-              "name": "WeeFizz PRO",
-              "type": "link",
-              "url": "https://weefizz.com/pro.html",
-              "children": []
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "WeeFizz accueil",
-      "url": "https://weefizz.com/index.html",
+      "name": "FAQ",
+      "url": "https://studiomorf.nl/faq",
       "type": "link",
       "children": []
     },
     {
-      "name": "WeeFizz Fashion",
-      "url": "https://weefizz.com/fashion.html",
-      "type": "menu",
-      "children": [
-        {
-          "name": "General",
-          "type": "section",
-          "children": [
-            {
-              "name": "Accueil",
-              "type": "link",
-              "url": "https://weefizz.com/index.html",
-              "children": []
-            },
-            {
-              "name": "Contact",
-              "type": "link",
-              "url": "https://weefizz.com/contact.html",
-              "children": []
-            },
-            {
-              "name": "Demander une démo",
-              "type": "link",
-              "url": "https://calendar.app.google/RfDGqcEcm7hdHTky5",
-              "children": []
-            },
-            {
-              "name": "Technologie",
-              "type": "link",
-              "url": "https://weefizz.com/technologie.html",
-              "children": []
-            },
-            {
-              "name": "WeeFizz Fashion",
-              "type": "link",
-              "url": "https://weefizz.com/fashion.html",
-              "children": []
-            },
-            {
-              "name": "WeeFizz PRO",
-              "type": "link",
-              "url": "https://weefizz.com/pro.html",
-              "children": []
-            }
-          ]
-        }
-      ]
+      "name": "Request",
+      "url": "https://studiomorf.nl/request",
+      "type": "link",
+      "children": []
     },
     {
-      "name": "WeeFizz PRO",
-      "url": "https://weefizz.com/pro.html",
-      "type": "menu",
-      "children": [
-        {
-          "name": "General",
-          "type": "section",
-          "children": [
-            {
-              "name": "Accueil",
-              "type": "link",
-              "url": "https://weefizz.com/index.html",
-              "children": []
-            },
-            {
-              "name": "Contact",
-              "type": "link",
-              "url": "https://weefizz.com/contact.html",
-              "children": []
-            },
-            {
-              "name": "Demander une démo",
-              "type": "link",
-              "url": "https://calendar.app.google/RfDGqcEcm7hdHTky5",
-              "children": []
-            },
-            {
-              "name": "Technologie",
-              "type": "link",
-              "url": "https://weefizz.com/technologie.html",
-              "children": []
-            },
-            {
-              "name": "WeeFizz Fashion",
-              "type": "link",
-              "url": "https://weefizz.com/fashion.html",
-              "children": []
-            },
-            {
-              "name": "WeeFizz PRO",
-              "type": "link",
-              "url": "https://weefizz.com/pro.html",
-              "children": []
-            }
-          ]
-        }
-      ]
+      "name": "Services",
+      "url": "https://studiomorf.nl/services",
+      "type": "link",
+      "children": []
     },
     {
-      "name": "✕",
-      "url": null,
-      "type": "menu",
+      "name": "Work",
+      "url": "https://studiomorf.nl/work",
+      "type": "link",
       "children": []
     }
   ],
   "extra": {
     "desktop": {
       "forms_detected": 0,
-      "total_internal_links": 27,
-      "external_links": 4,
-      "title": "WeeFizz — La data morphologique entre l'humain et le vêtement",
-      "page_size_kb": 84.69,
-      "images_found": 20,
+      "total_internal_links": 23,
+      "external_links": 57,
+      "title": "STUDIO MORF - Branding & Design",
+      "page_size_kb": 278.64,
+      "images_found": 67,
       "mode": "desktop",
-      "page_language": "fr",
+      "page_language": "en",
       "ai_recovery": {
-        "used": false,
-        "reason": "not_needed",
+        "used": true,
+        "reason": "ai_failed:no_children_detected",
         "clicked_candidate": null,
         "ai_response": null,
         "improved": false,
-        "error": null
+        "error": "Ollama request failed: Client error '400 Bad Request' for url 'http://127.0.0.1:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400"
       }
     },
     "mobile": {
       "forms_detected": 0,
-      "total_internal_links": 27,
-      "external_links": 4,
-      "title": "WeeFizz — La data morphologique entre l'humain et le vêtement",
-      "page_size_kb": 82.71,
-      "images_found": 20,
+      "total_internal_links": 23,
+      "external_links": 57,
+      "title": "STUDIO MORF - Branding & Design",
+      "page_size_kb": 280.04,
+      "images_found": 67,
       "mode": "mobile",
-      "page_language": "fr",
+      "page_language": "en",
       "ai_recovery": {
         "used": true,
         "reason": "ai_failed:too_few_menu_items",
@@ -260,12 +88,11 @@
       }
     },
     "menu_count": 7,
-    "navbar_score": 11.0,
+    "navbar_score": 8.0,
     "source_container": "merged(desktop+mobile)",
-    "sitemap_found": "https://weefizz.com/sitemap.xml",
-    "robots_txt": "https://weefizz.com/robots.txt",
-    "crawl_time_ms": 109892
+    "sitemap_found": "https://studiomorf.nl/sitemap.xml",
+    "robots_txt": "https://studiomorf.nl/robots.txt",
+    "crawl_time_ms": 32947
   },
-  "requested_language": "en-US",
-  "language_warning": "Requested English, but detected page language was fr."
+  "requested_language": "en-US"
 }

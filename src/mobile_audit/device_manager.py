@@ -432,6 +432,8 @@ class AndroidDeviceManager:
             raise RuntimeError("Android driver session is not initialized.")
 
         capabilities = dict(getattr(self.driver, "capabilities", {}) or {})
+        observed_package = self.current_package()
+        observed_activity = self.current_activity()
         return {
             "platform": "android",
             "automation": self.config.automation_name,
@@ -440,8 +442,10 @@ class AndroidDeviceManager:
             "deviceName": capabilities.get("deviceName") or self.config.device_name,
             "platformVersion": capabilities.get("platformVersion") or self.config.platform_version or "",
             "udid": capabilities.get("udid") or self.config.udid or "",
-            "appPackage": self.current_package() or self.config.app_package,
-            "appActivity": self.current_activity() or self.config.app_activity,
+            "appPackage": self.config.app_package,
+            "appActivity": self.config.app_activity,
+            "observedForegroundPackage": observed_package,
+            "observedForegroundActivity": observed_activity,
             "capabilities": {
                 "platformName": capabilities.get("platformName") or self.config.platform_name,
                 "automationName": capabilities.get("appium:automationName")

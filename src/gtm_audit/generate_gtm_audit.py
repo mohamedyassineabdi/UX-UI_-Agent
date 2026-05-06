@@ -458,6 +458,130 @@ def _page_label(row: Dict[str, Any]) -> str:
     return clean_text(row.get("page_name")) or clean_text(row.get("page_url")) or "the audited journey"
 
 
+def _evidence_after_prefix(row: Dict[str, Any], suffix: str) -> str:
+    needle = f"{suffix}:"
+    for item in row.get("evidence") or []:
+        text = clean_text(item)
+        if text.lower().startswith(needle.lower()):
+            return clean_text(text[len(needle) :])
+    return ""
+
+
+def _is_responsive_desktop_mobile_row(row: Dict[str, Any]) -> bool:
+    criterion = clean_text(row.get("criterion")).lower()
+    return "responsive" in criterion and "desktop" in criterion and "phone" in criterion
+
+
+def _responsive_finding_from_row(row: Dict[str, Any], axis: Dict[str, Any]) -> Dict[str, Any]:
+    page_name = _evidence_after_prefix(row, "failingPages: name") or clean_text(row.get("page_name")) or "Home"
+    page_url = _evidence_after_prefix(row, "failingPages: url") or clean_text(row.get("page_url"))
+    desktop_width = _evidence_after_prefix(row, "failingPages: desktopViewport: width")
+    desktop_height = _evidence_after_prefix(row, "failingPages: desktopViewport: height")
+    mobile_width = _evidence_after_prefix(row, "failingPages: mobileViewport: width")
+    mobile_height = _evidence_after_prefix(row, "failingPages: mobileViewport: height")
+    mobile_path = _evidence_after_prefix(row, "failingPages: mobileScreenshotPath")
+    if mobile_path:
+        candidate = Path(mobile_path)
+        absolute_candidate = candidate if candidate.is_absolute() else ROOT_DIR / candidate
+        clean_candidate = absolute_candidate.with_name("mobile-clean.png")
+        if clean_candidate.exists():
+            mobile_path = str(clean_candidate.relative_to(ROOT_DIR))
+    overflowing_text = _evidence_after_prefix(row, "failingPages: overflowingElements: text")
+    overflow_px = _evidence_after_prefix(row, "failingPages: mobileOverflowPx")
+    viewport_evidence = (
+        f"Desktop viewport {desktop_width}x{desktop_height}; phone viewport {mobile_width}x{mobile_height}. "
+        f"The phone render exposes desktop-layout content that does not adapt correctly"
+        f"{f', including `{overflowing_text}`' if overflowing_text else ''}"
+        f"{f' (measured overflow: {overflow_px}px).' if overflow_px else '.'}"
+    )
+    recommendation = (
+        "Rebuild the responsive breakpoint for the affected templates: remove fixed-width rows, let content groups collapse "
+        "to a readable single-column flow, make hero/media blocks fluid, and test at 390px, 430px, 768px, and desktop widths "
+        "before publishing."
+    )
+    return {
+        "title": "Website layout breaks on phone screens",
+        "pageName": page_name,
+        "pageUrl": page_url,
+        "sourceSheet": row["sheet"],
+        "severity": "high",
+        "confidence": row["confidence"],
+        "evidence": viewport_evidence[:240],
+        "visibleSignals": dedupe_strings(
+            [
+                "Phone viewport render fails responsive adaptation",
+                f"Desktop viewport: {desktop_width}x{desktop_height}" if desktop_width and desktop_height else "",
+                f"Phone viewport: {mobile_width}x{mobile_height}" if mobile_width and mobile_height else "",
+                overflowing_text,
+            ],
+            limit=4,
+        ),
+        "explanation": (
+            f"On {page_name}, the audit found that the website does not adapt reliably from desktop to phone. "
+            f"{viewport_evidence}"
+        ),
+        "whyItMatters": (
+            "This matters because mobile visitors cannot evaluate offers, navigation, or promotions with confidence when "
+            "the page keeps desktop layout assumptions on a phone. In a GTM context, this can directly reduce discovery, "
+            "store/product engagement, and trust for first-time mobile users."
+        ),
+        "recommendation": recommendation,
+        "screenshotPath": mobile_path or row["screenshot_path"],
+        "visualRegion": {
+            "x": 0,
+            "y": 0,
+            "width": 1,
+            "height": 1,
+            "coordinate_system": "normalized_0_1",
+            "description": "Full phone viewport showing responsive layout failure",
+        },
+        "evidenceBundle": None,
+        "responsiveFailure": True,
+    }
+
+
+def _legacy_site_specific_recommendation(row: Dict[str, Any], axis: Dict[str, Any]) -> str:
+    return ""
+
+
+def _specific_recommendation(row: Dict[str, Any], axis: Dict[str, Any]) -> str:
+    criterion = clean_text(row.get("criterion")).lower()
+    if "search is available on every page" in criterion:
+        return (
+            "Add a persistent site search entry in the header on desktop and mobile, keep it available on key service, "
+            "portfolio, resource, and contact pages, and return typed-ahead suggestions for services, case studies, or articles "
+            "so prospects can reach relevant content quickly."
+        )
+    if "calls to action" in criterion and "clearly labeled" in criterion:
+        return (
+            "Convert ambiguous icon-only or ghost controls into labeled actions with visible button states. Prioritize primary "
+            "journey CTAs such as `View services`, `View work`, `Contact us`, `Start a project`, or equivalent labels that match "
+            "the site's actual language and information architecture."
+        )
+    if "verbs are used for all actions" in criterion:
+        return (
+            "Rewrite action labels so they start with a verb and name the outcome, such as `View services`, `Explore work`, "
+            "`Contact the team`, `Start a project`, or `Read the case study`. Use labels drawn from the audited site's actual "
+            "navigation and content model."
+        )
+    if "frequently used features" in criterion:
+        return (
+            "Expose high-frequency visitor actions in predictable header and mobile-nav locations: services, work or case studies, "
+            "contact, language switching, and key proof points. Keep these controls reachable after scroll."
+        )
+    if "control over interactive content" in criterion:
+        return (
+            "Add consistent escape and orientation controls around interactive modules: back/close controls, carousel controls, "
+            "clear filter reset, and visible current-state labels for browsing interactive content."
+        )
+    if "page layouts are consistent" in criterion:
+        return (
+            "Standardize core page templates around the same header, content hierarchy, CTA, card/list, and footer structure, "
+            "then document the exceptions that are intentionally page-specific."
+        )
+    return _detail_sentence(_split_rationale_and_recommendation(row.get("rationale"))[1]) or clean_text(axis.get("default_fix"))
+
+
 def _polish_issue_text(text: str) -> str:
     cleaned = clean_text(text)
     if not cleaned:
@@ -479,6 +603,8 @@ def _visual_region_from_row(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     target = bundle.get("target")
     if not isinstance(target, dict):
         return None
+    if _low_quality_evidence_target(target):
+        return None
     rect = target.get("rect")
     if not isinstance(rect, dict):
         return None
@@ -490,6 +616,34 @@ def _visual_region_from_row(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "coordinate_system": "pixels",
         "description": clean_text(target.get("component_text") or target.get("component_type") or target.get("target_kind")),
     }
+
+
+def _low_quality_evidence_target(target: Dict[str, Any]) -> bool:
+    text = clean_text(target.get("component_text")).strip()
+    normalized = text.lower()
+    component_type = clean_text(target.get("component_type")).lower()
+    issue_kind = clean_text(target.get("issue_kind")).lower()
+    if not text:
+        return True
+    if normalized in {"en", "fr", "ar", "de", "es", "it", "nl", "pt"}:
+        return True
+    if len(normalized) <= 2 and "button" in component_type:
+        return True
+    if issue_kind in {"presence", "proxy"} and normalized in {"menu", "close", "x"}:
+        return True
+    return False
+
+
+def _clean_evidence_bundle(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    bundle = row.get("evidence_bundle")
+    if not isinstance(bundle, dict):
+        return None
+    target = bundle.get("target")
+    if isinstance(target, dict) and _low_quality_evidence_target(target):
+        cleaned = dict(bundle)
+        cleaned["target"] = {}
+        return cleaned
+    return bundle
 
 
 def _visible_signals_from_row(row: Dict[str, Any], evidence: str) -> List[str]:
@@ -515,11 +669,14 @@ def _visible_signals_from_row(row: Dict[str, Any], evidence: str) -> List[str]:
 
 
 def finding_from_row(row: Dict[str, Any], axis: Dict[str, Any]) -> Dict[str, Any]:
+    if _is_responsive_desktop_mobile_row(row):
+        return _responsive_finding_from_row(row, axis)
+
     severity = "high" if row["confidence"] >= 0.8 else "medium" if row["confidence"] >= 0.55 else "low"
     page_label = _page_label(row)
     evidence = _short_evidence(row)
     visible_signals = _visible_signals_from_row(row, evidence)
-    rationale, extracted_recommendation = _split_rationale_and_recommendation(row.get("rationale"))
+    rationale, _extracted_recommendation = _split_rationale_and_recommendation(row.get("rationale"))
     rationale_sentence = _polish_issue_text(rationale)
     evidence_sentence = _polish_issue_text(evidence) if evidence and evidence.lower() not in rationale.lower() else ""
     explanation = (
@@ -531,7 +688,7 @@ def finding_from_row(row: Dict[str, Any], axis: Dict[str, Any]) -> Dict[str, Any
         f"This matters because {AXIS_USER_IMPACT[axis['id']]}. "
         f"In a GTM context, visible friction on {page_label} can make the product feel harder to understand, trust, or adopt during a first review."
     )
-    recommendation = _detail_sentence(extracted_recommendation) or clean_text(axis.get("default_fix")) or (
+    recommendation = _specific_recommendation(row, axis) or (
         f"Fix this first on {page_label} by clarifying the interaction, tightening the label or feedback, "
         f"and making the intended next step more obvious."
     )
@@ -549,7 +706,7 @@ def finding_from_row(row: Dict[str, Any], axis: Dict[str, Any]) -> Dict[str, Any
         "recommendation": recommendation,
         "screenshotPath": row["screenshot_path"],
         "visualRegion": _visual_region_from_row(row),
-        "evidenceBundle": row.get("evidence_bundle"),
+        "evidenceBundle": _clean_evidence_bundle(row),
     }
 
 
@@ -658,9 +815,18 @@ def build_axis(axis: Dict[str, Any], flat_rows: List[Dict[str, Any]], profile: D
     vscore = vision_axis_score(axis_review)
     weighted = [(rows_scored["score"], 0.55), (heuristic, 0.35)] + ([(vscore, 0.10)] if vscore is not None else [])
     score = round(sum(value * weight for value, weight in weighted) / sum(weight for _, weight in weighted), 1)
-    failed = sorted([row for row in rows if row["status"] == "FALSE"], key=lambda row: (-row["confidence"], row["sheet"], row["row"]))
+    failed = sorted(
+        [row for row in rows if row["status"] == "FALSE"],
+        key=lambda row: (
+            0 if axis["id"] == "flow_architecture" and _is_responsive_desktop_mobile_row(row) else 2 if _is_responsive_desktop_mobile_row(row) else 1,
+            -safe_float(row.get("_axis_relevance"), 0.0),
+            -row["confidence"],
+            row["sheet"],
+            row["row"],
+        ),
+    )
     passed = sorted([row for row in rows if row["status"] == "TRUE"], key=lambda row: (-row["confidence"], row["sheet"], row["row"]))
-    pain_points = [finding_from_row(row, axis) for row in failed[:3]]
+    pain_points = [finding_from_row(row, axis) for row in failed[:6]]
     strengths = [finding_from_row(row, axis) for row in passed[:2]]
     vision_observation = clean_text(axis_review.get("observation"))
     missing_context = clean_text(axis_review.get("missing_context"))
@@ -696,13 +862,82 @@ def build_axis(axis: Dict[str, Any], flat_rows: List[Dict[str, Any]], profile: D
     }
 
 
+def _finding_signature(item: Dict[str, Any], *, include_page: bool = False) -> str:
+    title = clean_text(item.get("title")).lower()
+    page = clean_text(item.get("pageUrl") or item.get("pageName")).lower() if include_page else ""
+    return "|".join(part for part in (title, page) if part)
+
+
+def _evidence_signature(item: Dict[str, Any]) -> str:
+    evidence = re.sub(r"\s+", " ", clean_text(item.get("evidence")).lower())
+    return evidence[:220]
+
+
+def diversify_axis_leads(axes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Keep axis stories from reusing the same lead issue and screenshot when alternatives exist."""
+    used_titles: set[str] = set()
+    used_evidence: set[str] = set()
+
+    diversified: List[Dict[str, Any]] = []
+    for axis in axes:
+        axis_copy = dict(axis)
+        points = list(axis_copy.get("painPoints") or [])
+        if not points:
+            diversified.append(axis_copy)
+            continue
+
+        selected_index = 0
+        for index, point in enumerate(points):
+            title_sig = _finding_signature(point)
+            evidence_sig = _evidence_signature(point)
+            title_repeated = bool(title_sig and title_sig in used_titles)
+            evidence_repeated = bool(evidence_sig and evidence_sig in used_evidence)
+            if not title_repeated and not evidence_repeated:
+                selected_index = index
+                break
+
+        if selected_index:
+            lead = points.pop(selected_index)
+            points.insert(0, lead)
+
+        lead = points[0]
+        title_sig = _finding_signature(lead)
+        evidence_sig = _evidence_signature(lead)
+        if title_sig:
+            used_titles.add(title_sig)
+        if evidence_sig:
+            used_evidence.add(evidence_sig)
+
+        axis_copy["painPoints"] = points[:4]
+        axis_copy["opportunities"] = dedupe_strings(
+            [f"Resolve '{item['title']}' on the main commercial pages first." for item in axis_copy["painPoints"][:2]]
+            + ["Raise this axis on homepage and primary conversion journeys before broader refinements."],
+            limit=3,
+        )
+        axis_copy["evidence"] = dedupe_strings(
+            [item["evidence"] for item in (axis_copy.get("painPoints") or []) + (axis_copy.get("strengths") or []) if clean_text(item.get("evidence"))]
+            + (axis_copy.get("proofPoints") or []),
+            limit=6,
+        )
+        diversified.append(axis_copy)
+
+    return diversified
+
+
 def top_priorities(axes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     items = []
     for axis in axes:
         for point in axis.get("painPoints") or []:
             items.append({**point, "axisId": axis["id"], "axisName": axis["shortName"], "axisScore": axis["score"]})
     rank = {"high": 0, "medium": 1, "low": 2}
-    items.sort(key=lambda item: (rank.get(clean_text(item.get("severity")).lower(), 3), item.get("axisScore", 999), -safe_float(item.get("confidence"), 0.0)))
+    items.sort(
+        key=lambda item: (
+            0 if item.get("responsiveFailure") else 1,
+            rank.get(clean_text(item.get("severity")).lower(), 3),
+            item.get("axisScore", 999),
+            -safe_float(item.get("confidence"), 0.0),
+        )
+    )
     deduped = []
     seen = set()
     for item in items:
@@ -738,14 +973,37 @@ def build_recommendations(priorities: List[Dict[str, Any]]) -> List[Dict[str, An
             {
                 "priority": priority,
                 "title": title,
-                "description": clean_text(item.get("recommendation")) or "Address this issue on the most commercial flow first.",
-                "impact": f"Screen or area: {page_name}",
+                "description": _recommendation_description(item),
+                "impact": _recommendation_impact(item, page_name),
                 "axis": axis_name,
             }
         )
         if len(recommendations) >= 5:
             break
     return recommendations
+
+
+def _recommendation_description(item: Dict[str, Any]) -> str:
+    recommendation = clean_text(item.get("recommendation")) or "Address this issue on the most commercial flow first."
+    evidence = clean_text(item.get("evidence"))
+    page_name = clean_text(item.get("pageName")) or "the affected page"
+    if item.get("responsiveFailure"):
+        return (
+            f"{recommendation} Start with {page_name}, then reuse the same breakpoint rules across category and promotion templates. "
+            "Acceptance check: at 390px width there should be no clipped primary content, no desktop-width product rows, and navigation/actions should remain reachable without horizontal panning."
+        )
+    if evidence:
+        return f"{recommendation} Use the captured evidence on {page_name} as the acceptance target: {evidence[:180]}"
+    return recommendation
+
+
+def _recommendation_impact(item: Dict[str, Any], page_name: str) -> str:
+    axis_name = clean_text(item.get("axisName"))
+    severity = clean_text(item.get("severity")).lower()
+    if item.get("responsiveFailure"):
+        return f"Mobile conversion risk on {page_name}: phone users see a broken layout before they can browse offers or navigate."
+    severity_label = "major" if severity == "high" else "moderate" if severity == "medium" else "minor"
+    return f"{severity_label.title()} {axis_name or 'UX'} risk on {page_name}; fix on this template before scaling to sibling pages."
 
 
 def build_payload(website_menu: Dict[str, Any], cleaned_data: Dict[str, Any], rendered_data: Dict[str, Any], checks_data: Dict[str, Any], results_data: Optional[Dict[str, Any]], include_vision: bool) -> Dict[str, Any]:
@@ -775,7 +1033,7 @@ def build_payload(website_menu: Dict[str, Any], cleaned_data: Dict[str, Any], re
             screenshots=vision_screenshots,
         )
     vision_axes = ((vision.get("result") or {}).get("axes") or {}) if isinstance(vision, dict) else {}
-    axes = [build_axis(axis, flat_rows, profile, vision_axes) for axis in AXIS_DEFINITIONS]
+    axes = diversify_axis_leads([build_axis(axis, flat_rows, profile, vision_axes) for axis in AXIS_DEFINITIONS])
     ai_findings = ai_discovered_findings(vision, vision_screenshots, AXIS_DEFINITIONS)
     attach_ai_findings_to_axes(axes, ai_findings)
     overall_score = int(round(mean([axis["score"] for axis in axes], default=0.0)))

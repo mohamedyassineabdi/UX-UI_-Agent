@@ -6,6 +6,7 @@ from src.audit.page_visit_helpers import (
     extract_basic_page_info,
     save_dom_snapshot,
     smart_scroll,
+    scroll_to_url_fragment,
     wait_for_page_ready,
 )
 from src.audit.html_extractor import extract_html_blocks
@@ -16,7 +17,21 @@ from src.utils.file_utils import ensure_dir, join_path, write_json_file
 from src.utils.url_utils import build_page_folder_name, build_website_folder_name
 
 
+def config_for_page(config, page_info):
+    if page_info.get("sourceType") != "section":
+        return config
+
+    scoped = dict(config)
+    interaction = dict(config.get("interactionTesting", {}))
+    current_limit = interaction.get("maxSafeInteractionsPerPage")
+    if not isinstance(current_limit, int) or current_limit > 5:
+        interaction["maxSafeInteractionsPerPage"] = 5
+    scoped["interactionTesting"] = interaction
+    return scoped
+
+
 async def run_page_audit(*, context, page_info, page_index, config):
+    config = config_for_page(config, page_info)
     page = await context.new_page()
     cleanup_config = config.get("outputCleanup", {})
     keep_debug_artifacts = cleanup_config.get("keepDebugArtifacts", False)
@@ -107,6 +122,7 @@ async def run_page_audit(*, context, page_info, page_index, config):
             result["cookieActions"] = await dismiss_cookie_banners(page)
 
         await wait_for_page_ready(page, config)
+        await scroll_to_url_fragment(page, page_info["url"])
 
         if config.get("pageCapture", {}).get("captureScrollScreenshots"):
             result["scrollScreenshotPaths"] = await smart_scroll(
@@ -118,6 +134,7 @@ async def run_page_audit(*, context, page_info, page_index, config):
             )
 
         await wait_for_page_ready(page, config)
+        await scroll_to_url_fragment(page, page_info["url"])
 
         result["pageMetadata"] = await extract_basic_page_info(page, page_info["url"])
         result["finalUrl"] = result["pageMetadata"]["finalUrl"] or result["finalUrl"]

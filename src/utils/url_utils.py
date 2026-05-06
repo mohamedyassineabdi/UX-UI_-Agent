@@ -89,7 +89,10 @@ def deduplicate_pages(pages, normalization_options=None):
     duplicates = []
 
     for page in pages:
-        normalized_url = normalize_url(page["url"], normalization_options or {})
+        options = dict(normalization_options or {})
+        if page.get("preserveHash") or page.get("sourceType") in {"anchor", "section"}:
+            options["removeHash"] = False
+        normalized_url = normalize_url(page["url"], options)
         enriched_page = {
             **page,
             "normalizedUrl": normalized_url,

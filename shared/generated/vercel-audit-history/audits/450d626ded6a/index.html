@@ -1,0 +1,1856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plusdrie</title>
+  <style>
+    :root {
+      --bg: #f6f1e8;
+      --paper: rgba(255,255,255,0.84);
+      --card: rgba(255,255,255,0.92);
+      --ink: #202733;
+      --muted: #687386;
+      --line: rgba(32,39,51,0.10);
+      --gold: #c6a137;
+      --gold-soft: rgba(198,161,55,0.14);
+      --teal: #11886e;
+      --red: #cf513f;
+      --shadow: 0 20px 48px rgba(32,39,51,0.08);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(198,161,55,0.15), transparent 22rem),
+        radial-gradient(circle at top right, rgba(202,162,59,0.10), transparent 24rem),
+        linear-gradient(180deg, #fbf7f0 0%, #f6f1e8 100%);
+      font-family: Aptos, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.55;
+    }
+    a { color: inherit; }
+    .shell { max-width: 1240px; margin: 0 auto; padding: 24px 20px 84px; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 24px;
+      width: 100vw;
+      margin: -24px 0 24px calc(50% - 50vw);
+      padding: 14px max(24px, calc((100vw - 1240px) / 2 + 20px));
+      border-bottom: 1px solid rgba(32,39,51,0.08);
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 22px rgba(32,39,51,0.04);
+    }
+    .brand-lockups {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      min-width: 0;
+    }
+    .brand-primary,
+    .brand-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 48px;
+    }
+    .brand-primary {
+      position: relative;
+      padding-top: 10px;
+      color: var(--ink);
+    }
+    .brand-primary::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 44px;
+      height: 8px;
+      background: #ffd44d;
+      transform: skewX(-22deg);
+    }
+    .brand-ey {
+      display: inline-flex;
+      align-items: flex-end;
+      gap: 6px;
+    }
+    .brand-ey strong {
+      font-size: 1.7rem;
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+    .brand-ey span {
+      font-size: 1rem;
+      line-height: 1.1;
+      padding-bottom: 3px;
+      font-weight: 600;
+    }
+    .brand-divider {
+      width: 1px;
+      height: 40px;
+      background: rgba(32,39,51,0.10);
+    }
+    .brand-secondary strong {
+      display: block;
+      font-size: 0.95rem;
+      line-height: 1.1;
+      max-width: 20ch;
+    }
+    .brand-secondary span {
+      display: block;
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .topnav {
+      display: flex;
+      gap: 28px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      font-size: 0.94rem;
+      color: #4f5d6f;
+      font-weight: 600;
+    }
+    .topnav a {
+      text-decoration: none;
+      padding-bottom: 2px;
+      border-bottom: 1px solid transparent;
+    }
+    .topnav a:hover { border-color: var(--gold); color: var(--ink); }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 0.36fr);
+      gap: 42px;
+      align-items: center;
+      min-height: 360px;
+      padding: 56px 0 46px;
+    }
+    .hero-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .eyebrow {
+      margin: 0;
+      color: #6c7583;
+      font-size: 0.82rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    h1, h2, h3, h4 {
+      margin: 0;
+      font-family: Aptos, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.06;
+      letter-spacing: -0.035em;
+    }
+    h1 { font-size: clamp(2.1rem, 4vw, 3.2rem); }
+    h2 { font-size: clamp(1.35rem, 2.2vw, 1.9rem); margin-bottom: 10px; }
+    h3 { font-size: clamp(1.08rem, 1.6vw, 1.34rem); }
+    p { margin: 0; color: var(--muted); }
+    .hero-lead {
+      max-width: 40ch;
+      font-size: clamp(1.35rem, 2.5vw, 2.2rem);
+      line-height: 1.3;
+      color: #66707b;
+    }
+    .hero-stats {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 28px;
+      margin-top: 10px;
+    }
+    .hero-meta span {
+      display: block;
+      color: #a3a9b3;
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .hero-meta strong {
+      display: block;
+      margin-top: 4px;
+      color: var(--ink);
+      font-size: 1rem;
+    }
+    .hero-subcopy {
+      max-width: 48ch;
+      color: var(--muted);
+    }
+    .stat-card,
+    .context-card,
+    .method-card,
+    .reco-card,
+    .axis-tile,
+    .score-note {
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+    .stat-card,
+    .context-card,
+    .method-card,
+    .score-note {
+      padding: 18px;
+    }
+    .stat-card span,
+    .context-card span,
+    .score-note span {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .stat-card strong,
+    .context-card strong,
+    .score-note strong {
+      display: block;
+      font-size: 1.6rem;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+    .hero-side {
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+    .hero-score-card {
+      display: grid;
+      place-items: center;
+      gap: 12px;
+      padding: 10px 0 0;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+    }
+    .hero-score-card p {
+      text-align: center;
+      max-width: 28ch;
+      font-size: 0.93rem;
+    }
+    .score-ring {
+      position: relative;
+      display: inline-grid;
+      place-items: center;
+      width: var(--ring-size);
+      min-width: var(--ring-size);
+      margin: 0 auto;
+    }
+    .score-ring svg {
+      width: var(--ring-size);
+      height: var(--ring-size);
+      transform: rotate(-90deg);
+    }
+    .ring-track {
+      fill: none;
+      stroke: rgba(32,39,51,0.08);
+      stroke-width: var(--ring-width);
+    }
+    .ring-progress {
+      fill: none;
+      stroke-width: var(--ring-width);
+      stroke-linecap: round;
+      stroke: var(--ring-stroke);
+    }
+    .score-ring-copy {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-align: center;
+      pointer-events: none;
+    }
+    .score-ring-copy strong {
+      display: block;
+      font-size: clamp(1.7rem, 1.2rem + 1vw, 2.2rem);
+      line-height: 0.95;
+      color: var(--ink);
+    }
+    .score-ring-copy span {
+      display: block;
+      font-size: 0.82rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .scan-marquee {
+      position: relative;
+      overflow: hidden;
+      margin: 6px calc(50% - 50vw) 18px;
+      padding: 8px 0 26px;
+      mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+    }
+    .scan-strip {
+      display: flex;
+      width: max-content;
+      gap: 0;
+      animation: scan-marquee var(--scan-duration, 38s) linear infinite;
+      will-change: transform;
+    }
+    .scan-marquee:hover .scan-strip,
+    .scan-marquee:focus-within .scan-strip {
+      animation-play-state: paused;
+    }
+    .scan-track {
+      display: flex;
+      gap: 18px;
+      padding-right: 18px;
+    }
+    .scan-static {
+      display: flex;
+      gap: 18px;
+      overflow-x: auto;
+      padding: 8px 0 22px;
+      scrollbar-color: rgba(32,39,51,0.22) transparent;
+    }
+    .scan-card {
+      display: block;
+      flex: 0 0 clamp(280px, 25vw, 360px);
+      text-decoration: none;
+      color: inherit;
+      transform: translateY(0) scale(1);
+      transition: transform 220ms ease, filter 220ms ease;
+    }
+    .scan-card:hover,
+    .scan-card:focus-visible {
+      transform: translateY(-6px) scale(1.015);
+      filter: saturate(1.04);
+    }
+    .scan-screen {
+      overflow: hidden;
+      border-radius: 18px;
+      border: 1px solid rgba(32,39,51,0.10);
+      background: #ffffff;
+      box-shadow: 0 16px 28px rgba(32,39,51,0.10);
+      margin-bottom: 10px;
+    }
+    .scan-card img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      object-position: center center;
+    }
+    .mobile-scan-card {
+      flex-basis: clamp(210px, 18vw, 280px);
+      padding: 6px 4px 14px;
+    }
+    .scan-phone-shell,
+    .phone-device {
+      position: relative;
+      isolation: isolate;
+      width: min(100%, 330px);
+      aspect-ratio: 9 / 19.4;
+      margin: 0 auto;
+      padding: clamp(8px, 2.4%, 12px);
+      border-radius: 44px;
+      background:
+        linear-gradient(145deg, #111318, #3a3d42 45%, #111318);
+      box-shadow:
+        inset 0 0 0 2px rgba(255,255,255,0.12),
+        inset 0 0 0 5px rgba(0,0,0,0.76),
+        0 24px 54px rgba(32,39,51,0.22);
+    }
+    .scan-phone-shell::before,
+    .phone-device::before {
+      content: "";
+      position: absolute;
+      inset: 5px;
+      border-radius: 39px;
+      border: 1px solid rgba(255,255,255,0.2);
+      pointer-events: none;
+      z-index: 2;
+    }
+    .phone-top {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 32%;
+      min-width: 84px;
+      height: 25px;
+      border-radius: 999px;
+      background: #050608;
+      transform: translateX(-50%);
+      box-shadow: inset 0 1px 2px rgba(255,255,255,0.12);
+    }
+    .phone-speaker {
+      width: 38px;
+      height: 5px;
+      border-radius: 999px;
+      background: #151923;
+    }
+    .phone-camera {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #111b2d;
+      box-shadow: inset 0 0 0 2px #0a0d13;
+    }
+    .phone-side {
+      position: absolute;
+      z-index: 0;
+      width: 4px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #2d3035, #0d0e10);
+      opacity: 0.82;
+    }
+    .phone-side-left {
+      left: -2px;
+      top: 18%;
+      height: 12%;
+    }
+    .phone-side-right {
+      right: -2px;
+      top: 29%;
+      height: 16%;
+    }
+    .scan-phone-screen,
+    .phone-screen {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      border-radius: 34px;
+      background: #ffffff;
+    }
+    .scan-phone-screen img,
+    .phone-screen img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      aspect-ratio: auto;
+      object-fit: contain;
+      object-position: center center;
+      background: #ffffff;
+    }
+    .scan-card span,
+    .scan-card strong,
+    .scan-card em {
+      display: block;
+    }
+    .scan-card span {
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .scan-card strong {
+      font-size: 0.98rem;
+      line-height: 1.35;
+      color: var(--ink);
+      margin-top: 4px;
+    }
+    .scan-card em {
+      margin-top: 6px;
+      font-style: normal;
+      color: var(--muted);
+      font-size: 0.82rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    @keyframes scan-marquee {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .scan-strip {
+        animation: none;
+      }
+      .scan-marquee {
+        overflow-x: auto;
+        mask-image: none;
+      }
+      .reco-card,
+      .scan-card {
+        transition: none;
+      }
+    }
+    .section-panel,
+    .priority-panel {
+      margin-top: 28px;
+      padding: 6px 0;
+    }
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 18px;
+      margin-bottom: 16px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(32,39,51,0.08);
+    }
+    .section-head p {
+      max-width: 46ch;
+      font-size: 0.96rem;
+    }
+    .context-grid,
+    .method-grid {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    .reco-grid {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(260px, 320px);
+      grid-template-columns: none;
+      gap: 18px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 2px 2px 24px;
+      margin-inline: -2px;
+      scroll-snap-type: x proximity;
+      scrollbar-gutter: stable;
+      perspective: 1200px;
+    }
+    .reco-grid::-webkit-scrollbar {
+      height: 10px;
+    }
+    .reco-grid::-webkit-scrollbar-track {
+      background: rgba(32,39,51,0.06);
+      border-radius: 999px;
+    }
+    .reco-grid::-webkit-scrollbar-thumb {
+      background: rgba(202,162,59,0.55);
+      border-radius: 999px;
+    }
+    .methodology-section {
+      margin-top: 44px;
+    }
+    .methodology-section .section-head {
+      display: block;
+      max-width: 760px;
+      margin: 0 auto 34px;
+      text-align: center;
+      border-top: none;
+    }
+    .methodology-section .section-head p {
+      max-width: 58ch;
+      margin: 0 auto;
+    }
+    .method-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: stretch;
+      gap: 22px;
+    }
+    .method-card {
+      position: relative;
+      min-height: 180px;
+      padding: 44px 28px 28px;
+      border: 1px solid rgba(32,39,51,0.08);
+      border-radius: 2px;
+      background: rgba(255,255,255,0.84);
+      box-shadow: 0 18px 36px rgba(32,39,51,0.05);
+    }
+    .method-card h4 {
+      font-family: Aptos, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      font-size: 1.06rem;
+      letter-spacing: 0;
+      margin-bottom: 10px;
+    }
+    .floating-step {
+      position: absolute;
+      top: -18px;
+      left: 28px;
+      display: inline-grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      background: #ffe100;
+      color: #111820;
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+    .score-overview {
+      display: grid;
+      gap: 22px;
+      grid-template-columns: 1fr;
+      justify-items: center;
+      margin-bottom: 18px;
+    }
+    .scoring-section .section-head {
+      display: block;
+      max-width: 760px;
+      margin: 0 auto 18px;
+      text-align: center;
+    }
+    .scoring-section .section-head p {
+      margin: 0 auto;
+    }
+    .radar-card {
+      padding: 18px;
+      border-radius: 0;
+      border: none;
+      background: transparent;
+      width: min(100%, 680px);
+    }
+    .radar-chart {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .axis-grid {
+      display: grid;
+      gap: 24px 18px;
+      grid-template-columns: repeat(16, minmax(0, 1fr));
+      grid-auto-rows: 1fr;
+      width: 100%;
+      padding-top: 20px;
+    }
+    .axis-tile {
+      position: relative;
+      display: grid;
+      justify-items: start;
+      align-content: start;
+      gap: 12px;
+      min-height: 100%;
+      padding: 40px 24px 24px;
+      text-align: left;
+      border: 1px solid rgba(32,39,51,0.08);
+      border-radius: 2px;
+      background: rgba(255,255,255,0.84);
+      box-shadow: 0 18px 36px rgba(32,39,51,0.05);
+      grid-column: span 4;
+    }
+    .axis-tile:nth-child(5) {
+      grid-column: 3 / span 4;
+    }
+    .axis-tile h4 {
+      font-family: Aptos, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      font-size: 1rem;
+      line-height: 1.3;
+      letter-spacing: 0;
+      color: var(--ink);
+      font-weight: 700;
+      margin: 0;
+    }
+    .axis-tile > p {
+      max-width: none;
+      margin: 0;
+      text-align: left;
+    }
+    .axis-tile-meta {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-top: auto;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .axis-tile-meta strong {
+      color: var(--ink);
+    }
+    .stories,
+    .axis-stories {
+      display: grid;
+      gap: 34px;
+    }
+    .story-row,
+    .axis-story {
+      display: grid;
+      grid-template-columns: 42px minmax(420px, 1.18fr) minmax(155px, 0.34fr) minmax(0, 0.88fr);
+      gap: 22px;
+      align-items: center;
+      padding: 12px 0 0;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+    .story-index {
+      align-self: start;
+      display: inline-grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+    .story-media,
+    .axis-story-media {
+      align-self: center;
+      display: grid;
+      gap: 10px;
+      align-content: center;
+      justify-items: center;
+    }
+    .story-visual-frame,
+    .axis-story-frame {
+      width: 100%;
+      max-width: 680px;
+      overflow: hidden;
+      border-radius: 22px;
+      border: 1px solid rgba(32,39,51,0.08);
+      background: #ffffff;
+      box-shadow: 0 18px 36px rgba(32,39,51,0.08);
+    }
+    .story-visual-frame.mobile-visual-frame,
+    .axis-story-frame.mobile-visual-frame {
+      max-width: 390px;
+      overflow: visible;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+    .desktop-screen {
+      overflow: hidden;
+      background: #ffffff;
+    }
+    .desktop-screen-bar {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      height: 28px;
+      padding: 0 12px;
+      border-bottom: 1px solid rgba(32,39,51,0.08);
+      background: linear-gradient(180deg, #f8f8f7, #eeeeec);
+    }
+    .desktop-screen-bar span {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #c8c9c7;
+    }
+    .desktop-screen-bar span:first-child { background: #e6cf67; }
+    .desktop-screen-body {
+      aspect-ratio: 16 / 9;
+      background: #ffffff;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+    .story-visual-frame img,
+    .axis-story-frame img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      object-position: center center;
+      background: #ffffff;
+    }
+    .mobile-visual-frame img {
+      aspect-ratio: auto;
+      object-fit: contain;
+    }
+    .story-visual-empty {
+      display: grid;
+      place-items: center;
+      min-height: 240px;
+      padding: 18px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .story-visual-meta {
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+    .story-score-pane,
+    .axis-story-score {
+      align-self: center;
+      display: grid;
+      grid-auto-rows: min-content;
+      gap: 12px;
+      justify-items: center;
+      align-content: center;
+      min-height: 100%;
+      width: min(100%, 210px);
+      margin-inline: auto;
+      padding: 10px 4px 12px;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      text-align: center;
+    }
+    .story-score-axis,
+    .story-score-severity,
+    .axis-story-kicker,
+    .axis-story-metric {
+      font-size: 0.86rem;
+      color: var(--muted);
+    }
+    .axis-story-title {
+      color: var(--ink);
+      font-size: 1.08rem;
+      line-height: 1.4;
+      font-weight: 700;
+      max-width: 14ch;
+      text-align: center;
+    }
+    .axis-story-kicker {
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+    .story-copy,
+    .axis-story-copy {
+      align-self: center;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+      position: relative;
+    }
+    .severity-badge {
+      justify-self: start;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: max-content;
+      padding: 8px 12px;
+      border-radius: 3px;
+      border: 1px solid #f0b47d;
+      background: #fff3e6;
+      color: #9a3b0b;
+      font-size: 0.84rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .severity-icon {
+      display: inline-grid;
+      place-items: center;
+      width: 16px;
+      height: 16px;
+      border: 1.6px solid currentColor;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      line-height: 1;
+    }
+    .severity-icon {
+      font-family: Aptos, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    }
+    .severity-medium {
+      border-color: #e5c453;
+      background: #fff8d7;
+      color: #7b5c00;
+    }
+    .severity-low {
+      border-color: rgba(32,39,51,0.16);
+      background: rgba(255,255,255,0.78);
+      color: #4f5d6f;
+    }
+    .story-meta {
+      color: var(--muted);
+      font-size: 0.86rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .story-copy h3,
+    .axis-story-copy h3 {
+      max-width: 28ch;
+    }
+    .story-copy strong,
+    .axis-story-copy strong {
+      color: var(--ink);
+    }
+    .story-link a {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .story-confidence {
+      font-size: 0.86rem;
+      color: var(--muted);
+    }
+    .signal-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .signal-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(202,162,59,0.10);
+      border: 1px solid rgba(202,162,59,0.18);
+      color: var(--ink);
+      font-size: 0.82rem;
+    }
+    .tone-critical { border-left: 4px solid var(--red); }
+    .tone-high { border-left: 4px solid #d98e2f; }
+    .tone-medium { border-left: 4px solid var(--gold); }
+    .reco-card {
+      position: relative;
+      isolation: isolate;
+      min-height: 270px;
+      width: 100%;
+      display: grid;
+      align-content: start;
+      gap: 14px;
+      scroll-snap-align: start;
+      overflow: hidden;
+      padding: 28px;
+      border: 1px solid rgba(198,161,55,0.22);
+      border-radius: 26px;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.82), rgba(255,255,255,0.36)),
+        radial-gradient(circle at 10% 0%, rgba(255,225,0,0.22), transparent 34%),
+        rgba(255,255,255,0.62);
+      box-shadow: 0 24px 54px rgba(32,39,51,0.08);
+      transform: translateY(0) rotateX(0deg);
+      transition: transform 260ms ease, border-color 260ms ease, box-shadow 260ms ease, background 260ms ease;
+    }
+    .reco-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+      background:
+        linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.65) 42%, transparent 62%);
+      opacity: 0;
+      transform: translateX(-120%);
+      transition: opacity 220ms ease, transform 680ms ease;
+    }
+    .reco-card::after {
+      content: "";
+      position: absolute;
+      inset: auto 22px 18px 22px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      opacity: 0.58;
+      transform: scaleX(0.35);
+      transform-origin: left center;
+      transition: transform 260ms ease, opacity 260ms ease;
+    }
+    .reco-card:hover,
+    .reco-card:focus-visible {
+      outline: none;
+      transform: translateY(-10px) rotateX(2deg);
+      border-color: rgba(198,161,55,0.62);
+      box-shadow: 0 34px 78px rgba(32,39,51,0.14), 0 0 0 1px rgba(255,225,0,0.12) inset;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.92), rgba(255,255,255,0.58)),
+        radial-gradient(circle at 12% 0%, rgba(255,225,0,0.34), transparent 36%),
+        rgba(255,255,255,0.72);
+    }
+    .reco-card:hover::before,
+    .reco-card:focus-visible::before {
+      opacity: 1;
+      transform: translateX(120%);
+    }
+    .reco-card:hover::after,
+    .reco-card:focus-visible::after {
+      opacity: 1;
+      transform: scaleX(1);
+    }
+    .reco-orb {
+      display: inline-grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      background: #ffe100;
+      color: var(--ink);
+      font-size: 0.9rem;
+      font-weight: 800;
+      box-shadow: 0 0 0 10px rgba(255,225,0,0.12), 0 18px 30px rgba(198,161,55,0.18);
+    }
+    .reco-badge {
+      display: inline-flex;
+      width: max-content;
+      color: var(--ink);
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .reco-card h4 {
+      font-size: clamp(1.1rem, 1.5vw, 1.38rem);
+      max-width: 22ch;
+    }
+    .reco-card p {
+      max-width: 32ch;
+      font-size: 0.98rem;
+    }
+    .reco-card .reco-impact {
+      max-width: 34ch;
+      padding: 10px 12px;
+      border-left: 3px solid var(--gold);
+      background: rgba(255,255,255,0.52);
+      color: var(--ink);
+      font-size: 0.9rem;
+      font-weight: 650;
+    }
+    .reco-axis {
+      display: inline-flex;
+      width: max-content;
+      max-width: 100%;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(32,39,51,0.12);
+      background: rgba(32,39,51,0.04);
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 750;
+    }
+    .reco-meta {
+      margin-top: 10px;
+      font-size: 0.88rem;
+    }
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      margin-top: 22px;
+      padding: 22px 6px 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .empty { color: var(--muted); }
+    @media (max-width: 1120px) {
+      .hero,
+      .story-row,
+      .axis-story {
+        grid-template-columns: 1fr;
+      }
+      .story-index {
+        width: 40px;
+        height: 40px;
+      }
+      .scan-strip {
+        grid-template-columns: 1fr;
+      }
+      .scan-static {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+      .axis-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .axis-tile,
+      .axis-tile:nth-child(5) {
+        grid-column: auto;
+      }
+      .method-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .reco-grid {
+        grid-auto-columns: minmax(260px, 34vw);
+      }
+      .topbar {
+        gap: 16px;
+        padding-inline: 20px;
+      }
+    }
+    @media (max-width: 720px) {
+      .shell { padding-inline: 14px; }
+      .hero,
+      .section-panel,
+      .priority-panel {
+        padding: 22px;
+        border-radius: 24px;
+      }
+      .topbar {
+        position: static;
+        width: auto;
+        margin: -24px -14px 20px;
+        padding: 16px 14px;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .topnav {
+        gap: 10px;
+        font-size: 0.84rem;
+        justify-content: flex-start;
+      }
+      .method-grid,
+      .axis-grid {
+        grid-template-columns: 1fr;
+      }
+      .reco-grid {
+        grid-auto-columns: minmax(248px, 84vw);
+        padding-bottom: 18px;
+      }
+      .reco-card {
+        padding: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand-lockups">
+        <div class="brand-primary">
+          <div class="brand-ey">
+            <strong>EY</strong>
+            <span>Studio+</span>
+          </div>
+        </div>
+        <span class="brand-divider" aria-hidden="true"></span>
+        <div class="brand-secondary">
+          <div>
+            <span>Audit for</span>
+            <strong>Plusdrie</strong>
+          </div>
+        </div>
+      </div>
+      <nav class="topnav">
+        <a href="#context">Context &amp; Methodology</a>
+        <a href="#priorities">Findings</a>
+        <a href="#scores">Scores</a>
+        <a href="#recommendations">Recommendations</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">GTM UX/UI Audit</p>
+        <h1>Plusdrie</h1>
+        <p class="hero-lead">Comprehensive evaluation of the user experience and interface of Plusdrie website through 7 axes of analysis on 3 main screen(s).</p>
+        <div class="hero-meta">
+          <div><span>Date</span><strong>May 2026</strong></div>
+          <div><span>Pages analyzed</span><strong>3</strong></div>
+          <div><span>Audit axes</span><strong>7</strong></div>
+        </div>
+      </div>
+      <aside class="hero-side">
+        <div class="hero-score-card">
+          
+    <div class="score-ring" style="--ring-size:170px; --ring-stroke:#caa23b; --ring-width:12.8px;">
+      <svg viewBox="0 0 170 170" aria-hidden="true">
+        <circle cx="85.0" cy="85.0" r="72.625" class="ring-track"></circle>
+        <circle cx="85.0" cy="85.0" r="72.625" class="ring-progress" style="stroke-dasharray:456.32;stroke-dashoffset:205.34;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>5.5</strong>
+        <span>Overall</span>
+      </div>
+    </div>
+    
+        </div>
+      </aside>
+    </section>
+
+    <section class="section-panel">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Pages Scanned</p>
+          <h2>Representative pages captured during the audit</h2>
+        </div>
+      </div>
+      
+            <div class="scan-marquee">
+              <div class="scan-strip" style="--scan-duration: 42s;">
+                <div class="scan-track">
+    <a class="scan-card" href="assets/shared/output/screenshots/plusdrie.com/Home/page/main.png" target="_blank" rel="noreferrer">
+      <div class="scan-screen">
+        <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+        <img src="assets/shared/output/screenshots/plusdrie.com/Home/page/main.png" alt="Home screenshot">
+      </div>
+    </a>
+    
+    <a class="scan-card" href="assets/shared/output/screenshots/plusdrie.com/Studio/page/main.png" target="_blank" rel="noreferrer">
+      <div class="scan-screen">
+        <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+        <img src="assets/shared/output/screenshots/plusdrie.com/Studio/page/main.png" alt="Studio screenshot">
+      </div>
+    </a>
+    
+    <a class="scan-card" href="assets/shared/output/screenshots/plusdrie.com/Work/page/main.png" target="_blank" rel="noreferrer">
+      <div class="scan-screen">
+        <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+        <img src="assets/shared/output/screenshots/plusdrie.com/Work/page/main.png" alt="Work screenshot">
+      </div>
+    </a>
+    </div>
+                <div class="scan-track" aria-hidden="true">
+    <a tabindex="-1" class="scan-card" href="assets/shared/output/screenshots/plusdrie.com/Home/page/main.png" target="_blank" rel="noreferrer">
+      <div class="scan-screen">
+        <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+        <img src="assets/shared/output/screenshots/plusdrie.com/Home/page/main.png" alt="Home screenshot">
+      </div>
+    </a>
+    
+    <a tabindex="-1" class="scan-card" href="assets/shared/output/screenshots/plusdrie.com/Studio/page/main.png" target="_blank" rel="noreferrer">
+      <div class="scan-screen">
+        <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+        <img src="assets/shared/output/screenshots/plusdrie.com/Studio/page/main.png" alt="Studio screenshot">
+      </div>
+    </a>
+    
+    <a tabindex="-1" class="scan-card" href="assets/shared/output/screenshots/plusdrie.com/Work/page/main.png" target="_blank" rel="noreferrer">
+      <div class="scan-screen">
+        <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+        <img src="assets/shared/output/screenshots/plusdrie.com/Work/page/main.png" alt="Work screenshot">
+      </div>
+    </a>
+    </div>
+              </div>
+            </div>
+        
+    </section>
+
+    <section class="section-panel" id="context">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Context</p>
+          <h2>Audit framing</h2>
+        </div>
+      </div>
+      <div class="context-grid">
+        <div class="context-card"><span>Pages audited</span><strong>3</strong></div>
+        <div class="context-card"><span>Navigation scope</span><strong>2</strong></div>
+        <div class="context-card"><span>Axes reviewed</span><strong>7</strong></div>
+      </div>
+    </section>
+
+    <section class="section-panel methodology-section" id="methodology">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Methodology</p>
+          <h2>Our structured 3-step approach to evaluating the user experience</h2>
+        </div>
+      </div>
+      <div class="method-grid">
+        <div class="method-card">
+          <span class="floating-step">1</span>
+          <h4>Context</h4>
+          <p>We isolate the homepage, core conversion pages, and the strongest commercial story signals before scoring.</p>
+        </div>
+        
+        <div class="method-card">
+          <span class="floating-step">2</span>
+          <h4>Axis Review</h4>
+          <p>The product is reviewed through 7 GTM-oriented UX/UI axes with rule-based evidence from the detailed audit.</p>
+        </div>
+        
+        <div class="method-card">
+          <span class="floating-step">3</span>
+          <h4>Prioritization</h4>
+          <p>Only the highest-impact friction points are kept, then converted into sales-facing recommendations.</p>
+        </div>
+        </div>
+    </section>
+
+    <section class="section-panel scoring-section" id="scores">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Scoring</p>
+          <h2>Seven axes at a glance</h2>
+        </div>
+      </div>
+      <div class="score-overview">
+        
+    <div class="radar-card">
+      <svg class="radar-chart" viewBox="0 0 520 500" role="img" aria-label="Seven-axis scoring radar chart">
+        <defs>
+          <linearGradient id="radarFill" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="rgba(202,162,59,0.24)"></stop>
+            <stop offset="100%" stop-color="rgba(202,162,59,0.10)"></stop>
+          </linearGradient>
+        </defs>
+        <polygon points="260.0,220.0 283.5,231.3 289.2,256.7 273.0,277.0 247.0,277.0 230.8,256.7 236.5,231.3" fill="none" stroke="rgba(31,39,51,0.08)" stroke-width="1"></polygon><text x="266" y="224.0" fill="rgba(93,103,117,0.9)" font-size="12">2</text><polygon points="260.0,190.0 306.9,212.6 318.5,263.4 286.0,304.1 234.0,304.1 201.5,263.4 213.1,212.6" fill="none" stroke="rgba(31,39,51,0.08)" stroke-width="1"></polygon><text x="266" y="194.0" fill="rgba(93,103,117,0.9)" font-size="12">4</text><polygon points="260.0,160.0 330.4,193.9 347.7,270.0 299.0,331.1 221.0,331.1 172.3,270.0 189.6,193.9" fill="none" stroke="rgba(31,39,51,0.08)" stroke-width="1"></polygon><text x="266" y="164.0" fill="rgba(93,103,117,0.9)" font-size="12">6</text><polygon points="260.0,130.0 353.8,175.2 377.0,276.7 312.1,358.1 207.9,358.1 143.0,276.7 166.2,175.2" fill="none" stroke="rgba(31,39,51,0.08)" stroke-width="1"></polygon><text x="266" y="134.0" fill="rgba(93,103,117,0.9)" font-size="12">8</text><polygon points="260.0,100.0 377.3,156.5 406.2,283.4 325.1,385.1 194.9,385.1 113.8,283.4 142.7,156.5" fill="none" stroke="rgba(31,39,51,0.08)" stroke-width="1"></polygon><text x="266" y="104.0" fill="rgba(93,103,117,0.9)" font-size="12">10</text>
+        <line x1="260" y1="250" x2="260.0" y2="100.0" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line><line x1="260" y1="250" x2="377.3" y2="156.5" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line><line x1="260" y1="250" x2="406.2" y2="283.4" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line><line x1="260" y1="250" x2="325.1" y2="385.1" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line><line x1="260" y1="250" x2="194.9" y2="385.1" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line><line x1="260" y1="250" x2="113.8" y2="283.4" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line><line x1="260" y1="250" x2="142.7" y2="156.5" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line>
+        <polygon points="260.0,169.0 322.2,200.4 340.4,268.4 293.8,320.3 219.0,335.1 175.2,269.4 204.9,206.0" fill="url(#radarFill)" stroke="#caa23b" stroke-width="3"></polygon>
+        <circle cx="260.0" cy="169.0" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle><circle cx="322.2" cy="200.4" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle><circle cx="340.4" cy="268.4" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle><circle cx="293.8" cy="320.3" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle><circle cx="219.0" cy="335.1" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle><circle cx="175.2" cy="269.4" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle><circle cx="204.9" cy="206.0" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle>
+        <text x="260.0" y="65.5" text-anchor="middle" fill="#4d5868" font-size="15" font-weight="600">Task Execution</text><text x="404.2" y="135.0" text-anchor="start" fill="#4d5868" font-size="15" font-weight="600">Flow &amp; Architecture</text><text x="439.9" y="291.1" text-anchor="start" fill="#4d5868" font-size="15" font-weight="600">Trust &amp; Accessibility</text><text x="340.1" y="416.2" text-anchor="start" fill="#4d5868" font-size="15" font-weight="600">UI Consistency</text><text x="179.9" y="416.2" text-anchor="end" fill="#4d5868" font-size="15" font-weight="600">Visual Brand</text><text x="80.1" y="291.1" text-anchor="end" fill="#4d5868" font-size="15" font-weight="600">Content &amp; Microcopy</text><text x="115.8" y="135.0" text-anchor="end" fill="#4d5868" font-size="15" font-weight="600">Market Alignment</text>
+      </svg>
+    </div>
+    
+        <div class="axis-grid">
+    <article class="axis-tile tone-medium">
+      <span class="floating-step">1</span>
+      <h4>Task Execution</h4>
+      <p>How clearly the interface helps a first-time visitor understand the next step and complete the primary task without friction.</p>
+      <div class="axis-tile-meta">
+        <strong>5.4/10</strong>
+        <span>Medium severity</span>
+      </div>
+    </article>
+    
+    <article class="axis-tile tone-medium">
+      <span class="floating-step">2</span>
+      <h4>Flow &amp; Architecture</h4>
+      <p>How understandable the navigation model, page structure, and wayfinding feel across the visible journey.</p>
+      <div class="axis-tile-meta">
+        <strong>5.3/10</strong>
+        <span>Medium severity</span>
+      </div>
+    </article>
+    
+    <article class="axis-tile tone-medium">
+      <span class="floating-step">3</span>
+      <h4>Trust &amp; Accessibility</h4>
+      <p>How credible, safe, legible, and inclusive the visible experience feels for real-world use.</p>
+      <div class="axis-tile-meta">
+        <strong>5.5/10</strong>
+        <span>Medium severity</span>
+      </div>
+    </article>
+    
+    <article class="axis-tile tone-medium">
+      <span class="floating-step">4</span>
+      <h4>UI Consistency</h4>
+      <p>How consistently components, styles, and recurring interaction patterns are applied across the visible experience.</p>
+      <div class="axis-tile-meta">
+        <strong>5.2/10</strong>
+        <span>Medium severity</span>
+      </div>
+    </article>
+    
+    <article class="axis-tile tone-medium">
+      <span class="floating-step">5</span>
+      <h4>Visual Brand</h4>
+      <p>How well the visible visual direction communicates brand quality, hierarchy, and differentiation on first impression.</p>
+      <div class="axis-tile-meta">
+        <strong>6.3/10</strong>
+        <span>Medium severity</span>
+      </div>
+    </article>
+    
+    <article class="axis-tile tone-medium">
+      <span class="floating-step">6</span>
+      <h4>Content &amp; Microcopy</h4>
+      <p>How clearly visible messaging, headings, labels, and CTA text explain value, meaning, and the next step.</p>
+      <div class="axis-tile-meta">
+        <strong>5.8/10</strong>
+        <span>Medium severity</span>
+      </div>
+    </article>
+    
+    <article class="axis-tile tone-medium">
+      <span class="floating-step">7</span>
+      <h4>Market Alignment</h4>
+      <p>How well the visible offer, audience cues, proof points, and CTA strategy support a coherent go-to-market story.</p>
+      <div class="axis-tile-meta">
+        <strong>4.7/10</strong>
+        <span>Medium severity</span>
+      </div>
+    </article>
+    </div>
+      </div>
+    </section>
+
+    <section class="priority-panel" id="priorities">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Priority Issues</p>
+          <h2>Only the pain points that matter most</h2>
+        </div>
+      </div>
+      <div class="stories">
+    <article class="story-row tone-high">
+      <div class="story-index">01</div>
+      <div class="story-media">
+        <div class="story-visual-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-01-website-layout-breaks-on-phone-screens.png" alt="Website layout breaks on phone screens">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="story-score-pane">
+        
+    <div class="score-ring" style="--ring-size:128px; --ring-stroke:#caa23b; --ring-width:9.6px;">
+      <svg viewBox="0 0 128 128" aria-hidden="true">
+        <circle cx="64.0" cy="64.0" r="53.2" class="ring-track"></circle>
+        <circle cx="64.0" cy="64.0" r="53.2" class="ring-progress" style="stroke-dasharray:334.27;stroke-dashoffset:157.10;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>5.3</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="story-copy">
+        <span class="severity-badge severity-high"><span class="severity-icon">!</span>Major Issue</span>
+        <h3>Website layout breaks on phone screens</h3>
+        <p><strong>Issue:</strong> On Home, the audit found that the website does not adapt reliably from desktop to phone. Desktop viewport 1440x900; phone viewport 390x844. The phone render exposes desktop-layout content that does not adapt correctly, including `Pathé Thuis` (measured overflow: 0px).</p>
+        <p><strong>Why it matters:</strong> This matters because mobile visitors cannot evaluate offers, navigation, or promotions with confidence when the page keeps desktop layout assumptions on a phone. In a GTM context, this can directly reduce discovery, store/product engagement, and trust for first-time mobile users.</p>
+        <p><strong>Direction:</strong> Rebuild the responsive breakpoint for the affected templates: remove fixed-width rows, let content groups collapse to a readable single-column flow, make hero/media blocks fluid, and test at 390px, 430px, 768px, and desktop widths before publishing.</p>
+      </div>
+    </article>
+    
+    <article class="story-row tone-high">
+      <div class="story-index">02</div>
+      <div class="story-media">
+        <div class="story-visual-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-02-search-is-available-on-every-page-not-just-the-homepage.png" alt="Search is available on every page, not just the homepage.">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="story-score-pane">
+        
+    <div class="score-ring" style="--ring-size:128px; --ring-stroke:#caa23b; --ring-width:9.6px;">
+      <svg viewBox="0 0 128 128" aria-hidden="true">
+        <circle cx="64.0" cy="64.0" r="53.2" class="ring-track"></circle>
+        <circle cx="64.0" cy="64.0" r="53.2" class="ring-progress" style="stroke-dasharray:334.27;stroke-dashoffset:177.16;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>4.7</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="story-copy">
+        <span class="severity-badge severity-high"><span class="severity-icon">!</span>Major Issue</span>
+        <h3>Search is available on every page, not just the homepage.</h3>
+        <p><strong>Issue:</strong> On Home, the audit found that &#x27;Search is available on every page, not just the homepage.&#x27; is not fully met. Actual site-search inputs detected on every page was not found.</p>
+        <p><strong>Why it matters:</strong> This matters because prospects may not immediately understand why this product is relevant for their context or what step to take next. In a GTM context, visible friction on Home can make the product feel harder to understand, trust, or adopt during a first review.</p>
+        <p><strong>Direction:</strong> Add a persistent site search entry in the header on desktop and mobile, keep it available on key service, portfolio, resource, and contact pages, and return typed-ahead suggestions for services, case studies, or articles so prospects can reach relevant content quickly.</p>
+      </div>
+    </article>
+    
+    <article class="story-row tone-high">
+      <div class="story-index">03</div>
+      <div class="story-media">
+        <div class="story-visual-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-03-verbs-are-used-for-all-actions-e-g-save-go-submit-continue.png" alt="Verbs are used for all actions (e.g. Save, Go, Submit, Continue).">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="story-score-pane">
+        
+    <div class="score-ring" style="--ring-size:128px; --ring-stroke:#caa23b; --ring-width:9.6px;">
+      <svg viewBox="0 0 128 128" aria-hidden="true">
+        <circle cx="64.0" cy="64.0" r="53.2" class="ring-track"></circle>
+        <circle cx="64.0" cy="64.0" r="53.2" class="ring-progress" style="stroke-dasharray:334.27;stroke-dashoffset:177.16;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>4.7</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="story-copy">
+        <span class="severity-badge severity-high"><span class="severity-icon">!</span>Major Issue</span>
+        <h3>Verbs are used for all actions (e.g. Save, Go, Submit, Continue).</h3>
+        <p><strong>Issue:</strong> On Home, the audit found that &#x27;Verbs are used for all actions (e.g. Save, Go, Submit, Continue).&#x27; is not fully met. Action labels do not pass the verb criterion. At least one page relies too heavily on non-verb action labels.</p>
+        <p><strong>Why it matters:</strong> This matters because prospects may not immediately understand why this product is relevant for their context or what step to take next. In a GTM context, visible friction on Home can make the product feel harder to understand, trust, or adopt during a first review.</p>
+        <p><strong>Direction:</strong> Rewrite action labels so they start with a verb and name the outcome, such as `View services`, `Explore work`, `Contact the team`, `Start a project`, or `Read the case study`. Use labels drawn from the audited site&#x27;s actual navigation and content model.</p>
+      </div>
+    </article>
+    
+    <article class="story-row tone-high">
+      <div class="story-index">04</div>
+      <div class="story-media">
+        <div class="story-visual-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-04-users-have-control-over-interactive-content-experiences-or-w.png" alt="Users have control over interactive content, experiences or workflows — where they’re going, how they get there, and how easily they can stop and start.">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="story-score-pane">
+        
+    <div class="score-ring" style="--ring-size:128px; --ring-stroke:#caa23b; --ring-width:9.6px;">
+      <svg viewBox="0 0 128 128" aria-hidden="true">
+        <circle cx="64.0" cy="64.0" r="53.2" class="ring-track"></circle>
+        <circle cx="64.0" cy="64.0" r="53.2" class="ring-progress" style="stroke-dasharray:334.27;stroke-dashoffset:177.16;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>4.7</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="story-copy">
+        <span class="severity-badge severity-high"><span class="severity-icon">!</span>Major Issue</span>
+        <h3>Users have control over interactive content, experiences or workflows — where they’re going, how they get there, and how easily they can stop and start.</h3>
+        <p><strong>Issue:</strong> On Home, the audit found that &#x27;Users have control over interactive content, experiences or workflows — where they’re going, how they get there, and how easily they can stop and start.&#x27; is not fully met. User control over flows does not pass. The available signals do not strongly support user control over interactive flows.</p>
+        <p><strong>Why it matters:</strong> This matters because prospects may not immediately understand why this product is relevant for their context or what step to take next. In a GTM context, visible friction on Home can make the product feel harder to understand, trust, or adopt during a first review.</p>
+        <p><strong>Direction:</strong> Add consistent escape and orientation controls around interactive modules: back/close controls, carousel controls, clear filter reset, and visible current-state labels for browsing interactive content.</p>
+      </div>
+    </article>
+    
+    <article class="story-row tone-high">
+      <div class="story-index">05</div>
+      <div class="story-media">
+        <div class="story-visual-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-05-frequently-used-features-are-readily-available.png" alt="Frequently used features are readily available.">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="story-score-pane">
+        
+    <div class="score-ring" style="--ring-size:128px; --ring-stroke:#caa23b; --ring-width:9.6px;">
+      <svg viewBox="0 0 128 128" aria-hidden="true">
+        <circle cx="64.0" cy="64.0" r="53.2" class="ring-track"></circle>
+        <circle cx="64.0" cy="64.0" r="53.2" class="ring-progress" style="stroke-dasharray:334.27;stroke-dashoffset:177.16;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>4.7</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="story-copy">
+        <span class="severity-badge severity-high"><span class="severity-icon">!</span>Major Issue</span>
+        <h3>Frequently used features are readily available.</h3>
+        <p><strong>Issue:</strong> On Home, the audit found that &#x27;Frequently used features are readily available.&#x27; is not fully met. Frequently used features are not surfaced strongly enough. Frequently used controls are not sufficiently visible in top or navigation zones.</p>
+        <p><strong>Why it matters:</strong> This matters because prospects may not immediately understand why this product is relevant for their context or what step to take next. In a GTM context, visible friction on Home can make the product feel harder to understand, trust, or adopt during a first review.</p>
+        <p><strong>Direction:</strong> Expose high-frequency visitor actions in predictable header and mobile-nav locations: services, work or case studies, contact, language switching, and key proof points. Keep these controls reachable after scroll.</p>
+      </div>
+    </article>
+    </div>
+    </section>
+
+    <section class="section-panel" id="axes">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Axis Deep Dive</p>
+          <h2>One section per commercial lens</h2>
+        </div>
+      </div>
+      <div class="axis-stories">
+    <article class="axis-story tone-medium" id="axis-1">
+      <div class="story-index">01</div>
+      <div class="axis-story-media">
+        <div class="axis-story-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-101-verbs-are-used-for-all-actions-e-g-save-go-submit-continue.png" alt="Task Execution visual evidence">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="axis-story-score">
+        
+    <div class="score-ring" style="--ring-size:154px; --ring-stroke:#caa23b; --ring-width:11.5px;">
+      <svg viewBox="0 0 154 154" aria-hidden="true">
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-track"></circle>
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-progress" style="stroke-dasharray:409.82;stroke-dashoffset:188.52;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>5.4</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="axis-story-copy">
+        <h3>Task Execution</h3>
+        <p><strong>Commercial impact:</strong> Friction in key tasks increases abandonment and weakens the product story in a live sales context.</p>
+        <p><strong>Lead issue:</strong> Verbs are used for all actions (e.g. Save, Go, Submit, Continue).</p>
+        <p><strong>Observed friction:</strong> On Home, the audit found that &#x27;Verbs are used for all actions (e.g. Save, Go, Submit, Continue).&#x27; is not fully met. Action labels do not pass the verb criterion. At least one page relies too heavily on non-verb action labels.</p>
+        <p><strong>Recommended move:</strong> Rewrite action labels so they start with a verb and name the outcome, such as `View services`, `Explore work`, `Contact the team`, `Start a project`, or `Read the case study`. Use labels drawn from the audited site&#x27;s actual navigation and content model.</p>
+      </div>
+    </article>
+    
+    <article class="axis-story tone-medium" id="axis-2">
+      <div class="story-index">02</div>
+      <div class="axis-story-media">
+        <div class="axis-story-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-102-website-layout-breaks-on-phone-screens.png" alt="Flow &amp; Architecture visual evidence">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="axis-story-score">
+        
+    <div class="score-ring" style="--ring-size:154px; --ring-stroke:#caa23b; --ring-width:11.5px;">
+      <svg viewBox="0 0 154 154" aria-hidden="true">
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-track"></circle>
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-progress" style="stroke-dasharray:409.82;stroke-dashoffset:192.62;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>5.3</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="axis-story-copy">
+        <h3>Flow &amp; Architecture</h3>
+        <p><strong>Commercial impact:</strong> Weak architecture slows comprehension and makes the offer feel less mature and less navigable.</p>
+        <p><strong>Lead issue:</strong> Website layout breaks on phone screens</p>
+        <p><strong>Observed friction:</strong> On Home, the audit found that the website does not adapt reliably from desktop to phone. Desktop viewport 1440x900; phone viewport 390x844. The phone render exposes desktop-layout content that does not adapt correctly, including `Pathé Thuis` (measured overflow: 0px).</p>
+        <p><strong>Recommended move:</strong> Rebuild the responsive breakpoint for the affected templates: remove fixed-width rows, let content groups collapse to a readable single-column flow, make hero/media blocks fluid, and test at 390px, 430px, 768px, and desktop widths before publishing.</p>
+      </div>
+    </article>
+    
+    <article class="axis-story tone-medium" id="axis-3">
+      <div class="story-index">03</div>
+      <div class="axis-story-media">
+        <div class="axis-story-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-103-most-common-devices-browsers-and-screen-resolutions-are-supp.png" alt="Trust &amp; Accessibility visual evidence">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="axis-story-score">
+        
+    <div class="score-ring" style="--ring-size:154px; --ring-stroke:#caa23b; --ring-width:11.5px;">
+      <svg viewBox="0 0 154 154" aria-hidden="true">
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-track"></circle>
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-progress" style="stroke-dasharray:409.82;stroke-dashoffset:184.42;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>5.5</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="axis-story-copy">
+        <h3>Trust &amp; Accessibility</h3>
+        <p><strong>Commercial impact:</strong> Visible trust and accessibility gaps increase perceived risk and narrow the reachable audience.</p>
+        <p><strong>Lead issue:</strong> Most common devices, browsers and screen resolutions are supported.</p>
+        <p><strong>Observed friction:</strong> On Home, the audit found that &#x27;Most common devices, browsers and screen resolutions are supported.&#x27; is not fully met. Viewport support is only partially evidenced The audited pages appear stable in the single tested viewport, but broader device and screen-resolution support cannot be confirmed from one viewport profile alone.</p>
+        <p><strong>Recommended move:</strong> Run the audit on at least mobile, tablet, and desktop viewport profiles to validate support more reliably.</p>
+      </div>
+    </article>
+    
+    <article class="axis-story tone-medium" id="axis-4">
+      <div class="story-index">04</div>
+      <div class="axis-story-media">
+        <div class="axis-story-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-104-visual-styles-are-consistent-throughout-the-application-or-s.png" alt="UI Consistency visual evidence">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="axis-story-score">
+        
+    <div class="score-ring" style="--ring-size:154px; --ring-stroke:#caa23b; --ring-width:11.5px;">
+      <svg viewBox="0 0 154 154" aria-hidden="true">
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-track"></circle>
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-progress" style="stroke-dasharray:409.82;stroke-dashoffset:196.71;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>5.2</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="axis-story-copy">
+        <h3>UI Consistency</h3>
+        <p><strong>Commercial impact:</strong> Inconsistent UI signals reduce perceived product maturity and make repeat use less efficient.</p>
+        <p><strong>Lead issue:</strong> Visual styles are consistent throughout the application or site.</p>
+        <p><strong>Observed friction:</strong> On Home, the audit found that &#x27;Visual styles are consistent throughout the application or site.&#x27; is not fully met. Visual style inconsistency detected across repeated components Repeated component families use too many visual variants across the audited pages, which suggests design-system drift or inconsistent implementation.</p>
+        <p><strong>Recommended move:</strong> Standardize repeated components such as buttons, links, form controls, headings, and CTA patterns using shared design tokens and clearly defined visual variants.</p>
+      </div>
+    </article>
+    
+    <article class="axis-story tone-medium" id="axis-5">
+      <div class="story-index">05</div>
+      <div class="axis-story-media">
+        <div class="axis-story-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-105-colors-are-not-over-saturated-and-don-t-vibrate-or-fatigue-t.png" alt="Visual Brand visual evidence">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="axis-story-score">
+        
+    <div class="score-ring" style="--ring-size:154px; --ring-stroke:#caa23b; --ring-width:11.5px;">
+      <svg viewBox="0 0 154 154" aria-hidden="true">
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-track"></circle>
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-progress" style="stroke-dasharray:409.82;stroke-dashoffset:151.63;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>6.3</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="axis-story-copy">
+        <h3>Visual Brand</h3>
+        <p><strong>Commercial impact:</strong> A weak visual narrative lowers memorability, credibility, and differentiation on first impression.</p>
+        <p><strong>Lead issue:</strong> Colors are not over-saturated and don’t vibrate or fatigue the eye.</p>
+        <p><strong>Observed friction:</strong> On Home, the audit found that &#x27;Colors are not over-saturated and don’t vibrate or fatigue the eye.&#x27; is not fully met. Some oversaturated colors were detected. Some pages include highly saturated colors that may feel visually aggressive in context.</p>
+        <p><strong>Recommended move:</strong> Reduce saturation on dominant accent colors and large surfaces, reserving intense colors for small intentional accents.</p>
+      </div>
+    </article>
+    
+    <article class="axis-story tone-medium" id="axis-6">
+      <div class="story-index">06</div>
+      <div class="axis-story-media">
+        <div class="axis-story-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-106-standard-browser-functions-e-g-back-forward-copy-paste-are-s.png" alt="Content &amp; Microcopy visual evidence">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="axis-story-score">
+        
+    <div class="score-ring" style="--ring-size:154px; --ring-stroke:#caa23b; --ring-width:11.5px;">
+      <svg viewBox="0 0 154 154" aria-hidden="true">
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-track"></circle>
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-progress" style="stroke-dasharray:409.82;stroke-dashoffset:172.12;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>5.8</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="axis-story-copy">
+        <h3>Content &amp; Microcopy</h3>
+        <p><strong>Commercial impact:</strong> Unclear messaging makes the value proposition, controls, and next steps harder to understand and repeat.</p>
+        <p><strong>Lead issue:</strong> Standard browser functions (e.g. Back, Forward, Copy, Paste) are supported.</p>
+        <p><strong>Observed friction:</strong> On Home, the audit found that &#x27;Standard browser functions (e.g. Back, Forward, Copy, Paste) are supported.&#x27; is not fully met. Standard browser support is only partially evidenced. The available extraction is too static to fully verify back, forward, copy, and paste support.</p>
+        <p><strong>Recommended move:</strong> Add runtime navigation and field interaction checks to verify back, forward, copy, paste, and native input behavior.</p>
+      </div>
+    </article>
+    
+    <article class="axis-story tone-medium" id="axis-7">
+      <div class="story-index">07</div>
+      <div class="axis-story-media">
+        <div class="axis-story-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-107-search-is-available-on-every-page-not-just-the-homepage.png" alt="Market Alignment visual evidence">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="axis-story-score">
+        
+    <div class="score-ring" style="--ring-size:154px; --ring-stroke:#caa23b; --ring-width:11.5px;">
+      <svg viewBox="0 0 154 154" aria-hidden="true">
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-track"></circle>
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-progress" style="stroke-dasharray:409.82;stroke-dashoffset:217.21;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>4.7</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="axis-story-copy">
+        <h3>Market Alignment</h3>
+        <p><strong>Commercial impact:</strong> Weak GTM alignment makes it harder for prospects to see why the offer is relevant and what to do next.</p>
+        <p><strong>Lead issue:</strong> Search is available on every page, not just the homepage.</p>
+        <p><strong>Observed friction:</strong> On Home, the audit found that &#x27;Search is available on every page, not just the homepage.&#x27; is not fully met. Actual site-search inputs detected on every page was not found.</p>
+        <p><strong>Recommended move:</strong> Add a persistent site search entry in the header on desktop and mobile, keep it available on key service, portfolio, resource, and contact pages, and return typed-ahead suggestions for services, case studies, or articles so prospects can reach relevant content quickly.</p>
+      </div>
+    </article>
+    </div>
+    </section>
+
+    <section class="section-panel" id="recommendations">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Recommendations</p>
+          <h2>Prioritized actions</h2>
+        </div>
+      </div>
+      <div class="reco-grid">
+        <article class="reco-card priority-critical" tabindex="0">
+          <span class="reco-orb">01</span>
+          <span class="reco-badge">Critical</span>
+          <h4>Website layout breaks on phone screens</h4>
+          <p>Rebuild the responsive breakpoint for the affected templates: remove fixed-width rows, let content groups collapse to a readable single-column flow, make hero/media blocks fluid, and test at 390px, 430px, 768px, and desktop widths before publishing. Start with Home, then reuse the same breakpoint rules across category and promotion templates. Acceptance check: at 390px width there should be no clipped primary content, no desktop-width product rows, and navigation/actions should remain reachable without horizontal panning.</p>
+          <p class="reco-impact">Mobile conversion risk on Home: phone users see a broken layout before they can browse offers or navigate.</p>
+          <span class="reco-axis">Flow &amp; Architecture</span>
+        </article>
+        
+        <article class="reco-card priority-critical" tabindex="0">
+          <span class="reco-orb">02</span>
+          <span class="reco-badge">Critical</span>
+          <h4>Search is available on every page, not just the homepage.</h4>
+          <p>Add a persistent site search entry in the header on desktop and mobile, keep it available on key service, portfolio, resource, and contact pages, and return typed-ahead suggestions for services, case studies, or articles so prospects can reach relevant content quickly. Use the captured evidence on Home as the acceptance target: Actual site-search inputs detected on every page=False.</p>
+          <p class="reco-impact">Major Market Alignment risk on Home; fix on this template before scaling to sibling pages.</p>
+          <span class="reco-axis">Market Alignment</span>
+        </article>
+        
+        <article class="reco-card priority-critical" tabindex="0">
+          <span class="reco-orb">03</span>
+          <span class="reco-badge">Critical</span>
+          <h4>Verbs are used for all actions (e.g. Save, Go, Submit, Continue).</h4>
+          <p>Rewrite action labels so they start with a verb and name the outcome, such as `View services`, `Explore work`, `Contact the team`, `Start a project`, or `Read the case study`. Use labels drawn from the audited site&#x27;s actual navigation and content model. Use the captured evidence on Home as the acceptance target: Action labels do not pass the verb criterion At least one page relies too heavily on non-verb action labels.</p>
+          <p class="reco-impact">Major Market Alignment risk on Home; fix on this template before scaling to sibling pages.</p>
+          <span class="reco-axis">Market Alignment</span>
+        </article>
+        
+        <article class="reco-card priority-critical" tabindex="0">
+          <span class="reco-orb">04</span>
+          <span class="reco-badge">Critical</span>
+          <h4>Users have control over interactive content, experiences or workflows — where they’re going, how they get there, and how easily they can stop and start.</h4>
+          <p>Add consistent escape and orientation controls around interactive modules: back/close controls, carousel controls, clear filter reset, and visible current-state labels for browsing interactive content. Use the captured evidence on Home as the acceptance target: User control over flows does not pass The available signals do not strongly support user control over interactive flows.</p>
+          <p class="reco-impact">Major Market Alignment risk on Home; fix on this template before scaling to sibling pages.</p>
+          <span class="reco-axis">Market Alignment</span>
+        </article>
+        
+        <article class="reco-card priority-critical" tabindex="0">
+          <span class="reco-orb">05</span>
+          <span class="reco-badge">Critical</span>
+          <h4>Frequently used features are readily available.</h4>
+          <p>Expose high-frequency visitor actions in predictable header and mobile-nav locations: services, work or case studies, contact, language switching, and key proof points. Keep these controls reachable after scroll. Use the captured evidence on Home as the acceptance target: Frequently used features are not surfaced strongly enough Frequently used controls are not sufficiently visible in top or navigation zones.</p>
+          <p class="reco-impact">Major Market Alignment risk on Home; fix on this template before scaling to sibling pages.</p>
+          <span class="reco-axis">Market Alignment</span>
+        </article>
+        </div>
+    </section>
+
+    <footer class="footer">
+      <span>Generated from the automated GTM audit pipeline.</span>
+      <span>plusdrie.com</span>
+    </footer>
+  </div>
+</body>
+</html>

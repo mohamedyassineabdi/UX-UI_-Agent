@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Any, Dict
 
 
@@ -91,6 +92,9 @@ def has_suspicious_metrics(page_result: Dict[str, Any]) -> bool:
 
 
 def should_run_ai_review(page_result: Dict[str, Any]) -> bool:
+    if os.getenv("AI_REVIEW_ENABLED", "").strip().lower() not in {"1", "true", "yes", "on"}:
+        return False
+
     criterion = page_result.get("criterion")
     status = page_result.get("status")
     score = page_result.get("score")

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import Any, Optional
 
 
 SAFE_RULES: list[tuple[re.Pattern[str], int, int, str, str]] = [
     (
-        re.compile(r"^(close|dismiss|not now|maybe later|later|cancel|back)$", re.IGNORECASE),
+        re.compile(r"^(close|dismiss|not now|maybe later|later|cancel|back|fermer|annuler|retour|refuser|plus tard|pas maintenant)$", re.IGNORECASE),
         98,
         92,
         "safe overlay dismissal or bounded back-navigation control",
@@ -34,7 +35,7 @@ SAFE_RULES: list[tuple[re.Pattern[str], int, int, str, str]] = [
         "advances an onboarding or lightweight flow while staying within the app context",
     ),
     (
-        re.compile(r"^(home|dashboard|overview|browse|explore)$", re.IGNORECASE),
+        re.compile(r"^(home|dashboard|overview|browse|explore|accueil)$", re.IGNORECASE),
         92,
         58,
         "safe navigation control",
@@ -58,7 +59,7 @@ SAFE_RULES: list[tuple[re.Pattern[str], int, int, str, str]] = [
 
 MODAL_FOLLOWUP_SAFE_RULES: list[tuple[re.Pattern[str], int, int, str, str]] = [
     (
-        re.compile(r"^(close|dismiss|not now|later|cancel|back)$", re.IGNORECASE),
+        re.compile(r"^(close|dismiss|not now|later|cancel|back|fermer|annuler|retour|refuser|plus tard|pas maintenant)$", re.IGNORECASE),
         99,
         96,
         "preferred modal dismissal control",
@@ -74,12 +75,77 @@ MODAL_FOLLOWUP_SAFE_RULES: list[tuple[re.Pattern[str], int, int, str, str]] = [
 ]
 
 BLOCKED_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"\b(turn off|disable|delete|remove|erase|clear data|unsubscribe|deactivate)\b", re.IGNORECASE), "destructive or state-changing action"),
+    (re.compile(r"\b(turn off|disable|delete|remove|erase|clear data|unsubscribe|deactivate|supprimer|effacer|desactiver|désactiver)\b", re.IGNORECASE), "destructive or state-changing action"),
     (re.compile(r"\b(log out|logout|sign out)\b", re.IGNORECASE), "session-ending action"),
-    (re.compile(r"\b(buy|purchase|checkout|pay|subscribe|confirm|place order)\b", re.IGNORECASE), "commerce or commitment action"),
-    (re.compile(r"\b(save|apply|submit|send|post|publish|accept all|allow)\b", re.IGNORECASE), "commits a product or permission state change"),
-    (re.compile(r"\b(sign in|log in|login|sign up|register|create account)\b", re.IGNORECASE), "auth or account-creation action is out of scope for bounded safe exploration"),
+    (re.compile(r"\b(buy|purchase|checkout|pay|subscribe|confirm|place order|acheter|payer|abonner|confirmer|commande)\b", re.IGNORECASE), "commerce or commitment action"),
+    (re.compile(r"\b(save|apply|submit|send|post|publish|accept all|allow|autoriser|accepter|tout accepter|enregistrer|appliquer|soumettre|envoyer|publier)\b", re.IGNORECASE), "commits a product or permission state change"),
 ]
+
+APP_NAVIGATION_PHRASES = {
+    "home",
+    "dashboard",
+    "overview",
+    "browse",
+    "explore",
+    "catalog",
+    "catalogue",
+    "catalogues",
+    "stores",
+    "store",
+    "locations",
+    "map",
+    "games",
+    "rewards",
+    "points",
+    "card",
+    "my card",
+    "more",
+    "accueil",
+    "catalogue",
+    "catalogues",
+    "magasin",
+    "magasins",
+    "jeux",
+    "plus",
+    "carte",
+    "ma carte",
+    "my mg",
+    "conversion des points",
+}
+
+CONTENT_CARD_PHRASES = {
+    "catalog",
+    "catalogue",
+    "catalogues",
+    "offer",
+    "offers",
+    "promotion",
+    "promotions",
+    "deal",
+    "deals",
+    "details",
+    "flyer",
+    "brochure",
+    "mai",
+    "avril",
+    "janvier",
+    "fevrier",
+    "mars",
+    "juin",
+    "juillet",
+    "aout",
+    "septembre",
+    "octobre",
+    "novembre",
+    "decembre",
+}
+
+UTILITY_ACTION_PHRASES = {
+    "scan prix",
+    "price scan",
+    "scanner prix",
+    "scan price",
+}
 
 UNSAFE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"search", re.IGNORECASE), "search field or search action"),
@@ -96,6 +162,118 @@ UNSAFE_RESOURCE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 
 def _text(value: Any) -> str:
     return str(value or "").strip()
+
+
+def _fold_label(value: Any) -> str:
+    normalized = unicodedata.normalize("NFKD", _text(value).lower())
+    without_marks = "".join(character for character in normalized if not unicodedata.combining(character))
+    return re.sub(r"\s+", " ", re.sub(r"[^\w]+", " ", without_marks)).strip()
+
+
+def _has_phrase(folded_label: str, phrases: set[str]) -> bool:
+    padded = f" {folded_label} "
+    return any(f" {phrase} " in padded for phrase in phrases)
+
+
+PROGRESSION_PHRASES = {
+    "next",
+    "continue",
+    "skip",
+    "get started",
+    "start",
+    "done",
+    "finish",
+    "continue as guest",
+    "browse as guest",
+    "guest mode",
+    "mode guest",
+    "commencer",
+    "demarrer",
+    "debuter",
+    "continuer",
+    "suivant",
+    "passer",
+    "ignorer",
+    "terminer",
+    "c est parti",
+    "allons y",
+    "mode invite",
+    "invite",
+    "sans compte",
+}
+
+DEFER_PHRASES = {
+    "skip",
+    "not now",
+    "maybe later",
+    "later",
+    "continue as guest",
+    "browse as guest",
+    "guest mode",
+    "mode guest",
+    "passer",
+    "ignorer",
+    "plus tard",
+    "pas maintenant",
+    "mode invite",
+    "invite",
+    "sans compte",
+}
+
+AUTH_ENTRY_PHRASES = {
+    "sign in",
+    "log in",
+    "login",
+    "sign up",
+    "register",
+    "create account",
+    "s identifier",
+    "identifier",
+    "connexion",
+    "inscription",
+    "se connecter",
+    "creer un compte",
+}
+
+
+def is_progression_label(value: Any) -> bool:
+    return _has_phrase(_fold_label(value), PROGRESSION_PHRASES)
+
+
+def is_defer_label(value: Any) -> bool:
+    return _has_phrase(_fold_label(value), DEFER_PHRASES)
+
+
+def _is_auth_entry_label(value: Any) -> bool:
+    return _has_phrase(_fold_label(value), AUTH_ENTRY_PHRASES)
+
+
+def _is_app_navigation_label(value: Any) -> bool:
+    return _has_phrase(_fold_label(value), APP_NAVIGATION_PHRASES)
+
+
+def _is_content_card_label(value: Any) -> bool:
+    folded = _fold_label(value)
+    return _has_phrase(folded, CONTENT_CARD_PHRASES) or bool(re.search(r"\bdu\s+\d{1,2}\s+\w+\s+\d{4}\b", folded))
+
+
+def _is_utility_action_label(value: Any) -> bool:
+    return _has_phrase(_fold_label(value), UTILITY_ACTION_PHRASES)
+
+
+def _looks_like_generic_wrapper_label(value: Any) -> bool:
+    return _fold_label(value) in {"", "view", "viewgroup", "button", "imagebutton", "action", "layout", "framelayout", "linearlayout"}
+
+
+def _has_richer_safe_peer(label: str, context: dict[str, Any]) -> bool:
+    folded_label = _fold_label(label)
+    for peer in context.get("available_labels") or []:
+        folded_peer = _fold_label(peer)
+        if not folded_peer or folded_peer == folded_label:
+            continue
+        if _is_app_navigation_label(peer) or _is_content_card_label(peer) or _is_utility_action_label(peer):
+            return True
+    return False
 
 
 def _primary_label(tappable: dict[str, Any]) -> str:
@@ -123,6 +301,7 @@ def _looks_like_step_progress_label(value: str) -> bool:
 
 def _looks_like_onboarding_choice(label: str) -> bool:
     normalized = _text(label).lower()
+    folded = _fold_label(label)
     if not normalized:
         return False
     if normalized in {"button", "action", "view", "imagebutton", "layout"}:
@@ -133,9 +312,9 @@ def _looks_like_onboarding_choice(label: str) -> bool:
         return False
     if len(normalized) > 40:
         return False
-    if any(token in normalized for token in ("next", "continue", "skip", "back", "close", "dismiss", "later", "not now")):
+    if any(token in folded for token in ("next", "continue", "skip", "back", "close", "dismiss", "later", "not now", "suivant", "continuer", "commencer", "passer", "ignorer")):
         return False
-    if re.search(r"\b(sign in|log in|login|sign up|register|create account|buy|pay|checkout|subscribe)\b", normalized):
+    if _is_auth_entry_label(label) or re.search(r"\b(buy|pay|checkout|subscribe)\b", folded):
         return False
     word_count = len([part for part in re.split(r"\s+", normalized) if part])
     return 1 <= word_count <= 5
@@ -157,22 +336,28 @@ def _apply_contextual_adjustments(
     reason = base_reason
     selection_reason = base_selection_reason
 
-    if phase == "modal_followup" and normalized_label in {"close", "dismiss", "not now", "later", "cancel", "back"}:
+    folded_label = _fold_label(normalized_label)
+
+    if phase == "modal_followup" and folded_label in {"close", "dismiss", "not now", "later", "cancel", "back", "plus tard", "pas maintenant"}:
         exploration_score += 12
         selection_reason = "preferred way to exit a transient modal and continue bounded exploration"
 
-    if surface_profile == "home_dashboard" and normalized_label in {"home", "dashboard"}:
+    if surface_profile == "home_dashboard" and folded_label in {"home", "dashboard"}:
         exploration_score = min(exploration_score, 12)
         selection_reason = "safe but likely redundant on the current home/dashboard surface"
 
-    if surface_profile == "onboarding_screen" and normalized_label in {"next", "continue", "get started", "skip"}:
+    if surface_profile == "home_dashboard" and folded_label == "accueil":
+        exploration_score = min(exploration_score, 10)
+        selection_reason = "current home tab is safe but likely redundant on the dashboard"
+
+    if surface_profile == "onboarding_screen" and is_progression_label(normalized_label):
         exploration_score += 8
         selection_reason = "useful bounded progression action on an onboarding screen"
-    if surface_profile == "onboarding_screen" and normalized_label == "next":
+    if surface_profile == "onboarding_screen" and folded_label == "next":
         exploration_score -= 10
         selection_reason = "progression control on onboarding, but lower priority than selecting an in-flow option"
 
-    if surface_profile == "auth_screen" and normalized_label in {"continue as guest", "browse as guest", "not now"}:
+    if surface_profile == "auth_screen" and is_defer_label(normalized_label):
         exploration_score += 10
         selection_reason = "preferred guest or defer path on an authentication gate"
 
@@ -208,9 +393,19 @@ def _looks_like_sparse_fullscreen_intro(tappable: dict[str, Any], context: dict[
         return False
     if len(available_labels) > 4:
         return False
-    if re.search(r"\b(back|close|dismiss|delete|buy|pay|subscribe|sign in|log in|login|sign up|register)\b", label):
+    if re.search(r"\b(back|close|dismiss|delete|buy|pay|subscribe)\b", _fold_label(label)) or _is_auth_entry_label(label):
         return False
     return True
+
+
+def _is_bottom_navigation_target(tappable: dict[str, Any], context: dict[str, Any]) -> bool:
+    bounds = tappable.get("bounds") or []
+    screen_bounds = context.get("screen_bounds") or []
+    if len(bounds) != 4 or len(screen_bounds) != 4:
+        return False
+    screen_height = max(1, int(screen_bounds[3]) - int(screen_bounds[1]))
+    target_top = int(bounds[1]) - int(screen_bounds[1])
+    return target_top >= int(screen_height * 0.82)
 
 
 def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]] = None) -> dict[str, Any]:
@@ -232,6 +427,88 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
             "safety_score": -100,
             "exploration_score": -100,
             "selection_score": -200,
+        }
+
+    if _looks_like_generic_wrapper_label(label):
+        return {
+            **tappable,
+            "action_category": "generic_wrapper",
+            "safe_action": "unknown",
+            "safe_reason": "generic wrapper without a meaningful label is skipped in favor of explicit child controls",
+            "safety_score": 0,
+            "exploration_score": 0,
+            "selection_score": 0,
+        }
+
+    if phase == "modal_followup":
+        for pattern, base_safety_score, base_exploration_score, base_reason, base_selection_reason in MODAL_FOLLOWUP_SAFE_RULES:
+            if pattern.search(label):
+                safety_score, exploration_score, reason, selection_reason = _apply_contextual_adjustments(
+                    normalized_label,
+                    base_safety_score,
+                    base_exploration_score,
+                    base_reason,
+                    base_selection_reason,
+                    context,
+                )
+                return {
+                    **tappable,
+                    "action_category": "modal_followup",
+                    "safe_action": "safe",
+                    "safe_reason": reason,
+                    "safety_score": safety_score,
+                    "exploration_score": exploration_score,
+                    "selection_score": safety_score + exploration_score,
+                    "selection_reason": selection_reason,
+                }
+
+    if is_progression_label(label):
+        base_exploration = 88 if is_defer_label(label) else 82
+        safety_score, exploration_score, reason, selection_reason = _apply_contextual_adjustments(
+            normalized_label,
+            90,
+            base_exploration,
+            "bounded progression, defer, or guest-mode control",
+            "advances onboarding or enters guest mode without submitting data or making a durable product change",
+            context,
+        )
+        return {
+            **tappable,
+            "action_category": "progression",
+            "safe_action": "safe",
+            "safe_reason": reason,
+            "safety_score": safety_score,
+            "exploration_score": exploration_score,
+            "selection_score": safety_score + exploration_score,
+            "selection_reason": selection_reason,
+        }
+
+    if _is_auth_entry_label(label) and surface_profile not in {"auth_screen", "form_screen", "input_screen"}:
+        exploration_score = 18 if _has_richer_safe_peer(label, context) else 42
+        return {
+            **tappable,
+            "action_category": "auth_entry",
+            "safe_action": "safe",
+            "safe_reason": "bounded authentication entry destination",
+            "safety_score": 76,
+            "exploration_score": exploration_score,
+            "selection_score": 76 + exploration_score,
+            "selection_reason": (
+                "auth entry is safe to inspect, but lower priority than normal home navigation"
+                if exploration_score < 42
+                else "opens the authentication or registration surface for inspection without entering credentials"
+            ),
+        }
+
+    if _is_auth_entry_label(label):
+        return {
+            **tappable,
+            "action_category": "auth_submit",
+            "safe_action": "unsafe",
+            "safe_reason": "auth submission is out of scope for bounded safe exploration",
+            "safety_score": -85,
+            "exploration_score": -85,
+            "selection_score": -170,
         }
 
     for pattern, reason in BLOCKED_PATTERNS:
@@ -273,6 +550,57 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
             "exploration_score": exploration_score,
             "selection_score": 84 + exploration_score,
             "selection_reason": selection_reason,
+        }
+
+    if _is_app_navigation_label(label):
+        safety_score, exploration_score, reason, selection_reason = _apply_contextual_adjustments(
+            normalized_label,
+            90,
+            78,
+            "safe app navigation destination",
+            "opens a stable in-app section that helps map the product experience",
+            context,
+        )
+        if surface_profile == "home_dashboard" and _is_bottom_navigation_target(tappable, context):
+            folded_label = _fold_label(label)
+            exploration_score = min(exploration_score, 44)
+            selection_reason = "bottom navigation is safe, but lower priority than visible home actions and content cards"
+            if folded_label in {"accueil", "home", "dashboard"}:
+                exploration_score = min(exploration_score, 10)
+                selection_reason = "current home tab is safe but likely redundant on the dashboard"
+        return {
+            **tappable,
+            "action_category": "navigation",
+            "safe_action": "safe",
+            "safe_reason": reason,
+            "safety_score": safety_score,
+            "exploration_score": exploration_score,
+            "selection_score": safety_score + exploration_score,
+            "selection_reason": selection_reason,
+        }
+
+    if _is_content_card_label(label):
+        return {
+            **tappable,
+            "action_category": "content_card",
+            "safe_action": "safe",
+            "safe_reason": "read-only content card or catalogue destination",
+            "safety_score": 86,
+            "exploration_score": 70,
+            "selection_score": 156,
+            "selection_reason": "opens promotional, catalogue, or detail content without an obvious commitment action",
+        }
+
+    if _is_utility_action_label(label):
+        return {
+            **tappable,
+            "action_category": "utility_entry",
+            "safe_action": "safe",
+            "safe_reason": "bounded utility entry point",
+            "safety_score": 80,
+            "exploration_score": 78,
+            "selection_score": 158,
+            "selection_reason": "opens a utility screen for inspection; any camera, permission, or text-entry follow-up remains blocked",
         }
 
     if _looks_like_sparse_fullscreen_intro(tappable, context):
@@ -323,7 +651,7 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
                 **tappable,
                 "action_category": (
                     "progression"
-                    if normalized_label in {"next", "continue", "skip", "get started", "start", "done", "finish", "continue as guest", "browse as guest"}
+                    if is_progression_label(normalized_label)
                     else "navigation"
                 ),
                 "safe_action": "safe",

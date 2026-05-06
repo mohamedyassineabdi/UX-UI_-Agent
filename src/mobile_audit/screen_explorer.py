@@ -6,7 +6,7 @@ from typing import Any, Optional
 from appium.webdriver.webdriver import WebDriver
 
 from .mobile_runner import MobileRunner
-from .safe_actions import classify_tappables, rank_safe_tappables
+from .safe_actions import classify_tappables, is_defer_label, is_progression_label, rank_safe_tappables
 
 
 @dataclass(slots=True)
@@ -66,6 +66,10 @@ class BoundedScreenExplorer:
             or candidate.get("element_id")
             or "unlabeled"
         )
+
+    def _candidate_label_key(self, candidate: dict[str, Any]) -> str:
+        label = str(self._label(candidate) or "").strip().lower()
+        return " ".join(label.split())
 
     def _apply_screen_identity(self, capture: dict[str, Any], screen_id: str) -> None:
         capture["screen"]["screen_id"] = screen_id
@@ -159,9 +163,81 @@ class BoundedScreenExplorer:
     def _screen_type(self, screen: dict[str, Any]) -> str:
         return str(screen.get("semantic", {}).get("screen_type") or screen.get("meta", {}).get("screen_type") or "unknown")
 
+    def _fingerprint(self, screen: dict[str, Any]) -> str:
+        return str(screen.get("screen_fingerprint") or "").strip()
+
+    def _is_active_ancestor(self, source_screen: dict[str, Any], target_screen: dict[str, Any]) -> bool:
+        target_fingerprint = self._fingerprint(target_screen)
+        return bool(target_fingerprint) and target_fingerprint != self._fingerprint(source_screen) and target_fingerprint in self._active_fingerprints
+
+    def _is_access_gate(self, screen: dict[str, Any]) -> bool:
+        screen_type = self._screen_type(screen)
+        if screen_type in {"auth_gate", "auth_screen"}:
+            return True
+        text_blob = " ".join(str(value or "").lower() for value in screen.get("visible_text", []))
+        has_auth_prompt = any(token in text_blob for token in ("connexion", "connectez", "sign in", "login", "log in"))
+        has_guest_route = any(token in text_blob for token in ("mode invité", "mode invite", "guest"))
+        return has_auth_prompt and has_guest_route
+
+    def _recover_from_access_gate(self, gate_capture: dict[str, Any], expected_fingerprint: str) -> bool:
+        gate_screen = gate_capture["screen"]
+        if not self._is_access_gate(gate_screen):
+            return False
+
+        candidates = rank_safe_tappables(self._classify_screen_tappables(gate_screen, context={"phase": "initial"}))
+        recovery_candidates = [
+            candidate
+            for candidate in candidates
+            if str(candidate.get("action_category") or "") == "progression" or is_defer_label(self._label(candidate))
+        ]
+        if not recovery_candidates:
+            return False
+
+        candidate = recovery_candidates[0]
+        try:
+            print(
+                "[mobile] Access gate detected; following safe guest/defer route "
+                f"{self._label(candidate)} before continuing the parent branch."
+            )
+            action_type = self._perform_candidate_action(candidate)
+            follow_up_capture = self.runner.capture_current_screen(screen_id="pending_screen")
+            target_screen, _is_new = self._maybe_register_target(follow_up_capture)
+            result = self._detect_result(gate_screen, follow_up_capture["screen"])
+            target_screen_id = (
+                target_screen.get("screen_id") or ""
+                if result in {"navigation", "modal_open", "content_shift"}
+                else gate_screen.get("screen_id") or ""
+            )
+            self._record_interaction(
+                source_screen=gate_screen,
+                action_type=action_type,
+                result=result,
+                notes=(
+                    f"Recovered from access gate via '{self._label(candidate)}' "
+                    f"(safety={candidate.get('safety_score', 0)}, "
+                    f"exploration={candidate.get('exploration_score', 0)}, "
+                    f"final={candidate.get('selection_score', 0)}) and observed {result.replace('_', ' ')}."
+                ),
+                candidate=candidate,
+                target_screen_id=target_screen_id,
+                target_screen=follow_up_capture["screen"],
+            )
+            target_fingerprint = self._fingerprint(follow_up_capture["screen"])
+            return target_fingerprint == expected_fingerprint or target_fingerprint in self._active_fingerprints
+        except Exception as exc:
+            self._record_interaction(
+                source_screen=gate_screen,
+                action_type="tap",
+                result="error",
+                notes=f"Access-gate recovery failed for '{self._label(candidate)}': {exc}",
+                candidate=candidate,
+                target_screen_id="",
+                target_screen=gate_screen,
+            )
+            return False
+
     def _progression_label(self, value: str) -> bool:
-        normalized = str(value or "").strip().lower()
-        return normalized in {"next", "continue", "get started", "done", "finish", "start", "skip"}
+        return is_progression_label(value)
 
     def _element_label(self, element: dict[str, Any]) -> str:
         return (
@@ -192,6 +268,8 @@ class BoundedScreenExplorer:
         screen_type = self._screen_type(screen)
         if screen_type in {
             "webview_screen",
+            "intro_landing",
+            "auth_gate",
             "home_dashboard",
             "list_feed",
             "detail_screen",
@@ -385,11 +463,73 @@ class BoundedScreenExplorer:
             self.device_manager.press_back()
         return False
 
+    def _labels_for_screen_return(self, source_screen: dict[str, Any]) -> list[str]:
+        labels = {
+            self._candidate_label_key(tappable)
+            for tappable in source_screen.get("tappables", [])
+            if self._candidate_label_key(tappable)
+        }
+        visible_blob = " ".join(str(value or "").lower() for value in source_screen.get("visible_text", []))
+        title = str(source_screen.get("screen_title_guess") or "").lower()
+        if "accueil" in labels and (
+            "catalogue" in visible_blob
+            or "accès rapide" in visible_blob
+            or "acces rapide" in visible_blob
+            or "vous n" in title
+        ):
+            return ["accueil", "home"]
+        if "magasins" in labels and ("google map" in title or "recherche" in visible_blob):
+            return ["magasins"]
+        if "my mg" in labels and ("club mg" in visible_blob or "connectez" in visible_blob):
+            return ["my mg"]
+        if "jeux" in labels and ("jeu" in visible_blob or "jouer" in visible_blob):
+            return ["jeux"]
+        return []
+
+    def _tap_current_label(self, label_keys: list[str]) -> bool:
+        if not label_keys:
+            return False
+        try:
+            probe = self.runner.inspect_current_screen(screen_id="nav_recovery", include_screenshot=False)
+            screen = probe["screen"]
+            ranked = rank_safe_tappables(self._classify_screen_tappables(screen, context={"phase": "initial"}))
+            for wanted in label_keys:
+                for candidate in ranked:
+                    if self._candidate_label_key(candidate) == wanted:
+                        print(f"[mobile] Recovering via in-app navigation label '{self._label(candidate)}'.")
+                        self._perform_candidate_action(candidate)
+                        return True
+        except Exception as exc:
+            print(f"[mobile] In-app navigation recovery failed: {exc}")
+        return False
+
+    def _recover_to_source_screen(self, source_screen: dict[str, Any]) -> bool:
+        expected_fingerprint = str(source_screen.get("screen_fingerprint") or "")
+        if self._return_to_screen(expected_fingerprint):
+            return True
+        if self._tap_current_label(self._labels_for_screen_return(source_screen)):
+            return self._return_to_screen(expected_fingerprint)
+        return False
+
     def _should_stop(self) -> bool:
         return (
             len(self._interactions) >= self.config.max_actions_total
             or len(self._screens) >= self.config.max_screens
         )
+
+    def _max_actions_for_screen(self, screen: dict[str, Any]) -> int:
+        screen_type = self._screen_type(screen)
+        tappable_count = len(screen.get("tappables") or [])
+        dense_navigation_surface = screen_type in {
+            "home_dashboard",
+            "navigation_shell",
+            "menu_list",
+            "scrollable_collection",
+            "content_feed",
+        } or tappable_count >= 10
+        if not dense_navigation_surface:
+            return self.config.max_actions_per_screen
+        return min(self.config.max_actions_total, max(self.config.max_actions_per_screen, 12))
 
     def _maybe_register_target(self, capture: dict[str, Any]) -> tuple[dict[str, Any], bool]:
         screen, is_new = self._register_capture(capture)
@@ -402,6 +542,8 @@ class BoundedScreenExplorer:
         self._log_candidate_ranking(source_screen, ranked, "Safe exploration")
 
         executed_on_screen = 0
+        max_actions_for_screen = self._max_actions_for_screen(source_screen)
+        executed_label_keys: set[tuple[str, str]] = set()
         onboarding_choice_attempts = 0
         onboarding_choice_no_change_count = 0
         inert_onboarding_choices = False
@@ -409,10 +551,21 @@ class BoundedScreenExplorer:
         disabled_progression_visible = self._has_disabled_progression(source_screen)
         max_onboarding_choice_attempts = 5 if disabled_progression_visible else 2
         for candidate in ranked:
-            if executed_on_screen >= self.config.max_actions_per_screen or self._should_stop():
+            if executed_on_screen >= max_actions_for_screen or self._should_stop():
                 return True
 
             action_category = str(candidate.get("action_category") or "")
+            label_key = self._candidate_label_key(candidate)
+            duplicate_sensitive_categories = {
+                "navigation",
+                "content_card",
+                "utility_entry",
+                "auth_entry",
+                "progression",
+            }
+            duplicate_key = (action_category, label_key)
+            if action_category in duplicate_sensitive_categories and duplicate_key in executed_label_keys:
+                continue
             if source_screen_type == "onboarding_screen":
                 if action_category == "onboarding_choice":
                     if inert_onboarding_choices:
@@ -425,6 +578,8 @@ class BoundedScreenExplorer:
             if signature in self._tested_action_signatures:
                 continue
             self._tested_action_signatures.add(signature)
+            if action_category in duplicate_sensitive_categories:
+                executed_label_keys.add(duplicate_key)
             executed_on_screen += 1
 
             try:
@@ -481,15 +636,31 @@ class BoundedScreenExplorer:
                 if result == "content_shift":
                     if is_new and not self._should_stop():
                         self._explore_capture(follow_up_capture, scroll_depth=0)
-                    print("[mobile] In-place screen state changed after tap; continuing exploration from the updated state.")
+                    if self._recover_to_source_screen(source_screen):
+                        print("[mobile] Returned after in-place state change; continuing sibling exploration on the source screen.")
+                        continue
+                    print("[mobile] In-place screen state changed after tap and recovery did not reach the source state.")
                     return False
                 if result in {"navigation", "modal_open"}:
+                    if self._is_active_ancestor(source_screen, follow_up_capture["screen"]):
+                        print("[mobile] Tap returned to an active parent screen; continuing the parent branch.")
+                        return False
                     if is_new and not self._should_stop():
                         self._explore_capture(follow_up_capture, scroll_depth=0)
                     if source_screen_type == "onboarding_screen" and action_category == "progression":
                         print("[mobile] Onboarding progression succeeded; moving deeper instead of continuing sibling exploration on this step.")
                         return False
-                    if not self._return_to_screen(str(source_screen.get("screen_fingerprint") or "")):
+                    if (
+                        not is_new
+                        and self._is_access_gate(follow_up_capture["screen"])
+                        and self._recover_from_access_gate(
+                            follow_up_capture,
+                            str(source_screen.get("screen_fingerprint") or ""),
+                        )
+                    ):
+                        print("[mobile] Recovered from a known access gate; continuing sibling exploration.")
+                        continue
+                    if not self._recover_to_source_screen(source_screen):
                         print("[mobile] Unable to return to the previous screen after tap exploration. Stopping this branch.")
                         return False
             except Exception as exc:
@@ -502,7 +673,7 @@ class BoundedScreenExplorer:
                     target_screen_id="",
                     target_screen=source_screen,
                 )
-                if not self._return_to_screen(str(source_screen.get("screen_fingerprint") or "")):
+                if not self._recover_to_source_screen(source_screen):
                     print("[mobile] State recovery failed after tap error. Stopping this branch.")
                     return False
 

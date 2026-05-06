@@ -194,10 +194,54 @@ async def extract_navigation(*, page) -> Dict[str, Any]:
             })).filter(item => item.text || item.href);
           }
 
-          const primaryNavEl =
-            document.querySelector("header nav") ||
-            document.querySelector("nav[aria-label*='main' i]") ||
-            document.querySelector("nav");
+          function looksLikeUtilityLink(item) {
+            const blob = `${item.text || ""} ${item.href || ""} ${item.ariaLabel || ""} ${item.title || ""}`.toLowerCase();
+            return [
+              "wishlist", "liste de souhaits", "cart", "panier", "checkout",
+              "login", "connexion", "account", "mon compte"
+            ].some(term => blob.includes(term));
+          }
+
+          function scoreNavCandidate(el) {
+            const links = collectLinks(el);
+            const usefulLinks = links.filter(item => !looksLikeUtilityLink(item));
+            const selectorBlob = `${el.tagName || ""} ${el.id || ""} ${el.className || ""} ${el.getAttribute("role") || ""} ${el.getAttribute("aria-label") || ""}`.toLowerCase();
+            const rect = el.getBoundingClientRect();
+
+            let score = usefulLinks.length * 4 + Math.min(links.length, 20);
+            if (selectorBlob.includes("main")) score += 8;
+            if (selectorBlob.includes("menu")) score += 8;
+            if (selectorBlob.includes("nav")) score += 6;
+            if (selectorBlob.includes("category") || selectorBlob.includes("categorie")) score += 6;
+            if (selectorBlob.includes("wishlist") || selectorBlob.includes("cart") || selectorBlob.includes("account")) score -= 12;
+            if (rect.top < 260 || selectorBlob.includes("header")) score += 3;
+            if (usefulLinks.length < 2) score -= 10;
+            return { el, links, usefulLinks, score };
+          }
+
+          const primaryNavCandidates = Array.from(document.querySelectorAll([
+            "nav",
+            "header",
+            "[role='navigation']",
+            ".menu",
+            ".main-menu",
+            ".mega-menu",
+            ".megamenu",
+            ".submenu",
+            ".navbar",
+            ".navigation",
+            ".site-nav",
+            ".main-nav",
+            ".iqitmegamenu",
+            ".cbp-hrmenu",
+            ".block-categories",
+            ".category-tree"
+          ].join(",")))
+            .map(scoreNavCandidate)
+            .filter(item => item.links.length)
+            .sort((a, b) => b.score - a.score);
+
+          const primaryNavEl = primaryNavCandidates[0]?.el || null;
 
           const footerNavEl = document.querySelector("footer nav") || document.querySelector("footer");
           const asideNavEl = document.querySelector("aside nav") || document.querySelector("aside");
@@ -222,6 +266,7 @@ async def extract_navigation(*, page) -> Dict[str, Any]:
 
           return {
             primaryNav: collectLinks(primaryNavEl),
+            primaryNavSelector: primaryNavEl ? `${primaryNavEl.tagName.toLowerCase()}${primaryNavEl.id ? "#" + primaryNavEl.id : ""}` : null,
             footerNav: collectLinks(footerNavEl),
             sideNav: collectLinks(asideNavEl),
             breadcrumbs: collectLinks(breadcrumbEl),

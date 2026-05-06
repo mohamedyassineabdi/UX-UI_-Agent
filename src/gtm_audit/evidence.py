@@ -26,6 +26,8 @@ from .vision_client import run_spotlight_candidate_review
 SEARCH_TERMS = ("search", "recherche", "chercher", "loupe", "magnifier", "find")
 HEADER_TYPES = ("navigation", "nav-link", "button", "link", "section")
 DEFAULT_SPOTLIGHT_REVIEW = "0"
+CONTEXT_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
+_CONTEXT_SCREENSHOT_USAGE: Dict[str, int] = {}
 
 
 def _combined_component_type(component: Dict[str, Any]) -> str:
@@ -325,11 +327,71 @@ def _candidate_components(item: Dict[str, Any], rendered_page: Dict[str, Any], p
     return candidates[:4]
 
 
+def _spotlight_crop_box(
+    image_width: int,
+    image_height: int,
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+) -> tuple[int, int, int, int]:
+    target_ratio = SPOTLIGHT_FRAME_WIDTH / SPOTLIGHT_FRAME_HEIGHT
+    image_ratio = image_width / max(image_height, 1)
+    if image_ratio >= target_ratio:
+        crop_height = image_height
+        crop_width = min(image_width, int(round(crop_height * target_ratio)))
+        center_x = image_width / 2 if width / max(image_width, 1) > 0.55 else x + width / 2
+        left = int(round(max(0, min(center_x - crop_width / 2, image_width - crop_width))))
+        return left, 0, left + crop_width, image_height
+
+    crop_width = image_width
+    crop_height = min(image_height, int(round(crop_width / target_ratio)))
+    if y <= crop_height * 0.25:
+        top = 0
+    else:
+        center_y = y + height / 2
+        top = int(round(max(0, min(center_y - crop_height * 0.45, image_height - crop_height))))
+    return 0, top, crop_width, top + crop_height
+
+
+def _clamp_bounds(bounds: tuple[float, float, float, float], image_width: int, image_height: int, inset: int) -> tuple[float, float, float, float]:
+    left, top, right, bottom = bounds
+    return (
+        max(inset, min(left, image_width - inset)),
+        max(inset, min(top, image_height - inset)),
+        max(inset, min(right, image_width - inset)),
+        max(inset, min(bottom, image_height - inset)),
+    )
+
+
+def _draw_component_highlight(draw: Any, bounds: tuple[float, float, float, float], *, broad: bool = False) -> None:
+    stroke_width = 12
+    soft_stroke_width = 18
+    inset = max(stroke_width, soft_stroke_width)
+    bounds = _clamp_bounds(bounds, SPOTLIGHT_FRAME_WIDTH, SPOTLIGHT_FRAME_HEIGHT, inset)
+    soft_bounds = _clamp_bounds(
+        (bounds[0] - 10, bounds[1] - 10, bounds[2] + 10, bounds[3] + 10),
+        SPOTLIGHT_FRAME_WIDTH,
+        SPOTLIGHT_FRAME_HEIGHT,
+        inset,
+    )
+    if broad:
+        radius = max(26, int(min(bounds[2] - bounds[0], bounds[3] - bounds[1]) * 0.035))
+        draw.rounded_rectangle(soft_bounds, radius=radius + 8, outline=(255, 52, 52, 110), width=soft_stroke_width)
+        draw.rounded_rectangle(bounds, radius=radius, outline=(255, 52, 52, 240), width=stroke_width)
+        return
+
+    draw.ellipse(soft_bounds, outline=(255, 52, 52, 110), width=soft_stroke_width)
+    draw.ellipse(bounds, outline=(255, 52, 52, 240), width=stroke_width)
+
+
 def _create_circular_spotlight_image(
     screenshot_path: str,
     component: Optional[Dict[str, Any]],
     output_path: Path,
     label: str = "",
+    *,
+    contain_tall_source: bool = False,
 ) -> bool:
     if not component:
         return False
@@ -355,33 +417,41 @@ def _create_circular_spotlight_image(
     except Exception:
         return False
 
-    target_ratio = SPOTLIGHT_FRAME_WIDTH / SPOTLIGHT_FRAME_HEIGHT
-
     with Image.open(absolute) as source:
         source = source.convert("RGBA")
         image_width, image_height = source.size
 
-        pad_x = max(180, int(width * 1.0))
-        pad_y = max(180, int(height * 1.0))
+        width = min(width, float(image_width))
+        height = min(height, float(image_height))
+        x = max(0.0, min(x, float(image_width) - width))
+        y = max(0.0, min(y, float(image_height) - height))
 
-        crop_width = max(int(width + pad_x * 2), 960)
-        crop_height = int(round(crop_width / target_ratio))
-        if crop_height < height + pad_y * 2:
-            crop_height = int(height + pad_y * 2)
-            crop_width = int(round(crop_height * target_ratio))
+        if contain_tall_source and image_width / max(float(image_height), 1.0) < 0.8:
+            canvas = Image.new("RGBA", (SPOTLIGHT_FRAME_WIDTH, SPOTLIGHT_FRAME_HEIGHT), (250, 246, 238, 255))
+            scale = min((SPOTLIGHT_FRAME_WIDTH - 120) / max(float(image_width), 1.0), (SPOTLIGHT_FRAME_HEIGHT - 80) / max(float(image_height), 1.0))
+            scaled_width = max(1, int(round(image_width * scale)))
+            scaled_height = max(1, int(round(image_height * scale)))
+            offset_x = int(round((SPOTLIGHT_FRAME_WIDTH - scaled_width) / 2))
+            offset_y = int(round((SPOTLIGHT_FRAME_HEIGHT - scaled_height) / 2))
+            scaled = source.resize((scaled_width, scaled_height), Image.Resampling.LANCZOS)
+            canvas.paste(scaled, (offset_x, offset_y))
+            draw = ImageDraw.Draw(canvas, "RGBA")
 
-        crop_width = min(crop_width, image_width)
-        crop_height = min(crop_height, image_height)
+            comp_left = offset_x + x * scale
+            comp_top = offset_y + y * scale
+            comp_right = offset_x + (x + width) * scale
+            comp_bottom = offset_y + (y + height) * scale
+            halo = max(18, int(max(comp_right - comp_left, comp_bottom - comp_top) * 0.08))
+            _draw_component_highlight(
+                draw,
+                (comp_left - halo, comp_top - halo, comp_right + halo, comp_bottom + halo),
+                broad=True,
+            )
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            canvas.convert("RGB").save(output_path, format="PNG", optimize=True)
+            return True
 
-        center_x = x + width / 2
-        center_y = y + height / 2
-
-        left = int(round(center_x - crop_width / 2))
-        top = int(round(center_y - crop_height / 2))
-        left = max(0, min(left, image_width - crop_width))
-        top = max(0, min(top, image_height - crop_height))
-        right = left + crop_width
-        bottom = top + crop_height
+        left, top, right, bottom = _spotlight_crop_box(image_width, image_height, x, y, width, height)
 
         crop = source.crop((left, top, right, bottom))
         scale_x = SPOTLIGHT_FRAME_WIDTH / crop.width
@@ -395,25 +465,15 @@ def _create_circular_spotlight_image(
         comp_bottom = (y + height - top) * scale_y
 
         halo = max(24, int(max(comp_right - comp_left, comp_bottom - comp_top) * 0.12))
-        draw.ellipse(
-            (
-                comp_left - halo,
-                comp_top - halo,
-                comp_right + halo,
-                comp_bottom + halo,
-            ),
-            outline=(255, 52, 52, 240),
-            width=12,
+        broad = (
+            (comp_right - comp_left) / max(float(SPOTLIGHT_FRAME_WIDTH), 1.0) > 0.72
+            or (comp_bottom - comp_top) / max(float(SPOTLIGHT_FRAME_HEIGHT), 1.0) > 0.62
+            or ((comp_right - comp_left) * (comp_bottom - comp_top)) / max(float(SPOTLIGHT_FRAME_WIDTH * SPOTLIGHT_FRAME_HEIGHT), 1.0) > 0.34
         )
-        draw.ellipse(
-            (
-                comp_left - halo - 10,
-                comp_top - halo - 10,
-                comp_right + halo + 10,
-                comp_bottom + halo + 10,
-            ),
-            outline=(255, 52, 52, 110),
-            width=18,
+        _draw_component_highlight(
+            draw,
+            (comp_left - halo, comp_top - halo, comp_right + halo, comp_bottom + halo),
+            broad=broad,
         )
 
         if clean_text(label):
@@ -429,6 +489,160 @@ def _create_circular_spotlight_image(
         output_path.parent.mkdir(parents=True, exist_ok=True)
         crop.convert("RGB").save(output_path, format="PNG", optimize=True)
         return True
+
+
+def _create_context_spotlight_image(
+    screenshot_path: str,
+    output_path: Path,
+    *,
+    contain_tall_source: bool = False,
+) -> bool:
+    absolute = absolute_from_repo(screenshot_path)
+    if not absolute or not absolute.exists():
+        return False
+
+    try:
+        from PIL import Image
+    except Exception:
+        return False
+
+    try:
+        with Image.open(absolute) as source_image:
+            source = source_image.convert("RGBA")
+    except Exception:
+        return False
+
+    image_width, image_height = source.size
+    if image_width <= 0 or image_height <= 0:
+        return False
+
+    if contain_tall_source:
+        canvas = Image.new("RGBA", (SPOTLIGHT_FRAME_WIDTH, SPOTLIGHT_FRAME_HEIGHT), (250, 246, 238, 255))
+        scale = min(
+            (SPOTLIGHT_FRAME_WIDTH - 120) / max(float(image_width), 1.0),
+            (SPOTLIGHT_FRAME_HEIGHT - 80) / max(float(image_height), 1.0),
+        )
+        scaled_width = max(1, int(round(image_width * scale)))
+        scaled_height = max(1, int(round(image_height * scale)))
+        offset_x = int(round((SPOTLIGHT_FRAME_WIDTH - scaled_width) / 2))
+        offset_y = int(round((SPOTLIGHT_FRAME_HEIGHT - scaled_height) / 2))
+        canvas.paste(source.resize((scaled_width, scaled_height), Image.Resampling.LANCZOS), (offset_x, offset_y))
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        canvas.convert("RGB").save(output_path, format="PNG", optimize=True)
+        return True
+
+    target_ratio = SPOTLIGHT_FRAME_WIDTH / SPOTLIGHT_FRAME_HEIGHT
+    source_ratio = image_width / max(float(image_height), 1.0)
+    if source_ratio >= target_ratio:
+        crop_height = image_height
+        crop_width = min(image_width, int(round(crop_height * target_ratio)))
+        left = int(round(max(0, (image_width - crop_width) / 2)))
+        top = 0
+    else:
+        crop_width = image_width
+        crop_height = min(image_height, int(round(crop_width / target_ratio)))
+        left = 0
+        top = 0
+
+    crop = source.crop((left, top, left + crop_width, top + crop_height)).resize(
+        (SPOTLIGHT_FRAME_WIDTH, SPOTLIGHT_FRAME_HEIGHT),
+        Image.Resampling.LANCZOS,
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    crop.convert("RGB").save(output_path, format="PNG", optimize=True)
+    return True
+
+
+def _domain_screenshot_root(screenshot_path: str) -> Optional[Path]:
+    absolute = absolute_from_repo(screenshot_path)
+    if not absolute:
+        return None
+    parts = absolute.parts
+    try:
+        index = parts.index("screenshots")
+    except ValueError:
+        return None
+    if len(parts) <= index + 1:
+        return None
+    root = Path(*parts[: index + 2])
+    return root if root.exists() else None
+
+
+def _context_keywords(item: Dict[str, Any]) -> List[str]:
+    issue_text = normalize_match_text(
+        " ".join(
+            clean_text(item.get(key))
+            for key in ("title", "axisName", "pageName", "evidence", "explanation", "recommendation")
+            if clean_text(item.get(key))
+        )
+    )
+    keyword_sets = [
+        (("form", "questions", "field", "input"), ["contact", "hello", "email", "form", "field"]),
+        (("search", "find"), ["search", "menu", "nav", "header"]),
+        (("browser", "back", "forward", "copy", "paste"), ["interactions", "navigation", "dom_change"]),
+        (("visual style", "consistent", "component", "button", "control"), ["work", "studio", "branding", "consultancy", "digital", "interactions"]),
+        (("color", "saturation", "vibrate", "fatigue"), ["work", "branding", "studio", "initial", "bottom"]),
+        (("device", "browser", "screen", "resolution", "responsive", "phone", "mobile"), ["responsive", "mobile"]),
+        (("trust", "proof", "client", "testimonial", "credibility"), ["work", "studio", "client", "case", "about"]),
+        (("value", "market", "audience", "commercial", "proposition"), ["studio", "work", "about", "initial"]),
+        (("navigation", "menu", "architecture", "flow"), ["navigation", "menu", "work", "studio"]),
+        (("cta", "action", "verb", "label"), ["interactions", "navigation", "contact", "work", "studio"]),
+    ]
+    keywords: List[str] = []
+    for triggers, additions in keyword_sets:
+        if any(trigger in issue_text for trigger in triggers):
+            keywords.extend(additions)
+    keywords.extend(token for token in tokenize_for_match(issue_text) if len(token) >= 4)
+    return list(dict.fromkeys(keywords))[:24]
+
+
+def _select_context_screenshot(item: Dict[str, Any], fallback_path: str, issue_index: int) -> str:
+    root = _domain_screenshot_root(fallback_path)
+    if not root:
+        return fallback_path
+
+    fallback_absolute = absolute_from_repo(fallback_path)
+    keywords = _context_keywords(item)
+    page_name = normalize_match_text(item.get("pageName"))
+    title = normalize_match_text(item.get("title"))
+    candidates: List[tuple[float, str, Path]] = []
+    for path in root.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in CONTEXT_IMAGE_EXTENSIONS:
+            continue
+        normalized = normalize_match_text(str(path.relative_to(root)))
+        score = 0.0
+        if path == fallback_absolute:
+            score -= 4.0
+        usage = _CONTEXT_SCREENSHOT_USAGE.get(str(path.resolve()), 0)
+        if usage:
+            score -= usage * 4.0
+        if "\\page\\main" in str(path).lower().replace("/", "\\"):
+            score -= 2.0
+        if "responsive" in normalized:
+            score += 3.0 if any(word in title for word in ("responsive", "phone", "mobile", "device", "screen")) else -1.0
+        if "interactions" in normalized:
+            score += 1.5
+        if "scrolls" in normalized:
+            score += 1.0
+        if page_name and page_name in normalized:
+            score += 1.0
+        for keyword in keywords:
+            if keyword and keyword in normalized:
+                score += 2.0
+        candidates.append((score, normalized, path))
+
+    if not candidates:
+        return fallback_path
+
+    viable = [candidate for candidate in candidates if candidate[0] > 0]
+    pool = viable or candidates
+    pool.sort(key=lambda candidate: (-candidate[0], candidate[1]))
+    selected = pool[issue_index % min(len(pool), 12)]
+    _CONTEXT_SCREENSHOT_USAGE[str(selected[2].resolve())] = _CONTEXT_SCREENSHOT_USAGE.get(str(selected[2].resolve()), 0) + 1
+    try:
+        return str(selected[2].relative_to(Path.cwd()))
+    except ValueError:
+        return str(selected[2])
 
 
 def _review_spotlight_candidates(
@@ -511,10 +725,9 @@ def build_gtm_spotlight(
     if bundle_component:
         component = bundle_component
 
-    if not component:
-        return ""
-
     filename_stem = f"issue-{str(issue_index).zfill(2)}-{normalize_match_text(item.get('title') or 'issue')[:60].replace(' ', '-')}"
+    filename = f"{filename_stem}.png"
+    output_path = output_dir / "evidence" / filename
     if not bundle_component and not region_component:
         candidate_components = _candidate_components(item, rendered_page, component)
         reviewed_component = _review_spotlight_candidates(
@@ -527,11 +740,21 @@ def build_gtm_spotlight(
         if reviewed_component:
             component = reviewed_component
 
-    filename = f"{filename_stem}.png"
-    output_path = output_dir / "evidence" / filename
     bundle_target = ((item.get("evidenceBundle") or {}).get("target") or {}) if isinstance(item.get("evidenceBundle"), dict) else {}
     screenshot_path = clean_text(bundle_target.get("screenshot_path")) or clean_text(item.get("screenshotPath"))
-    if not _create_circular_spotlight_image(screenshot_path, component, output_path):
+    contain_tall_source = bool(item.get("responsiveFailure"))
+    has_direct_region = bool(bundle_component or region_component)
+    if not has_direct_region:
+        screenshot_path = _select_context_screenshot(item, screenshot_path, issue_index)
+        if not _create_context_spotlight_image(screenshot_path, output_path, contain_tall_source=contain_tall_source):
+            return ""
+        relative = os.path.relpath(output_path, output_dir)
+        return quote(Path(relative).as_posix(), safe="/:#?&=%")
+
+    if not component:
+        return ""
+
+    if not _create_circular_spotlight_image(screenshot_path, component, output_path, contain_tall_source=contain_tall_source):
         return ""
 
     relative = os.path.relpath(output_path, output_dir)

@@ -375,10 +375,13 @@ def _validate_required_text(value: str, field_label: str) -> str:
 def _friendly_app_label(package_name: str, activity_name: str = "") -> str:
     package_tail = str(package_name or "").strip().split(".")[-1]
     activity_tail = str(activity_name or "").strip().split("/")[-1].split(".")[-1]
-    raw = activity_tail or package_tail or "Android App Audit"
+    generic_activity_names = {"", "mainactivity", "launcheractivity", "splashactivity"}
+    raw = package_tail if activity_tail.lower() in generic_activity_names else activity_tail or package_tail or "Android App Audit"
     raw = raw.replace("_", " ").replace("-", " ").strip()
     if not raw:
         return "Android App Audit"
+    if raw.lower() == "mymg":
+        return "MyMG"
     return " ".join(part.capitalize() for part in re.split(r"\s+", raw))
 
 
@@ -668,6 +671,34 @@ def _packaged_report_url(static_dir: Path) -> str:
     return _artifact_url_for_path(index_path) if index_path.exists() else ""
 
 
+def _update_job_progress_from_output(job_id: str, line: str) -> None:
+    text = (line or "").strip()
+    if not text:
+        return
+
+    markers = [
+        ("[1/5] Running crawler", "Crawling website", 8),
+        ("[2/5] Running page audit", "Opening pages", 24),
+        ("[3/5] Generating checks JSON", "Extracting UI evidence", 58),
+        ("[4/5] Generating GTM", "Building audit report", 72),
+        ("[4/5] Exporting workbook", "Building audit report", 72),
+        ("[4/5] Workbook export skipped", "Building audit report", 72),
+        ("[5/5] Generating", "Building audit report", 82),
+        ("Deploying report", "Publishing result", 90),
+    ]
+    for marker, stage, progress in markers:
+        if marker in text:
+            _set_job(job_id, stage=stage, progress=progress)
+            return
+
+    match = re.search(r"(?:Page|\[START|\[DONE)\s+(\d+)\s*/\s*(\d+)", text, re.I)
+    if match:
+        current = max(1, int(match.group(1)))
+        total = max(1, int(match.group(2)))
+        progress = 24 + round(min(current, total) / total * 30)
+        _set_job(job_id, stage=f"Opening pages ({current}/{total})", progress=progress)
+
+
 def _run_command(job_id: str, command: list[str], *, stage: str, progress: int, env_overrides: dict[str, str] | None = None) -> int:
     if _finish_if_cancelled(job_id):
         return CANCELLED_RETURN_CODE
@@ -697,6 +728,7 @@ def _run_command(job_id: str, command: list[str], *, stage: str, progress: int, 
                 _terminate_process(process)
                 return CANCELLED_RETURN_CODE
             _append_log(job_id, line)
+            _update_job_progress_from_output(job_id, line)
         return_code = process.wait()
         if _finish_if_cancelled(job_id):
             return CANCELLED_RETURN_CODE
@@ -758,6 +790,8 @@ def _run_audit_job(job_id: str) -> None:
         str(report_dir),
         "--output-dir",
         str(vercel_dir),
+        "--audit-slug",
+        job_id,
         "--deploy",
     ]
     deploy_code = _run_command(job_id, deploy_command, stage="Deploying report to Vercel", progress=90)
@@ -883,6 +917,8 @@ def _run_screenshot_audit_job(job_id: str) -> None:
             str(report_dir),
             "--output-dir",
             str(vercel_dir),
+            "--audit-slug",
+            job_id,
             "--deploy",
         ],
         stage=f"Deploying {surface_label} report to Vercel",
@@ -969,6 +1005,7 @@ def _run_mobile_audit_job(job_id: str) -> None:
         "--device-name",
         device_name,
         "--full-reset",
+        "--extract-only",
     ]
     if platform_version:
         command.extend(["--platform-version", platform_version])
@@ -995,12 +1032,125 @@ def _run_mobile_audit_job(job_id: str) -> None:
         )
         return
 
+    audit_json = output_dir / "mobile_gtm_audit.json"
+    report_dir = output_dir / "gtm-report"
+    vercel_dir = output_dir / "vercel-gtm-report"
+
+    if not audit_json.exists():
+        analysis_code = _run_command(
+            job_id,
+            [
+                sys.executable,
+                "-m",
+                "src.mobile_audit.generate_mobile_audit",
+                "--input-dir",
+                str(output_dir),
+                "--app-label",
+                app_label,
+                "--output",
+                str(audit_json),
+            ],
+            stage="Analyzing live mobile UX/UI evidence",
+            progress=62,
+        )
+        if analysis_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
+            return
+        if analysis_code != 0:
+            _set_job(
+                job_id,
+                status="failed",
+                outputDir=str(output_dir),
+                error=f"Mobile extraction completed, but mobile audit analysis failed with exit code {analysis_code}.",
+            )
+            return
+
+    if not (report_dir / "index.html").exists():
+        report_code = _run_command(
+            job_id,
+            [
+                sys.executable,
+                "-m",
+                "src.gtm_audit.generate_gtm_report",
+                "--input",
+                str(audit_json),
+                "--output-dir",
+                str(report_dir),
+            ],
+            stage="Generating live mobile audit report",
+            progress=78,
+        )
+        if report_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
+            return
+        if report_code != 0:
+            _set_job(job_id, status="failed", outputDir=str(output_dir), error=f"Mobile report generation failed with exit code {report_code}.")
+            return
+
+    deploy_code = _run_command(
+        job_id,
+        [
+            sys.executable,
+            "-m",
+            "src.gtm_audit.vercel_static_deploy",
+            "--report-dir",
+            str(report_dir),
+            "--output-dir",
+            str(vercel_dir),
+            "--audit-slug",
+            job_id,
+            "--deploy",
+        ],
+        stage="Deploying live mobile audit report to Vercel",
+        progress=90,
+    )
+    if deploy_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
+        return
+    with JOBS_LOCK:
+        result_url = JOBS[job_id].get("resultUrl", "")
+    if deploy_code != 0:
+        local_report_url = _packaged_report_url(vercel_dir)
+        if local_report_url:
+            _set_job(
+                job_id,
+                status="completed",
+                stage="Completed with local report",
+                progress=100,
+                outputDir=str(output_dir),
+                resultUrl=local_report_url,
+                error="Vercel deployment failed, so the packaged mobile report is being served locally by this app.",
+            )
+            return
+        _set_job(
+            job_id,
+            status="failed",
+            outputDir=str(output_dir),
+            error=(
+                "Mobile report deployment failed. Run `vercel login` and `vercel link --yes` "
+                "if authentication or project linking is missing."
+            ),
+        )
+        return
+    if not result_url:
+        local_report_url = _packaged_report_url(vercel_dir)
+        if local_report_url:
+            _set_job(
+                job_id,
+                status="completed",
+                stage="Completed with local report",
+                progress=100,
+                outputDir=str(output_dir),
+                resultUrl=local_report_url,
+            )
+            return
+        _set_job(job_id, status="failed", outputDir=str(output_dir), error="Mobile report deployment completed but no deployment URL was detected.")
+        return
+
     _set_job(
         job_id,
         status="completed",
-        stage="Mobile extraction artifacts ready",
+        stage="Completed",
         progress=100,
         outputDir=str(output_dir),
+        resultUrl=result_url,
     )
 
 

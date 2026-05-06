@@ -395,6 +395,187 @@ def check_horizontal_scrolling(html_data: Dict[str, Any]) -> List[Dict[str, Any]
     ]
 
 
+def _profile_by_name(page: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    profiles = _safe_get(page, "pageMeta", "data", "responsiveProfiles", default=[]) or []
+    out: Dict[str, Dict[str, Any]] = {}
+    for profile in profiles:
+        if not isinstance(profile, dict):
+            continue
+        name = _normalize_text(profile.get("profile")).lower()
+        if name:
+            out[name] = profile
+    return out
+
+
+def _profile_viewport_width(profile: Dict[str, Any]) -> int:
+    viewport = profile.get("viewport") if isinstance(profile.get("viewport"), dict) else {}
+    try:
+        return int(viewport.get("width") or 0)
+    except Exception:
+        return 0
+
+
+def _profile_scroll_width(profile: Dict[str, Any]) -> int:
+    signals = profile.get("responsiveSignals") if isinstance(profile.get("responsiveSignals"), dict) else {}
+    metrics = profile.get("documentMetrics") if isinstance(profile.get("documentMetrics"), dict) else {}
+    try:
+        return int(signals.get("scrollWidth") or metrics.get("scrollWidth") or 0)
+    except Exception:
+        return 0
+
+
+def check_responsive_desktop_mobile(html_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    pages = html_data.get("pages", [])
+    checked_pages: List[Dict[str, Any]] = []
+    missing_mobile: List[Dict[str, Any]] = []
+    failing_pages: List[Dict[str, Any]] = []
+    warning_pages: List[Dict[str, Any]] = []
+    tolerance_px = 8
+
+    for page in pages:
+        profiles = _profile_by_name(page)
+        desktop = profiles.get("desktop")
+        mobile = profiles.get("mobile")
+        if not desktop and not mobile:
+            continue
+
+        page_ref = _page_ref(page)
+        checked_pages.append(page_ref)
+        if not mobile or mobile.get("status") != "success":
+            missing_mobile.append(
+                {
+                    **page_ref,
+                    "reason": _normalize_text((mobile or {}).get("error")) or "No successful phone viewport capture was available.",
+                }
+            )
+            continue
+
+        viewport_width = _profile_viewport_width(mobile)
+        scroll_width = _profile_scroll_width(mobile)
+        signals = mobile.get("responsiveSignals") if isinstance(mobile.get("responsiveSignals"), dict) else {}
+        overflow_px = int(signals.get("overflowPx") or max(0, scroll_width - viewport_width))
+        overflowing_elements = signals.get("overflowingElements") if isinstance(signals.get("overflowingElements"), list) else []
+        tiny_text_count = int(signals.get("tinyTextCount") or 0)
+        has_mobile_navigation = bool(signals.get("hasMobileNavigationControl"))
+
+        page_evidence = {
+            **page_ref,
+            "desktopViewport": (desktop or {}).get("viewport") or {},
+            "mobileViewport": mobile.get("viewport") or {},
+            "mobileScreenshotPath": mobile.get("screenshotPath") or "",
+            "mobileOverflowPx": overflow_px,
+            "overflowingElements": overflowing_elements[:5],
+            "tinyTextCount": tiny_text_count,
+            "hasMobileNavigationControl": has_mobile_navigation,
+        }
+        if overflow_px > tolerance_px or overflowing_elements:
+            failing_pages.append(page_evidence)
+        elif tiny_text_count >= 12 or not has_mobile_navigation:
+            warning_pages.append(page_evidence)
+
+    if not checked_pages:
+        return [
+            _make_result(
+                criterion="responsive-desktop-mobile",
+                status="warning",
+                severity="warning",
+                title="Responsive behavior could not be evaluated",
+                description="No desktop/phone responsive profile evidence was available for the audited pages.",
+                pages=[],
+                recommendation="Enable the responsive desktop/mobile probe so the audit captures a phone viewport for each audited page.",
+                evidence={"checkedPages": 0},
+                confidence="low",
+                method=["responsive-viewport-comparison"],
+            )
+        ]
+
+    if missing_mobile:
+        return [
+            _make_result(
+                criterion="responsive-desktop-mobile",
+                status="warning",
+                severity="warning",
+                title="Phone viewport coverage is incomplete",
+                description="At least one audited page could not be captured successfully in the phone viewport.",
+                pages=[{k: p[k] for k in ("name", "url", "finalUrl")} for p in missing_mobile],
+                recommendation="Rerun the audit with mobile viewport capture enabled and inspect pages that fail to load on phone-sized screens.",
+                evidence={
+                    "checkedPages": len(checked_pages),
+                    "missingMobilePages": missing_mobile,
+                },
+                confidence="medium",
+                method=["responsive-viewport-comparison"],
+            )
+        ]
+
+    if failing_pages:
+        return [
+            _make_result(
+                criterion="responsive-desktop-mobile",
+                status="fail",
+                severity="high",
+                title="Website does not adapt reliably to phone screens",
+                description="One or more audited pages overflow the phone viewport, which indicates the desktop layout is not fully responsive.",
+                pages=[{k: p[k] for k in ("name", "url", "finalUrl")} for p in failing_pages],
+                recommendation="Fix fixed-width sections, oversized media, absolute-positioned blocks, and containers wider than the viewport at phone breakpoints.",
+                evidence={
+                    "checkedPages": len(checked_pages),
+                    "failingPages": failing_pages,
+                    "tolerancePx": tolerance_px,
+                },
+                confidence="high",
+                method=["responsive-viewport-comparison", "document-metrics"],
+            )
+        ]
+
+    if warning_pages:
+        return [
+            _make_result(
+                criterion="responsive-desktop-mobile",
+                status="warning",
+                severity="warning",
+                title="Phone adaptation has usability risks",
+                description="The audited pages fit the phone viewport, but some mobile usability signals need review.",
+                pages=[{k: p[k] for k in ("name", "url", "finalUrl")} for p in warning_pages],
+                recommendation="Review phone screenshots for small text, hidden navigation, or controls that remain too desktop-oriented.",
+                evidence={
+                    "checkedPages": len(checked_pages),
+                    "warningPages": warning_pages,
+                },
+                confidence="medium",
+                method=["responsive-viewport-comparison", "rendered-mobile-signals"],
+            )
+        ]
+
+    return [
+        _make_result(
+            criterion="responsive-desktop-mobile",
+            status="pass",
+            severity=None,
+            title="Website adapts between desktop and phone screens",
+            description="The audited pages were captured in both desktop and phone viewports without horizontal overflow or strong mobile layout breakage signals.",
+            pages=checked_pages,
+            recommendation=None,
+            evidence={
+                "checkedPages": len(checked_pages),
+                "profiles": [
+                    {
+                        **_page_ref(page),
+                        "desktop": (_profile_by_name(page).get("desktop") or {}).get("viewport") or {},
+                        "mobile": (_profile_by_name(page).get("mobile") or {}).get("viewport") or {},
+                        "mobileScreenshotPath": (_profile_by_name(page).get("mobile") or {}).get("screenshotPath") or "",
+                    }
+                    for page in pages
+                    if _profile_by_name(page).get("mobile")
+                ],
+                "tolerancePx": tolerance_px,
+            },
+            confidence="high",
+            method=["responsive-viewport-comparison", "document-metrics"],
+        )
+    ]
+
+
 # ============================================================
 # Criterion 3
 # Page layouts are consistent across the whole website
@@ -2032,6 +2213,9 @@ def run_presentation_checks(
 
     # 2
     results += check_horizontal_scrolling(html_data)
+
+    # Responsive desktop/phone adaptation
+    results += check_responsive_desktop_mobile(html_data)
 
     if rendered_ui_data:
         # 3

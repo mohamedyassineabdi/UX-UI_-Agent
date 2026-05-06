@@ -1,3 +1,7 @@
+import re
+from urllib.parse import urlparse
+
+
 def normalize_for_match(value):
     return " ".join(str(value or "").lower().split()).strip()
 
@@ -6,6 +10,25 @@ def contains_any_keyword(haystack, keywords):
     for keyword in keywords:
         normalized_keyword = normalize_for_match(keyword)
         if normalized_keyword in haystack:
+            return normalized_keyword
+    return None
+
+
+def contains_forbidden_href_keyword(href, keywords):
+    parsed = urlparse(str(href or ""))
+    path = parsed.path.lower()
+    query = parsed.query.lower()
+    blob = f"{path}?{query}" if query else path
+
+    for keyword in keywords:
+        normalized_keyword = normalize_for_match(keyword)
+        if not normalized_keyword:
+            continue
+        if "/" in normalized_keyword or "_" in normalized_keyword or "-" in normalized_keyword:
+            if normalized_keyword in blob:
+                return normalized_keyword
+            continue
+        if re.search(rf"(?<![a-z0-9]){re.escape(normalized_keyword)}(?![a-z0-9])", blob):
             return normalized_keyword
     return None
 
@@ -48,7 +71,7 @@ def classify_clickable(clickable, config):
             "reason": f"matched forbidden keyword: {forbidden_keyword}",
         }
 
-    forbidden_href_keyword = contains_any_keyword(href, config["classification"]["forbiddenHrefKeywords"])
+    forbidden_href_keyword = contains_forbidden_href_keyword(href, config["classification"]["forbiddenHrefKeywords"])
     if forbidden_href_keyword:
         return {
             "classification": "forbidden",

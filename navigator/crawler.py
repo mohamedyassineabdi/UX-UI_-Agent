@@ -139,6 +139,36 @@ BLOCKLIST_URL_PARTS_FOR_MENU = [
     "/terms",
 ]
 
+MENU_STRUCTURE_SELECTORS = [
+    "header",
+    "nav",
+    '[role="navigation"]',
+    ".menu",
+    ".main-menu",
+    ".mega-menu",
+    ".megamenu",
+    ".submenu",
+    ".sub-menu",
+    ".dropdown",
+    ".drawer",
+    ".mobile-menu",
+    ".offcanvas",
+    ".sidebar",
+    ".navbar",
+    ".navigation",
+    ".site-nav",
+    ".main-nav",
+    ".iqitmegamenu",
+    ".cbp-hrmenu",
+    ".leo-megamenu",
+    ".ets_mm_megamenu",
+    ".ps_categorytree",
+    ".category-tree",
+    ".block-categories",
+]
+
+CATEGORY_LIKE_PATH_RE = re.compile(r"^/(?:[a-z]{2}/)?\d+[-_/][^/?#]+/?$", re.I)
+
 OVERLAY_SELECTORS = [
     '[role="menu"]',
     '[role="dialog"]',
@@ -253,10 +283,14 @@ def force_english_url(url: Optional[str]) -> Optional[str]:
     parts = path.split("/")
     if len(parts) > 1:
         first = parts[1].lower()
+        if first in {"en", "en-us", "en-gb"}:
+            return url
         if re.fullmatch(r"[a-z]{2}", first):
             parts = [""] + parts[2:]
             path = "/".join(parts) or "/"
         elif re.fullmatch(r"[a-z]{2}-[a-z]{2}", first):
+            if first.startswith("en-"):
+                return url
             parts = [""] + parts[2:]
             path = "/".join(parts) or "/"
     return urlunparse(
@@ -315,6 +349,36 @@ def safe_int(value: Any, default: int = 0) -> int:
 def looks_like_bad_menu_url(url: Optional[str]) -> bool:
     u = (url or "").lower()
     return any(part in u for part in BLOCKLIST_URL_PARTS_FOR_MENU)
+
+
+def looks_like_category_or_nav_url(base_url: str, url: Optional[str]) -> bool:
+    if not url or not allowed_external_for_nav(base_url, url) or looks_like_bad_menu_url(url):
+        return False
+
+    parsed = urlparse(url)
+    path = parsed.path.rstrip("/") or "/"
+    path_lower = path.lower()
+
+    if path == "/" or any(part in path_lower for part in [
+        "/cart",
+        "/checkout",
+        "/login",
+        "/authentication",
+        "/order",
+        "/my-account",
+        "/wishlist",
+        "/search",
+    ]):
+        return False
+
+    if CATEGORY_LIKE_PATH_RE.match(path):
+        return True
+
+    category_words = (
+        "category", "categorie", "catalog", "collection", "shop",
+        "products", "produits", "rayon", "menu", "blog",
+    )
+    return any(word in path_lower for word in category_words)
 
 
 def weak_is_auth(name: str, url: Optional[str]) -> bool:
@@ -749,17 +813,21 @@ async def verify_auth_candidate(context: BrowserContext, homepage: str, path: st
 
 async def detect_auth(context: BrowserContext, page: Page, homepage: str, timeout: int, debug: bool) -> Dict[str, Optional[Dict[str, str]]]:
     result = await detect_auth_on_current_page(page, homepage, debug)
+    if os.getenv("CRAWLER_VERIFY_AUTH_PATHS", "").strip().lower() not in {"1", "true", "yes", "on"}:
+        return result
+
+    auth_timeout = max(3, min(timeout, safe_int(os.getenv("CRAWLER_AUTH_TIMEOUT_SEC"), 5)))
 
     if not result["signin"]:
         for path in LIKELY_SIGNIN_PATHS:
-            checked = await verify_auth_candidate(context, homepage, path, timeout, debug)
+            checked = await verify_auth_candidate(context, homepage, path, auth_timeout, debug)
             if checked["signin"]:
                 result["signin"] = checked["signin"]
                 break
 
     if not result["signup"]:
         for path in LIKELY_SIGNUP_PATHS:
-            checked = await verify_auth_candidate(context, homepage, path, timeout, debug)
+            checked = await verify_auth_candidate(context, homepage, path, auth_timeout, debug)
             if checked["signup"]:
                 result["signup"] = checked["signup"]
                 break
@@ -2198,7 +2266,19 @@ async def extract_menu_toggle_candidates(page: Page, debug: bool) -> List[Dict[s
       }
 
       const nodes = Array.from(document.querySelectorAll(
-        'button[aria-controls], [role="button"][aria-controls], summary[aria-controls]'
+        [
+          'button',
+          '[role="button"]',
+          'summary',
+          '[aria-controls]',
+          '[aria-label*="menu" i]',
+          '[aria-label*="nav" i]',
+          '[class*="menu" i]',
+          '[class*="nav" i]',
+          '[class*="hamburger" i]',
+          '[class*="toggler" i]',
+          '[class*="toggle" i]'
+        ].join(',')
       )).filter(visible);
 
       const out = [];
@@ -2211,15 +2291,19 @@ async def extract_menu_toggle_candidates(page: Page, debug: bool) -> List[Dict[s
         const title = cleanText(el.getAttribute('title') || '');
         const className = String(el.className || '');
         const controlId = cleanText(el.getAttribute('aria-controls') || '');
-        const haystack = `${text} ${aria} ${title} ${className} ${controlId}`.toLowerCase();
+        const id = cleanText(el.getAttribute('id') || '');
+        const haystack = `${text} ${aria} ${title} ${className} ${controlId} ${id}`.toLowerCase();
+        const tag = el.tagName.toLowerCase();
 
         let score = 0;
-        if (!controlId) continue;
         if (haystack.includes('menu')) score += 5;
-        if (haystack.includes('navigation')) score += 4;
+        if (haystack.includes('navigation') || haystack.includes('nav')) score += 4;
+        if (haystack.includes('toggler') || haystack.includes('toggle') || haystack.includes('hamburger')) score += 4;
+        if (controlId) score += 2;
         if (text.toLowerCase() === 'menu') score += 3;
         if (rect.top < 420) score += 2;
         if (rect.width < 240) score += 1;
+        if (tag === 'button' || el.getAttribute('role') === 'button') score += 1;
 
         if (score < 4) continue;
 
@@ -2232,6 +2316,7 @@ async def extract_menu_toggle_candidates(page: Page, debug: bool) -> List[Dict[s
           aria_label: aria,
           title,
           class_name: className,
+          id,
           aria_controls: controlId,
           top: Math.round(rect.top),
           left: Math.round(rect.left),
@@ -2285,7 +2370,22 @@ async def extract_visible_navigation_link_candidates(page: Page, homepage: str, 
       }
 
       const nodes = Array.from(document.querySelectorAll(
-        'header a[href], nav a[href], [role="navigation"] a[href], .header a[href], .menu a[href], .nav a[href], .drawer a[href], .sidebar a[href]'
+        [
+          'header a[href]',
+          'nav a[href]',
+          '[role="navigation"] a[href]',
+          '.header a[href]',
+          '.menu a[href]',
+          '.nav a[href]',
+          '.drawer a[href]',
+          '.sidebar a[href]',
+          '[class*="nav" i] a[href]',
+          '[id*="nav" i] a[href]',
+          '[class*="menu" i] a[href]',
+          '[id*="menu" i] a[href]',
+          '[class*="modal" i] a[href]',
+          '[class*="overlay" i] a[href]'
+        ].join(',')
       ))
         .filter(a => visible(a, 4, 4))
         .map(a => {
@@ -2331,6 +2431,148 @@ async def extract_visible_navigation_link_candidates(page: Page, homepage: str, 
     return merge_menu_lists([], items)
 
 
+async def extract_structural_navigation_link_candidates(page: Page, homepage: str, debug: bool) -> List[Dict[str, Any]]:
+    debug_log(debug, "Extracting structural navigation links from menu DOM")
+
+    script = """
+    (selectors) => {
+      function cleanText(s) {
+        return (s || '').replace(/\\s+/g, ' ').trim();
+      }
+
+      function absHref(href) {
+        try {
+          return new URL(href, window.location.href).href;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function selectorish(el) {
+        if (!el) return '';
+        if (el.id) return `#${el.id}`;
+        const classes = String(el.className || '')
+          .split(/\\s+/)
+          .filter(Boolean)
+          .slice(0, 4)
+          .join('.');
+        return el.tagName.toLowerCase() + (classes ? `.${classes}` : '');
+      }
+
+      function nearestMenuSelector(a) {
+        const selector = selectors.join(',');
+        const match = a.closest(selector);
+        return selectorish(match);
+      }
+
+      function linkText(a) {
+        const direct = cleanText(a.innerText || a.textContent || '');
+        if (direct) return direct;
+        return cleanText(
+          a.getAttribute('aria-label') ||
+          a.getAttribute('title') ||
+          a.querySelector('img')?.getAttribute('alt') ||
+          ''
+        );
+      }
+
+      const selector = selectors.join(',');
+      const roots = Array.from(document.querySelectorAll(selector));
+      const rootSet = new Set(roots);
+      const links = [];
+
+      for (const root of roots) {
+        for (const a of Array.from(root.querySelectorAll('a[href]'))) {
+          if (!rootSet.has(root) && !a.closest(selector)) continue;
+          const rect = a.getBoundingClientRect();
+          const href = absHref(a.getAttribute('href') || '');
+          const name = linkText(a);
+          const depth = a.closest('li') ? Array.from(a.closest('li').parents || []).length : 0;
+          const className = String(a.className || '');
+          const rootSelector = selectorish(root);
+          const menuSelector = nearestMenuSelector(a);
+          const parentText = cleanText(a.closest('li')?.innerText || '');
+
+          links.push({
+            name,
+            href,
+            root_selector: rootSelector,
+            menu_selector: menuSelector,
+            parent_text: parentText,
+            class_name: className,
+            top: Math.round(rect.top),
+            left: Math.round(rect.left),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+            hidden: rect.width <= 1 || rect.height <= 1
+          });
+        }
+      }
+
+      const seen = new Set();
+      const out = [];
+      for (const item of links) {
+        const key = `${(item.name || '').toLowerCase()}|${item.href || ''}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(item);
+      }
+      return out;
+    }
+    """
+
+    raw = await page.evaluate(script, MENU_STRUCTURE_SELECTORS)
+    items: List[Dict[str, Any]] = []
+    for item in raw or []:
+        name = normalize_menu_label(item.get("name", ""))
+        url = force_english_url(item.get("href"))
+        if not name or not url:
+            continue
+        if weak_is_ui_control(name) or weak_is_auth(name, url) or weak_is_cta(name, url):
+            continue
+        if not looks_like_category_or_nav_url(homepage, url):
+            continue
+
+        selector_text = " ".join([
+            clean_text(item.get("root_selector", "")),
+            clean_text(item.get("menu_selector", "")),
+            clean_text(item.get("class_name", "")),
+        ]).lower()
+        parent_text = clean_text(item.get("parent_text", ""))
+
+        score = 0
+        if any(token in selector_text for token in ["menu", "nav", "category", "categorie", "mega", "drawer"]):
+            score += 4
+        if CATEGORY_LIKE_PATH_RE.match(urlparse(url).path.rstrip("/") or "/"):
+            score += 4
+        if item.get("hidden"):
+            score += 1
+        if len(name) <= 48:
+            score += 2
+        if parent_text and len(parent_text) > max(len(name) * 3, 120):
+            score -= 2
+
+        if score < 4:
+            continue
+
+        items.append({
+            "name": name,
+            "url": url,
+            "type": "link",
+            "children": [],
+            "_score": score,
+        })
+
+    items.sort(key=lambda x: (-safe_int(x.get("_score"), 0), normalize_menu_label(x.get("name", "")).lower()))
+    cleaned = []
+    for item in dedupe_by_key(items, lambda x: (x["name"].lower(), (x.get("url") or "").rstrip("/")))[:60]:
+        item.pop("_score", None)
+        cleaned.append(item)
+
+    debug_log(debug, f"Structural menu extraction yielded {len(cleaned)} links")
+    return cleaned
+
+
 async def click_menu_toggle_candidate(page: Page, toggle_id: str, debug: bool) -> bool:
     if not toggle_id:
         return False
@@ -2361,12 +2603,45 @@ async def recover_navigation_from_menu_toggles(page: Page, homepage: str, debug:
     candidates = await extract_menu_toggle_candidates(page, debug)
     for candidate in candidates:
         control_id = clean_text(candidate.get("aria_controls", ""))
-        if not control_id:
-            continue
+        before_url = page.url
         clicked = await click_menu_toggle_candidate(page, candidate.get("toggle_id", ""), debug)
         if not clicked:
             continue
-        items = await extract_controlled_panel_navigation(page, homepage, control_id, debug)
+        try:
+            await page.wait_for_load_state("domcontentloaded", timeout=1200)
+        except Exception:
+            pass
+        if not same_domain(homepage, page.url):
+            try:
+                await page.goto(before_url, wait_until="domcontentloaded", timeout=4000)
+            except Exception:
+                pass
+            continue
+
+        items: List[Dict[str, Any]] = []
+        if control_id:
+            try:
+                items = await extract_controlled_panel_navigation(page, homepage, control_id, debug)
+            except PlaywrightError as exc:
+                debug_log(debug, f"Controlled panel extraction skipped after navigation race: {exc}")
+
+        if len(items) < 3:
+            try:
+                overlay_children = select_relevant_overlay_children(
+                    await extract_visible_overlay_content(page, homepage, debug),
+                    controlled_id=control_id or None,
+                    debug=debug,
+                )
+                items = flatten_menu_children_to_items(overlay_children, homepage)
+            except PlaywrightError as exc:
+                debug_log(debug, f"Overlay extraction skipped after navigation race: {exc}")
+
+        if len(items) < 3:
+            try:
+                items = await extract_visible_navigation_link_candidates(page, homepage, debug)
+            except PlaywrightError as exc:
+                debug_log(debug, f"Visible nav link extraction skipped after navigation race: {exc}")
+
         if len(items) >= 3:
             return items
     return []
@@ -2455,6 +2730,7 @@ async def run_navigation_pass(context: BrowserContext, page: Page, homepage: str
 
     raw_candidates = await extract_navigation_candidates(page, options.debug)
     navbars = choose_best_navbars(homepage, raw_candidates)
+    structural_items = await extract_structural_navigation_link_candidates(page, homepage, options.debug)
 
     if not navbars:
         controlled_items = await recover_navigation_from_menu_toggles(page, homepage, options.debug)
@@ -2466,7 +2742,17 @@ async def run_navigation_pass(context: BrowserContext, page: Page, homepage: str
             )
 
     for nav in navbars:
+        source = clean_text(nav.get("container_selector", "")).lower()
+        if source in {"heuristic_controlled_panel", "structural_menu_links"} or source.startswith(("ai_controlled_panel:", "heuristic_")):
+            continue
         nav["urls"] = await enrich_with_hover_mega_menus(page, homepage, nav["urls"], options.debug)
+
+    if structural_items:
+        navbars = build_navbars_from_recovered_items(
+            navbars,
+            structural_items,
+            "structural_menu_links",
+        )
 
     auth = await detect_auth(context, page, homepage, options.timeout, options.debug)
     search = await detect_search_on_current_page(page, homepage, options.debug)
@@ -2726,9 +3012,9 @@ def merge_nav_results(homepage: str, desktop_result: Dict[str, Any], mobile_resu
 async def crawl_site(homepage: str, options: CrawlOptions) -> Dict[str, Any]:
     start_time = time.perf_counter()
     homepage = normalize_url(homepage)
-    homepage = force_english_url(homepage) or homepage
     parsed = urlparse(homepage)
-    homepage = f"{parsed.scheme}://{parsed.netloc}/"
+    if not parsed.path:
+        homepage = f"{parsed.scheme}://{parsed.netloc}/"
     user_agent = random.choice(USER_AGENTS)
 
     debug_log(options.debug, f"Normalized homepage: {homepage}")

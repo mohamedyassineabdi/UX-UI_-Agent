@@ -5,6 +5,7 @@ import pathlib
 import sys
 from datetime import datetime
 from typing import Any, Dict, List
+from urllib.parse import urlsplit
 
 from playwright.async_api import async_playwright
 
@@ -12,12 +13,14 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 from src.audit.page_runner import run_page_audit
+from src.audit.page_visit_helpers import dismiss_cookie_banners, extract_basic_page_info, wait_for_page_ready
 from src.audit.html_postprecess import clean_html_output
 from src.audit.rendered_css_extractor import build_rendered_ui_output
 from src.config.audit_config import AUDIT_CONFIG
 from src.utils.file_utils import (
     build_timestamp_for_file_name,
     clear_dir,
+    ensure_dir,
     ensure_output_dirs,
     join_path,
     read_json_file,
@@ -28,6 +31,14 @@ from src.utils.url_utils import build_page_folder_name, build_website_folder_nam
 
 def clean_label(value: Any) -> str:
     return str(value or "").strip()
+
+
+def is_hash_section_url(url: str) -> bool:
+    try:
+        parsed = urlsplit(url)
+    except Exception:
+        return False
+    return bool(parsed.fragment)
 
 
 def normalize_flat_page(page: Dict[str, Any], index: int = 0) -> Dict[str, str]:
@@ -160,13 +171,15 @@ def collect_pages_from_navigation_node(
 
     if url:
         page_name = name or f"Page_{len(pages) + 1}"
+        source_type = "section" if is_hash_section_url(url) else node_type or "link"
         pages.append(
             {
                 "name": page_name,
                 "url": url,
                 "navigationPath": navigation_path or [page_name],
                 "folderSegments": folder_segments or [build_page_folder_name(page_name)],
-                "sourceType": node_type or "link",
+                "sourceType": source_type,
+                "preserveHash": is_hash_section_url(url),
             }
         )
 
@@ -303,6 +316,152 @@ def summarize_run(page_results: List[Dict[str, Any]]) -> Dict[str, int]:
     return aggregate
 
 
+async def run_responsive_mobile_probe(*, context, page_info: Dict[str, Any], page_index: int, config: Dict[str, Any]) -> Dict[str, Any]:
+    page = await context.new_page()
+    site_url = page_info.get("siteUrl") or page_info["url"]
+    website_folder_name = build_website_folder_name(site_url)
+    folder_segments = page_info.get("folderSegments") or [
+        build_page_folder_name(page_info["name"], f"page_{page_index + 1}")
+    ]
+    screenshots_dir = join_path(
+        config["paths"]["screenshotDir"],
+        website_folder_name,
+        *folder_segments,
+        "responsive",
+    )
+    ensure_dir(screenshots_dir)
+    screenshot_path = join_path(screenshots_dir, f"mobile.{config['screenshot']['type']}")
+    result: Dict[str, Any] = {
+        "profile": "mobile",
+        "status": "pending",
+        "requestedUrl": page_info.get("url"),
+        "finalUrl": "",
+        "screenshotPath": screenshot_path,
+        "viewport": {},
+        "documentMetrics": {},
+        "responsiveSignals": {},
+        "error": "",
+    }
+    try:
+        await page.goto(
+            page_info["url"],
+            wait_until=config["navigation"]["waitUntil"],
+            timeout=config["navigation"]["timeoutMs"],
+        )
+        if config["navigation"]["postLoadDelayMs"] > 0:
+            await page.wait_for_timeout(config["navigation"]["postLoadDelayMs"])
+        if config.get("pageCapture", {}).get("dismissCookieBanners"):
+            await dismiss_cookie_banners(page)
+        await wait_for_page_ready(page, config)
+        basic_info = await extract_basic_page_info(page, page_info["url"])
+        await page.screenshot(path=screenshot_path, full_page=False, type=config["screenshot"]["type"])
+        signals = await page.evaluate(
+            """
+            () => {
+              const viewportWidth = window.innerWidth || 0;
+              const viewportHeight = window.innerHeight || 0;
+              const doc = document.documentElement;
+              const body = document.body;
+              const scrollWidth = Math.max(doc ? doc.scrollWidth : 0, body ? body.scrollWidth : 0);
+              const visibleElements = Array.from(document.querySelectorAll('body *')).filter((el) => {
+                const rect = el.getBoundingClientRect();
+                const style = window.getComputedStyle(el);
+                return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+              });
+              const overflowing = visibleElements.filter((el) => {
+                const rect = el.getBoundingClientRect();
+                const style = window.getComputedStyle(el);
+                return rect.right > viewportWidth + 8 && style.position !== 'fixed';
+              }).slice(0, 8).map((el) => {
+                const rect = el.getBoundingClientRect();
+                return {
+                  tag: el.tagName.toLowerCase(),
+                  text: (el.innerText || el.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 80),
+                  className: String(el.className || '').slice(0, 100),
+                  right: Math.round(rect.right),
+                  width: Math.round(rect.width)
+                };
+              });
+              const tinyTextCount = visibleElements.filter((el) => {
+                const rect = el.getBoundingClientRect();
+                const fontSize = parseFloat(window.getComputedStyle(el).fontSize || '0');
+                return rect.top < viewportHeight && fontSize > 0 && fontSize < 12;
+              }).length;
+              const visibleNavLinks = Array.from(document.querySelectorAll('nav a, header a, [role="navigation"] a'))
+                .filter((el) => {
+                  const rect = el.getBoundingClientRect();
+                  const style = window.getComputedStyle(el);
+                  return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+                }).length;
+              const menuButtons = Array.from(document.querySelectorAll('button, [role="button"], [aria-label], [class*="menu"], [class*="hamburger"]'))
+                .filter((el) => /menu|navigation|hamburger|ouvrir|open/i.test(`${el.textContent || ''} ${el.getAttribute('aria-label') || ''} ${el.className || ''}`))
+                .filter((el) => {
+                  const rect = el.getBoundingClientRect();
+                  const style = window.getComputedStyle(el);
+                  return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+                }).length;
+              return {
+                viewportWidth,
+                viewportHeight,
+                scrollWidth,
+                overflowPx: Math.max(0, scrollWidth - viewportWidth),
+                overflowingElements: overflowing,
+                tinyTextCount,
+                visibleNavLinks,
+                menuButtons,
+                hasMobileNavigationControl: menuButtons > 0 || visibleNavLinks > 0
+              };
+            }
+            """
+        )
+        result.update(
+            {
+                "status": "success",
+                "finalUrl": basic_info.get("finalUrl") or page.url,
+                "viewport": basic_info.get("viewport") or {},
+                "documentMetrics": basic_info.get("documentMetrics") or {},
+                "responsiveSignals": signals or {},
+            }
+        )
+    except Exception as error:
+        result["status"] = "failed"
+        result["error"] = str(error)
+    finally:
+        await page.close()
+    return result
+
+
+async def collect_responsive_mobile_profiles(browser, pages: List[Dict[str, Any]], config: Dict[str, Any]) -> List[Dict[str, Any]]:
+    responsive_config = (config.get("presentationChecks") or {}).get("responsiveDesktopMobile") or {}
+    if not responsive_config.get("enabled", True):
+        return []
+    context = await browser.new_context(
+        viewport={
+            "width": int(responsive_config.get("mobileWidth") or 390),
+            "height": int(responsive_config.get("mobileHeight") or 844),
+        },
+        ignore_https_errors=config["browser"].get("ignoreHttpsErrors", False),
+        is_mobile=True,
+    )
+    try:
+        async def worker(page_info, index):
+            print(f"[RESP {index + 1}/{len(pages)}] {page_info['name']} -> mobile viewport")
+            return await run_responsive_mobile_probe(
+                context=context,
+                page_info=page_info,
+                page_index=index,
+                config=config,
+            )
+
+        return await run_with_concurrency(
+            pages,
+            worker,
+            max(1, min(2, config["execution"]["pageConcurrency"])),
+        )
+    finally:
+        await context.close()
+
+
 def build_html_output(page_results: List[Dict[str, Any]]) -> Dict[str, Any]:
     pages: List[Dict[str, Any]] = []
 
@@ -311,7 +470,12 @@ def build_html_output(page_results: List[Dict[str, Any]]) -> Dict[str, Any]:
         if not html_extraction:
             continue
 
-        page_meta_data = ((html_extraction.get("pageMeta") or {}).get("data") or {})
+        page_meta = dict(html_extraction.get("pageMeta") or {})
+        page_meta_data = dict((page_meta.get("data") or {}))
+        responsive_profiles = page_result.get("responsiveProfiles") or []
+        if responsive_profiles:
+            page_meta_data["responsiveProfiles"] = responsive_profiles
+            page_meta["data"] = page_meta_data
 
         pages.append(
             {
@@ -320,7 +484,7 @@ def build_html_output(page_results: List[Dict[str, Any]]) -> Dict[str, Any]:
                 "url": page_result.get("originalUrl"),
                 "finalUrl": page_result.get("finalUrl"),
                 "status": page_result.get("status"),
-                "pageMeta": html_extraction.get("pageMeta"),
+                "pageMeta": page_meta,
                 "titlesAndHeadings": html_extraction.get("titlesAndHeadings"),
                 "navigation": html_extraction.get("navigation"),
                 "textContent": html_extraction.get("textContent"),
@@ -482,6 +646,17 @@ async def async_main():
                 worker,
                 AUDIT_CONFIG["execution"]["pageConcurrency"],
             )
+            responsive_profiles = await collect_responsive_mobile_profiles(browser, unique_pages, AUDIT_CONFIG)
+            for result, mobile_profile in zip(page_results, responsive_profiles):
+                if isinstance(result, dict):
+                    desktop_profile = {
+                        "profile": "desktop",
+                        "status": result.get("status"),
+                        "screenshotPath": result.get("screenshotPath"),
+                        "viewport": ((result.get("pageMetadata") or {}).get("viewport") or {}),
+                        "documentMetrics": ((result.get("pageMetadata") or {}).get("documentMetrics") or {}),
+                    }
+                    result["responsiveProfiles"] = [desktop_profile, mobile_profile]
         finally:
             if context:
                 await context.close()

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import subprocess
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -75,6 +77,31 @@ def build_parser() -> argparse.ArgumentParser:
         dest="no_reset",
         action="store_false",
         help="Disable no-reset and let Appium start from a clean app state.",
+    )
+    parser.add_argument(
+        "--extract-only",
+        action="store_true",
+        help="Only write extraction artifacts. By default the command also writes mobile_gtm_audit.json and gtm-report/.",
+    )
+    parser.add_argument(
+        "--deploy-vercel",
+        action="store_true",
+        help="Package and deploy the generated mobile report to Vercel after report generation.",
+    )
+    parser.add_argument(
+        "--vercel-output-dir",
+        default="",
+        help="Optional directory for the packaged Vercel static report. Defaults to <output-dir>/vercel-gtm-report.",
+    )
+    parser.add_argument(
+        "--vercel-preview",
+        action="store_true",
+        help="Create a Vercel preview deployment instead of a production deployment.",
+    )
+    parser.add_argument(
+        "--vercel-prod",
+        action="store_true",
+        help="Create a production Vercel deployment and update the production alias.",
     )
     return parser
 
@@ -172,10 +199,68 @@ def run_block1(args: argparse.Namespace) -> Path:
     return output_dir
 
 
+def generate_mobile_outputs(output_dir: Path, app_label: str = "Android App Audit") -> None:
+    audit_json = output_dir / "mobile_gtm_audit.json"
+    report_dir = output_dir / "gtm-report"
+
+    print("[mobile] Generating mobile GTM audit JSON.")
+    from .generate_mobile_audit import build_payload, save_json
+
+    save_json(audit_json, build_payload(output_dir, app_label=app_label))
+    print(f"[mobile] Mobile GTM audit written to: {audit_json}")
+
+    print("[mobile] Generating mobile GTM HTML report.")
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "src.gtm_audit.generate_gtm_report",
+            "--input",
+            str(audit_json),
+            "--output-dir",
+            str(report_dir),
+        ],
+        cwd=str(ROOT_DIR),
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Mobile GTM report generation failed with exit code {result.returncode}.")
+    print(f"[mobile] Mobile GTM report written to: {report_dir / 'index.html'}")
+
+
+def deploy_mobile_report(output_dir: Path, vercel_output_dir: str = "", *, production: bool = True) -> str:
+    report_dir = output_dir / "gtm-report"
+    static_dir = Path(vercel_output_dir) if vercel_output_dir else output_dir / "vercel-gtm-report"
+    if not static_dir.is_absolute():
+        static_dir = ROOT_DIR / static_dir
+
+    print("[mobile] Packaging mobile GTM report for Vercel.")
+    from src.gtm_audit.vercel_static_deploy import deploy_to_vercel, package_report_for_vercel
+
+    audit_slug = output_dir.name
+    output_index = package_report_for_vercel(report_dir, static_dir, audit_slug=audit_slug)
+    print(f"[mobile] Vercel static report packaged at: {output_index}")
+    print("[mobile] Deploying mobile GTM report to Vercel.")
+    url = deploy_to_vercel(
+        static_dir,
+        production=production,
+        public_path=f"audits/{audit_slug}",
+        prefer_alias=production,
+    )
+    if not url:
+        raise RuntimeError("Vercel deployment completed but no deployment URL was found in CLI output.")
+    print(f"Vercel deployment URL: {url}")
+    return url
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    run_block1(args)
+    output_dir = run_block1(args)
+    if not args.extract_only:
+        generate_mobile_outputs(output_dir)
+        if args.deploy_vercel:
+            deploy_mobile_report(output_dir, args.vercel_output_dir, production=args.vercel_prod or not args.vercel_preview)
     return 0
 
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 
@@ -17,6 +18,12 @@ def _contains_bounds(outer: list[int], inner: list[int]) -> bool:
     if len(outer) != 4 or len(inner) != 4:
         return False
     return outer[0] <= inner[0] and outer[1] <= inner[1] and outer[2] >= inner[2] and outer[3] >= inner[3]
+
+
+def _same_label(left: str, right: str) -> bool:
+    left_clean = re.sub(r"\s+", " ", _text(left).lower()).strip()
+    right_clean = re.sub(r"\s+", " ", _text(right).lower()).strip()
+    return bool(left_clean) and left_clean == right_clean
 
 
 def _nested_text_candidate(element: dict[str, Any], elements: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -136,6 +143,83 @@ def _control_type(element: dict[str, Any]) -> str:
     return "action"
 
 
+def _is_generic_label(value: str) -> bool:
+    return _text(value).lower() in {"", "view", "button", "imagebutton", "action", "layout", "framelayout", "linearlayout"}
+
+
+def _is_system_back_like(element: dict[str, Any], label: str) -> bool:
+    bounds = element.get("bounds") or []
+    if len(bounds) != 4:
+        return False
+    class_name = _text(element.get("class_name")).lower()
+    resource_id = _text(element.get("resource_id")).lower()
+    width = max(0, int(bounds[2]) - int(bounds[0]))
+    height = max(0, int(bounds[3]) - int(bounds[1]))
+    is_top_left = int(bounds[0]) <= 80 and int(bounds[1]) <= 180 and width <= 180 and height <= 180
+    if "back" in resource_id or _text(label).lower() == "back":
+        return True
+    return is_top_left and "button" in class_name and _is_generic_label(label)
+
+
+def _control_role(element: dict[str, Any], label: str) -> str:
+    if _is_system_back_like(element, label):
+        return "system_back"
+    if _control_type(element) == "slider":
+        return "slider"
+    class_name = _text(element.get("class_name")).lower()
+    if "edittext" in class_name:
+        return "text_input"
+    if _is_generic_label(label):
+        return "generic_wrapper"
+    return "action"
+
+
+def _is_day_card_label(text: str) -> bool:
+    return bool(re.fullmatch(r"Day\s+\d+", _text(text), flags=re.IGNORECASE))
+
+
+def _synthetic_day_card_tappables(elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    synthetic: list[dict[str, Any]] = []
+    seen_bounds: set[tuple[int, int, int, int]] = set()
+
+    for element in elements:
+        if not element.get("visible") or not element.get("enabled"):
+            continue
+        text = _text(element.get("text"))
+        if not _is_day_card_label(text):
+            continue
+
+        bounds = tuple(int(value) for value in (element.get("bounds") or [0, 0, 0, 0]))
+        if len(bounds) != 4 or bounds in seen_bounds:
+            continue
+        if _bounds_area(list(bounds)) <= 0:
+            continue
+
+        seen_bounds.add(bounds)
+        synthetic.append(
+            {
+                "element_id": element.get("element_id"),
+                "class_name": element.get("class_name"),
+                "resource_id": element.get("resource_id"),
+                "text": text,
+                "content_desc": _text(element.get("content_desc")),
+                "hint_text": _text(element.get("hint_text")),
+                "label": text,
+                "bounds": list(bounds),
+                "clickable": False,
+                "enabled": True,
+                "visible": True,
+                "focusable": False,
+                "scrollable": False,
+                "control_type": "action",
+                "control_role": "synthetic_card",
+                "is_generic_label": False,
+            }
+        )
+
+    return synthetic
+
+
 def build_tappables(elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
     candidates = [element for element in elements if _is_actionable(element)]
     candidates.sort(
@@ -151,6 +235,7 @@ def build_tappables(elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
     tappables: list[dict[str, Any]] = []
     seen: set[tuple[Any, ...]] = set()
     occupied_bounds: set[tuple[int, int, int, int]] = set()
+    kept_label_bounds: list[tuple[str, list[int]]] = []
 
     for element in candidates:
         signature = _dedupe_signature(element)
@@ -165,8 +250,19 @@ def build_tappables(elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
         resolved_text = _text(element.get("text")) or _text((nested_candidate or {}).get("text"))
         resolved_content_desc = _text(element.get("content_desc")) or _text((nested_candidate or {}).get("content_desc"))
         resolved_hint_text = _text(element.get("hint_text")) or _text((nested_candidate or {}).get("hint_text"))
+        label = _label_for_tappable(element, elements)
+        if any(
+            _same_label(label, kept_label)
+            and _contains_bounds(list(bounds), kept_bounds)
+            and _bounds_area(kept_bounds) > 0
+            and _bounds_area(list(bounds)) > _bounds_area(kept_bounds) * 1.35
+            for kept_label, kept_bounds in kept_label_bounds
+        ):
+            continue
+        control_type = _control_type(element)
         seen.add(signature)
         occupied_bounds.add(bounds)
+        kept_label_bounds.append((label, list(bounds)))
         tappables.append(
             {
                 "element_id": element.get("element_id"),
@@ -175,15 +271,20 @@ def build_tappables(elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "text": resolved_text,
                 "content_desc": resolved_content_desc,
                 "hint_text": resolved_hint_text,
-                "label": _label_for_tappable(element, elements),
+                "label": label,
                 "bounds": list(bounds),
                 "clickable": bool(element.get("clickable")),
                 "enabled": bool(element.get("enabled")),
                 "visible": bool(element.get("visible")),
                 "focusable": bool(element.get("focusable")),
                 "scrollable": bool(element.get("scrollable")),
-                "control_type": _control_type(element),
+                "control_type": control_type,
+                "control_role": _control_role(element, label),
+                "is_generic_label": _is_generic_label(label),
             }
         )
+
+    if not tappables:
+        tappables.extend(_synthetic_day_card_tappables(elements))
 
     return tappables

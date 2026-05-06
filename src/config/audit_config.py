@@ -18,6 +18,11 @@ def _env_int(name, default):
         return default
 
 
+def _env_optional_positive_int(name, default):
+    value = _env_int(name, default)
+    return value if isinstance(value, int) and value > 0 else None
+
+
 def _env_text(name, default=""):
     raw = os.getenv(name)
     if raw is None:
@@ -68,6 +73,11 @@ AUDIT_CONFIG = {
         "saveNetworkLog": True,
     },
     "presentationChecks": {
+        "responsiveDesktopMobile": {
+            "enabled": _env_bool("AUDIT_RESPONSIVE_CHECK_ENABLED", True),
+            "mobileWidth": _env_int("AUDIT_RESPONSIVE_MOBILE_WIDTH", 390),
+            "mobileHeight": _env_int("AUDIT_RESPONSIVE_MOBILE_HEIGHT", 844),
+        },
         "runtimeMotion": {
             "enabled": True,
             "sampleIntervalMs": 350,
@@ -237,7 +247,7 @@ AUDIT_CONFIG = {
     "interactionTesting": {
         "enabled": True,
         "onlyVisible": True,
-        "maxSafeInteractionsPerPage": None,
+        "maxSafeInteractionsPerPage": _env_optional_positive_int("AUDIT_MAX_SAFE_INTERACTIONS_PER_PAGE", 25),
         "actionTimeoutMs": 5000,
         "postClickDelayMs": 250,
         "testSamePageAnchors": False,
@@ -283,8 +293,8 @@ AUDIT_CONFIG = {
             "postRelaunchDelayMs": 1400,
         },
         "exploration": {
-            "maxScreens": 40,
-            "maxActionsTotal": 96,
+            "maxScreens": 80,
+            "maxActionsTotal": 192,
             "maxActionsPerScreen": 8,
             "maxScrollsPerPath": 5,
             "maxBacktrackSteps": 4,

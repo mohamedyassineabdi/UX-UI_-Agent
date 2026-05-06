@@ -1,5 +1,6 @@
 import re
 from typing import Any, Dict, List
+from urllib.parse import unquote, urlsplit
 
 from src.utils.file_utils import join_path, write_text_file
 from src.utils.url_utils import slugify
@@ -102,6 +103,46 @@ async def wait_for_page_ready(page, config) -> None:
             await page.wait_for_timeout(settle_delay_ms)
         except Exception:
             pass
+
+
+async def scroll_to_url_fragment(page, raw_url: str, settle_ms: int = 250) -> bool:
+    try:
+        fragment = urlsplit(raw_url).fragment
+    except Exception:
+        fragment = ""
+    if not fragment:
+        return False
+
+    try:
+        found = await page.evaluate(
+            """
+            (fragment) => {
+              const decoded = decodeURIComponent(fragment || "");
+              const candidates = [fragment, decoded].filter(Boolean);
+              for (const id of candidates) {
+                const el = document.getElementById(id);
+                if (el) {
+                  el.scrollIntoView({ block: "start", inline: "nearest" });
+                  return true;
+                }
+              }
+              for (const name of candidates) {
+                const el = document.querySelector(`[name="${CSS.escape(name)}"]`);
+                if (el) {
+                  el.scrollIntoView({ block: "start", inline: "nearest" });
+                  return true;
+                }
+              }
+              return false;
+            }
+            """,
+            unquote(fragment),
+        )
+        if found and settle_ms > 0:
+            await page.wait_for_timeout(settle_ms)
+        return bool(found)
+    except Exception:
+        return False
 
 
 async def smart_scroll(*, page, screenshots_dir: str, page_label: str, screenshot_type: str, max_rounds: int = 4) -> List[str]:

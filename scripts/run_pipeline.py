@@ -4,6 +4,7 @@ import os
 import re
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -29,12 +30,16 @@ DEFAULT_TEMPLATE_CANDIDATE = GENERATED_DIR / "UX-Audit-Workbook-template.xlsx"
 load_dotenv(ROOT_DIR / ".env")
 
 
-def run_command(args, cwd: Optional[Path] = None) -> None:
-    completed = subprocess.run(
-        [str(arg) for arg in args],
-        cwd=str(cwd) if cwd else None,
-        check=False,
-    )
+def run_command(args, cwd: Optional[Path] = None, timeout_sec: Optional[int] = None) -> None:
+    try:
+        completed = subprocess.run(
+            [str(arg) for arg in args],
+            cwd=str(cwd) if cwd else None,
+            check=False,
+            timeout=timeout_sec,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"{args[0]} timed out after {timeout_sec}s") from exc
     if completed.returncode != 0:
         raise RuntimeError(f"{args[0]} exited with code {completed.returncode}")
 
@@ -70,6 +75,16 @@ def env_flag(name: str, default: bool = False) -> bool:
     if raw_value is None:
         return default
     return raw_value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name: str, default: int) -> int:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+    try:
+        return int(raw_value)
+    except ValueError:
+        return default
 
 
 def latest_audit_results_file() -> Optional[Path]:
@@ -156,6 +171,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Create a Vercel preview deployment instead of a production deployment.",
     )
+    parser.add_argument(
+        "--vercel-prod",
+        action="store_true",
+        help="Create a production Vercel deployment and update the production alias.",
+    )
     return parser.parse_args()
 
 
@@ -235,11 +255,17 @@ def main() -> None:
         args.url,
         "--json-out",
         WEBSITE_MENU_JSON,
+        "--timeout",
+        env_int("WEBSITE_CRAWLER_PAGE_TIMEOUT_SEC", 12),
     ]
     if env_flag("CRAWLER_USE_AI_NAV") or env_flag("USE_AI_NAV"):
         crawler_args.append("--use-ai-nav")
 
-    run_command(crawler_args, cwd=GENERATED_DIR)
+    run_command(
+        crawler_args,
+        cwd=GENERATED_DIR,
+        timeout_sec=max(60, env_int("WEBSITE_CRAWLER_TIMEOUT_SEC", 240)),
+    )
 
     ensure_file_exists(WEBSITE_MENU_JSON)
     validate_crawler_output(WEBSITE_MENU_JSON)
@@ -368,8 +394,11 @@ def main() -> None:
         ]
         if deploy_vercel:
             deploy_args.append("--deploy")
+            deploy_args.extend(["--audit-slug", f"website-{datetime.now().strftime('%Y%m%d%H%M%S')}"])
             if args.vercel_preview:
                 deploy_args.append("--preview")
+            elif args.vercel_prod:
+                deploy_args.append("--prod")
         deploy_output = run_command_capture(deploy_args, cwd=ROOT_DIR)
         deployment_urls = re.findall(r"https://[^\s]+", deploy_output)
         if deployment_urls:

@@ -96,25 +96,61 @@ def render_score_ring(score_ten: float, *, label: str, accent: str = "#caa23b", 
     """
 
 
-def render_priority_story(item: Dict[str, Any], index: int, output_dir: Path, is_screenshot_audit: bool = False) -> str:
+def render_evidence_frame(
+    shot: str,
+    alt: str,
+    *,
+    is_mobile_visual: bool = False,
+    empty_text: str = "No evidence image available",
+) -> str:
+    if is_mobile_visual:
+        return f"""
+          <div class="phone-device">
+            <span class="phone-side phone-side-left"></span>
+            <span class="phone-side phone-side-right"></span>
+            <div class="phone-top">
+              <span class="phone-speaker"></span>
+              <span class="phone-camera"></span>
+            </div>
+            <div class="phone-screen">
+              {f'<img src="{shot}" alt="{html.escape(alt)}">' if shot else f'<div class="story-visual-empty">{html.escape(empty_text)}</div>'}
+            </div>
+          </div>
+        """
+    return f"""
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              {f'<img src="{shot}" alt="{html.escape(alt)}">' if shot else f'<div class="story-visual-empty">{html.escape(empty_text)}</div>'}
+            </div>
+          </div>
+    """
+
+
+def render_priority_story(
+    item: Dict[str, Any],
+    index: int,
+    output_dir: Path,
+    is_screenshot_audit: bool = False,
+    is_mobile_visual: bool = False,
+) -> str:
     spotlight = clean_text(item.get("spotlightImage"))
     shot = spotlight or href_from_repo(item.get("screenshotPath", ""), output_dir)
     axis_score = round(float(item.get("axisScore", 0)) / 10, 1)
     tone = severity_tone(item.get("severity"))
     severity = severity_label(item.get("severity"))
-    body_class = "desktop-screen-body screenshot-body" if is_screenshot_audit else "desktop-screen-body"
+    _ = is_screenshot_audit
+    visual = render_evidence_frame(
+        shot,
+        clean_text(item.get("title")) or "Audit evidence",
+        is_mobile_visual=is_mobile_visual,
+        empty_text="No evidence crop available",
+    )
     return f"""
     <article class="story-row tone-{tone}">
       <div class="story-index">0{index}</div>
       <div class="story-media">
-        <div class="story-visual-frame">
-          <div class="desktop-screen">
-            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-            <div class="{body_class}">
-              {f'<img src="{shot}" alt="{html.escape(clean_text(item.get("title")))} evidence">' if shot else '<div class="story-visual-empty">No evidence crop available</div>'}
-            </div>
-          </div>
-        </div>
+        <div class="story-visual-frame {'mobile-visual-frame' if is_mobile_visual else ''}">{visual}</div>
       </div>
       <div class="story-score-pane">
         {render_score_ring(axis_score, label="", accent="#caa23b", size=128)}
@@ -146,24 +182,29 @@ def render_axis_tile(axis: Dict[str, Any], index: int) -> str:
     """
 
 
-def render_axis_section(axis: Dict[str, Any], index: int, output_dir: Path, is_screenshot_audit: bool = False) -> str:
+def render_axis_section(
+    axis: Dict[str, Any],
+    index: int,
+    output_dir: Path,
+    is_screenshot_audit: bool = False,
+    is_mobile_visual: bool = False,
+) -> str:
     lead_item = ((axis.get("painPoints") or [])[:1] or (axis.get("strengths") or [])[:1] or [{}])[0]
     shot = clean_text(lead_item.get("spotlightImage")) or href_from_repo(lead_item.get("screenshotPath", ""), output_dir)
     axis_score = round(float(axis.get("score", 0)) / 10, 1)
     tone = severity_tone(axis.get("severity"))
-    body_class = "desktop-screen-body screenshot-body" if is_screenshot_audit else "desktop-screen-body"
+    _ = is_screenshot_audit
+    visual = render_evidence_frame(
+        shot,
+        f"{clean_text(axis.get('shortName')) or clean_text(axis.get('name')) or 'Axis'} visual evidence",
+        is_mobile_visual=is_mobile_visual,
+        empty_text="No evidence crop available",
+    )
     return f"""
     <article class="axis-story tone-{tone}" id="axis-{index}">
       <div class="story-index">0{index}</div>
       <div class="axis-story-media">
-        <div class="axis-story-frame">
-          <div class="desktop-screen">
-            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-            <div class="{body_class}">
-              {f'<img src="{shot}" alt="{html.escape(clean_text(axis.get("shortName")) or clean_text(axis.get("name")))} visual evidence">' if shot else '<div class="story-visual-empty">No evidence crop available</div>'}
-            </div>
-          </div>
-        </div>
+        <div class="axis-story-frame {'mobile-visual-frame' if is_mobile_visual else ''}">{visual}</div>
       </div>
       <div class="axis-story-score">
         {render_score_ring(axis_score, label="", accent="#caa23b", size=154)}
@@ -179,11 +220,24 @@ def render_axis_section(axis: Dict[str, Any], index: int, output_dir: Path, is_s
     """
 
 
-def render_scanned_page(item: Dict[str, Any], output_dir: Path) -> str:
+def render_scanned_page(item: Dict[str, Any], output_dir: Path, is_mobile_visual: bool = False) -> str:
     href = href_from_repo(item.get("screenshot_path", ""), output_dir)
     if not href:
         return ""
     page_name = clean_text(item.get("page_name")) or clean_text(item.get("pageName")) or "Page"
+    if is_mobile_visual:
+        return f"""
+    <a class="scan-card mobile-scan-card" href="{href}" target="_blank" rel="noreferrer">
+      <div class="scan-phone-shell">
+        <span class="phone-side phone-side-left"></span>
+        <span class="phone-side phone-side-right"></span>
+        <div class="phone-top"><span class="phone-speaker"></span><span class="phone-camera"></span></div>
+        <div class="scan-phone-screen">
+          <img src="{href}" alt="{html.escape(page_name)} screenshot">
+        </div>
+      </div>
+    </a>
+    """
     return f"""
     <a class="scan-card" href="{href}" target="_blank" rel="noreferrer">
       <div class="scan-screen">
@@ -238,7 +292,76 @@ def _region_to_pixels(region: Optional[Dict[str, Any]], image_width: int, image_
     return x, y, width, height
 
 
-def build_screenshot_spotlight(item: Dict[str, Any], output_dir: Path, issue_index: int) -> str:
+def _clamp_highlight_bounds(bounds: Tuple[float, float, float, float], image_width: int, image_height: int, inset: int) -> Tuple[float, float, float, float]:
+    left, top, right, bottom = bounds
+    return (
+        max(inset, min(left, image_width - inset)),
+        max(inset, min(top, image_height - inset)),
+        max(inset, min(right, image_width - inset)),
+        max(inset, min(bottom, image_height - inset)),
+    )
+
+
+def _draw_red_highlight(
+    draw: Any,
+    bounds: Tuple[float, float, float, float],
+    image_width: int,
+    image_height: int,
+    *,
+    broad: bool = False,
+) -> None:
+    stroke_width = max(8, int(max(image_width, image_height) * 0.006))
+    soft_stroke_width = max(12, int(max(image_width, image_height) * 0.009))
+    inset = max(stroke_width, soft_stroke_width)
+    bounds = _clamp_highlight_bounds(bounds, image_width, image_height, inset)
+    soft_bounds = _clamp_highlight_bounds(
+        (bounds[0] - 10, bounds[1] - 10, bounds[2] + 10, bounds[3] + 10),
+        image_width,
+        image_height,
+        inset,
+    )
+    if broad:
+        radius = max(26, int(min(bounds[2] - bounds[0], bounds[3] - bounds[1]) * 0.035))
+        draw.rounded_rectangle(soft_bounds, radius=radius + 8, outline=(255, 52, 52, 105), width=soft_stroke_width)
+        draw.rounded_rectangle(bounds, radius=radius, outline=(255, 52, 52, 245), width=stroke_width)
+        return
+
+    draw.ellipse(soft_bounds, outline=(255, 52, 52, 105), width=soft_stroke_width)
+    draw.ellipse(bounds, outline=(255, 52, 52, 245), width=stroke_width)
+
+
+def _desktop_crop_box(
+    source_width: int,
+    source_height: int,
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    *,
+    has_region: bool,
+) -> Tuple[float, float, float, float]:
+    target_aspect = 16 / 9
+    source_aspect = source_width / max(source_height, 1)
+    if source_aspect >= target_aspect:
+        crop_height = float(source_height)
+        crop_width = min(float(source_width), crop_height * target_aspect)
+        center_x = source_width / 2 if not has_region or width / max(source_width, 1) > 0.55 else x + width / 2
+        crop_left = max(0.0, min(center_x - crop_width / 2, source_width - crop_width))
+        return crop_left, 0.0, crop_left + crop_width, crop_height
+
+    crop_width = float(source_width)
+    crop_height = min(float(source_height), crop_width / target_aspect)
+    if not has_region:
+        crop_top = 0.0
+    elif y <= crop_height * 0.25:
+        crop_top = 0.0
+    else:
+        center_y = y + height / 2
+        crop_top = max(0.0, min(center_y - crop_height * 0.45, source_height - crop_height))
+    return 0.0, crop_top, crop_width, crop_top + crop_height
+
+
+def build_screenshot_spotlight(item: Dict[str, Any], output_dir: Path, issue_index: int, *, is_mobile_visual: bool = False) -> str:
     screenshot_path = clean_text(item.get("screenshotPath"))
     if not screenshot_path:
         return ""
@@ -260,31 +383,87 @@ def build_screenshot_spotlight(item: Dict[str, Any], output_dir: Path, issue_ind
         return ""
 
     source_width, source_height = image.width, image.height
-    x, y, width, height = _region_to_pixels(_visual_region_from_item(item), source_width, source_height)
+    visual_region = _visual_region_from_item(item)
+    x, y, width, height = _region_to_pixels(visual_region, source_width, source_height)
+    if is_mobile_visual:
+        draw = ImageDraw.Draw(image, "RGBA")
+        halo = max(18, int(max(width, height) * 0.08))
+        stroke_width = max(6, int(max(source_width, source_height) * 0.004))
+        soft_stroke_width = max(8, int(max(source_width, source_height) * 0.006))
+        inset = max(stroke_width, soft_stroke_width)
+        bounds = (
+            max(inset, x - halo),
+            max(inset, y - halo),
+            min(source_width - inset, x + width + halo),
+            min(source_height - inset, y + height + halo),
+        )
+        soft_bounds = (
+            max(inset, bounds[0] - 8),
+            max(inset, bounds[1] - 8),
+            min(source_width - inset, bounds[2] + 8),
+            min(source_height - inset, bounds[3] + 8),
+        )
+        draw.rounded_rectangle(
+            bounds,
+            radius=max(18, int(min(width, height) * 0.12)),
+            outline=(255, 52, 52, 245),
+            width=stroke_width,
+        )
+        draw.rounded_rectangle(
+            soft_bounds,
+            radius=max(22, int(min(width, height) * 0.14)),
+            outline=(255, 52, 52, 90),
+            width=soft_stroke_width,
+        )
+        evidence_dir = output_dir / "evidence"
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+        output_path = evidence_dir / f"screenshot-issue-{issue_index:02d}.png"
+        image.convert("RGB").save(output_path, format="PNG", optimize=True)
+        return quote(os.path.relpath(output_path, output_dir).replace(os.sep, "/"), safe="/:#?&=%")
+
     target_width = 1920
     target_height = 1080
-    target_aspect = target_width / target_height
+    if source_width / max(float(source_height), 1.0) < 0.8:
+        canvas = Image.new("RGBA", (target_width, target_height), (250, 246, 238, 255))
+        scale = min((target_width - 120) / max(float(source_width), 1.0), (target_height - 80) / max(float(source_height), 1.0))
+        scaled_width = max(1, int(round(source_width * scale)))
+        scaled_height = max(1, int(round(source_height * scale)))
+        offset_x = int(round((target_width - scaled_width) / 2))
+        offset_y = int(round((target_height - scaled_height) / 2))
+        scaled = image.resize((scaled_width, scaled_height), Image.Resampling.LANCZOS)
+        canvas.paste(scaled, (offset_x, offset_y))
+        draw = ImageDraw.Draw(canvas, "RGBA")
+        scaled_bounds = (
+            offset_x + x * scale,
+            offset_y + y * scale,
+            offset_x + (x + width) * scale,
+            offset_y + (y + height) * scale,
+        )
+        halo = max(18, int(max(scaled_bounds[2] - scaled_bounds[0], scaled_bounds[3] - scaled_bounds[1]) * 0.08))
+        _draw_red_highlight(
+            draw,
+            (scaled_bounds[0] - halo, scaled_bounds[1] - halo, scaled_bounds[2] + halo, scaled_bounds[3] + halo),
+            target_width,
+            target_height,
+            broad=True,
+        )
+        evidence_dir = output_dir / "evidence"
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+        output_path = evidence_dir / f"screenshot-issue-{issue_index:02d}.png"
+        canvas.convert("RGB").save(output_path, format="PNG", optimize=True)
+        return quote(os.path.relpath(output_path, output_dir).replace(os.sep, "/"), safe="/:#?&=%")
 
-    crop_width = min(source_width, max(width * 2.6, source_width * 0.62))
-    crop_height = min(source_height, max(height * 2.6, source_height * 0.18))
-    if crop_width / max(crop_height, 1.0) < target_aspect:
-        crop_width = min(source_width, crop_height * target_aspect)
-    else:
-        crop_height = min(source_height, crop_width / target_aspect)
-
-    if crop_width >= source_width:
-        crop_width = float(source_width)
-        crop_height = min(float(source_height), crop_width / target_aspect)
-    if crop_height >= source_height:
-        crop_height = float(source_height)
-        crop_width = min(float(source_width), crop_height * target_aspect)
-
-    center_x = x + (width / 2.0)
-    center_y = y + (height / 2.0)
-    crop_left = max(0.0, min(center_x - (crop_width / 2.0), source_width - crop_width))
-    crop_top = max(0.0, min(center_y - (crop_height / 2.0), source_height - crop_height))
-    crop_right = crop_left + crop_width
-    crop_bottom = crop_top + crop_height
+    crop_left, crop_top, crop_right, crop_bottom = _desktop_crop_box(
+        source_width,
+        source_height,
+        x,
+        y,
+        width,
+        height,
+        has_region=visual_region is not None,
+    )
+    crop_width = crop_right - crop_left
+    crop_height = crop_bottom - crop_top
 
     image = image.crop(
         (
@@ -304,13 +483,14 @@ def build_screenshot_spotlight(item: Dict[str, Any], output_dir: Path, issue_ind
 
     draw = ImageDraw.Draw(image, "RGBA")
     halo = max(20, int(max(width, height) * 0.12))
-    bounds = (x - halo, y - halo, x + width + halo, y + height + halo)
-    draw.ellipse(bounds, outline=(255, 52, 52, 245), width=max(10, int(max(image.width, image.height) * 0.008)))
-    draw.ellipse(
-        (bounds[0] - 10, bounds[1] - 10, bounds[2] + 10, bounds[3] + 10),
-        outline=(255, 52, 52, 115),
-        width=max(14, int(max(image.width, image.height) * 0.011)),
+    highlight_bounds = (x - halo, y - halo, x + width + halo, y + height + halo)
+    broad_region = (
+        visual_region is None
+        or (width * height) / max(float(target_width * target_height), 1.0) > 0.34
+        or width / max(float(target_width), 1.0) > 0.72
+        or height / max(float(target_height), 1.0) > 0.62
     )
+    _draw_red_highlight(draw, highlight_bounds, target_width, target_height, broad=broad_region)
 
     evidence_dir = output_dir / "evidence"
     evidence_dir.mkdir(parents=True, exist_ok=True)
@@ -396,41 +576,58 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     methodology = payload.get("methodology") or []
     recommendations = payload.get("recommendations") or []
     is_screenshot_audit = clean_text(payload.get("mode")).lower() == "screenshot"
+    is_live_mobile_audit = clean_text(payload.get("generator")) == "src.mobile_audit.generate_mobile_audit"
+    is_mobile_visual = is_live_mobile_audit or clean_text(payload.get("surfaceType")).lower() in {"mobile", "mobile_app", "mobile-app"}
 
     scanned_pages_data: List[Dict[str, Any]] = []
     seen_scanned_pages: set[str] = set()
-    for item in payload.get("scannedPages") or []:
-        href = href_from_repo(item.get("screenshot_path", ""), output_dir)
-        if not href:
-            continue
-        page_key = clean_text(item.get("page_url")) or clean_text(item.get("page_name")) or href
-        if page_key in seen_scanned_pages:
-            continue
-        scanned_pages_data.append(item)
-        seen_scanned_pages.add(page_key)
-
-    for item in payload.get("focusScreenshots") or []:
-        href = href_from_repo(item.get("screenshot_path", ""), output_dir)
-        if not href:
-            continue
-        page_key = clean_text(item.get("page_url")) or clean_text(item.get("page_name")) or href
-        if page_key not in seen_scanned_pages:
+    if is_mobile_visual:
+        scanned_pages_data = [
+            item
+            for item in payload.get("scannedPages") or []
+            if href_from_repo(item.get("screenshot_path", ""), output_dir)
+        ]
+        seen_scanned_pages = {
+            clean_text(item.get("screenshot_path")) or clean_text(item.get("screen_id")) or str(index)
+            for index, item in enumerate(scanned_pages_data)
+        }
+    else:
+        for item in payload.get("scannedPages") or []:
+            href = href_from_repo(item.get("screenshot_path", ""), output_dir)
+            if not href:
+                continue
+            page_key = clean_text(item.get("page_url")) or clean_text(item.get("page_name")) or href
+            if page_key in seen_scanned_pages:
+                continue
             scanned_pages_data.append(item)
             seen_scanned_pages.add(page_key)
+
+        for item in payload.get("focusScreenshots") or []:
+            href = href_from_repo(item.get("screenshot_path", ""), output_dir)
+            if not href:
+                continue
+            page_key = clean_text(item.get("page_url")) or clean_text(item.get("page_name")) or href
+            if page_key not in seen_scanned_pages:
+                scanned_pages_data.append(item)
+                seen_scanned_pages.add(page_key)
 
     priorities_data = list((summary.get("topPriorities") or [])[:5])
     artifacts = payload.get("artifacts") or {}
     cleaned_path = to_path(clean_text(artifacts.get("cleanedPath")), ROOT_DIR / "shared" / "generated" / "html_cleaned.json")
     rendered_path = to_path(clean_text(artifacts.get("renderedPath")), ROOT_DIR / "shared" / "generated" / "rendered_ui_extraction.json")
     for index, item in enumerate(priorities_data, start=1):
-        item["spotlightImage"] = build_screenshot_spotlight(item, output_dir, index) if is_screenshot_audit else build_gtm_spotlight(
+        item["spotlightImage"] = build_screenshot_spotlight(item, output_dir, index, is_mobile_visual=is_mobile_visual) if is_screenshot_audit else build_gtm_spotlight(
             item=item,
             output_dir=output_dir,
             cleaned_path=cleaned_path,
             rendered_path=rendered_path,
             issue_index=index,
         )
-        page_key = clean_text(item.get("pageUrl")) or clean_text(item.get("pageName")) or clean_text(item.get("screenshotPath"))
+        page_key = (
+            clean_text(item.get("screenshotPath"))
+            if is_mobile_visual
+            else clean_text(item.get("pageUrl")) or clean_text(item.get("pageName")) or clean_text(item.get("screenshotPath"))
+        )
         if page_key and page_key not in seen_scanned_pages and clean_text(item.get("screenshotPath")):
             scanned_pages_data.append(
                 {
@@ -441,11 +638,20 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
                 }
             )
             seen_scanned_pages.add(page_key)
-    priorities = "".join(render_priority_story(item, index, output_dir, is_screenshot_audit=is_screenshot_audit) for index, item in enumerate(priorities_data, start=1))
+    priorities = "".join(
+        render_priority_story(
+            item,
+            index,
+            output_dir,
+            is_screenshot_audit=is_screenshot_audit,
+            is_mobile_visual=is_mobile_visual,
+        )
+        for index, item in enumerate(priorities_data, start=1)
+    )
     axes_data = payload.get("axes") or []
     for index, axis in enumerate(axes_data, start=1):
         lead_item = ((axis.get("painPoints") or [])[:1] or (axis.get("strengths") or [])[:1] or [{}])[0]
-        lead_item["spotlightImage"] = build_screenshot_spotlight(lead_item, output_dir, 100 + index) if is_screenshot_audit else build_gtm_spotlight(
+        lead_item["spotlightImage"] = build_screenshot_spotlight(lead_item, output_dir, 100 + index, is_mobile_visual=is_mobile_visual) if is_screenshot_audit else build_gtm_spotlight(
             item=lead_item,
             output_dir=output_dir,
             cleaned_path=cleaned_path,
@@ -453,7 +659,16 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
             issue_index=100 + index,
         )
     axes_tiles_html = "".join(render_axis_tile(axis, index) for index, axis in enumerate(axes_data, start=1))
-    axis_sections_html = "".join(render_axis_section(axis, index, output_dir, is_screenshot_audit=is_screenshot_audit) for index, axis in enumerate(axes_data, start=1))
+    axis_sections_html = "".join(
+        render_axis_section(
+            axis,
+            index,
+            output_dir,
+            is_screenshot_audit=is_screenshot_audit,
+            is_mobile_visual=is_mobile_visual,
+        )
+        for index, axis in enumerate(axes_data, start=1)
+    )
     radar_html = render_radar_chart(axes_data)
     methodology_html = "".join(
         f"""
@@ -472,7 +687,8 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
           <span class="reco-badge">{html.escape(clean_text(item.get("priority")))}</span>
           <h4>{html.escape(clean_text(item.get("title")))}</h4>
           <p>{html.escape(clean_text(item.get("description")))}</p>
-          <span class="reco-cta">Recommended move</span>
+          {f'<p class="reco-impact">{html.escape(clean_text(item.get("impact")))}</p>' if clean_text(item.get("impact")) else ''}
+          {f'<span class="reco-axis">{html.escape(clean_text(item.get("axis")))}</span>' if clean_text(item.get("axis")) else ''}
         </article>
         """
         for index, item in enumerate(recommendations[:5], start=1)
@@ -484,14 +700,15 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     overall_ten = round(float(summary.get("overallScore", 0)) / 10, 1)
     hero_score = render_score_ring(overall_ten, label="Overall", accent="#caa23b", size=170)
     client_lockup = clean_text(site.get("display_name")) or clean_text(site.get("domain")) or "Client"
-    scanned_pages_html = "".join(render_scanned_page(item, output_dir) for item in scanned_pages_data)
-    scanned_pages_clone_html = scanned_pages_html.replace('<a class="scan-card"', '<a class="scan-card" tabindex="-1"')
+    scanned_pages_html = "".join(render_scanned_page(item, output_dir, is_mobile_visual=is_mobile_visual) for item in scanned_pages_data)
+    scanned_pages_clone_html = scanned_pages_html.replace('<a class="scan-card', '<a tabindex="-1" class="scan-card')
+    scan_duration_seconds = max(42, min(180, len(scanned_pages_data) * (2.6 if is_mobile_visual else 4.0)))
     scanned_pages_loop = (
         f'<div class="scan-static">{scanned_pages_html}</div>'
-        if is_screenshot_audit
+        if is_screenshot_audit and not is_mobile_visual
         else f"""
             <div class="scan-marquee">
-              <div class="scan-strip">
+              <div class="scan-strip" style="--scan-duration: {scan_duration_seconds:.0f}s;">
                 <div class="scan-track">{scanned_pages_html}</div>
                 <div class="scan-track" aria-hidden="true">{scanned_pages_clone_html}</div>
               </div>
@@ -503,9 +720,9 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     company_name = clean_text(site.get("display_name")) or "Client site"
     pages_count = clean_text(context.get("pagesAudited")) or str(len(scanned_pages_data) or "selected")
     generated_month = date.today().strftime("%B %Y")
-    audit_subject = "uploaded screenshots" if is_screenshot_audit else f"{company_name} website"
-    scan_eyebrow = "Screenshots Analyzed" if is_screenshot_audit else "Pages Scanned"
-    scan_heading = "Representative screenshots reviewed during the audit" if is_screenshot_audit else "Representative pages captured during the audit"
+    audit_subject = "captured mobile app screens" if is_live_mobile_audit else "uploaded screenshots" if is_screenshot_audit else f"{company_name} website"
+    scan_eyebrow = "Screens Captured" if is_live_mobile_audit else "Screenshots Analyzed" if is_screenshot_audit else "Pages Scanned"
+    scan_heading = "Representative mobile app screens reviewed during the audit" if is_live_mobile_audit else "Representative screenshots reviewed during the audit" if is_screenshot_audit else "Representative pages captured during the audit"
     nav_scope_label = "Input scope" if is_screenshot_audit else "Navigation scope"
 
     return f"""<!DOCTYPE html>
@@ -811,7 +1028,7 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       display: flex;
       width: max-content;
       gap: 0;
-      animation: scan-marquee 38s linear infinite;
+      animation: scan-marquee var(--scan-duration, 38s) linear infinite;
       will-change: transform;
     }}
     .scan-marquee:hover .scan-strip,
@@ -857,6 +1074,104 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       aspect-ratio: 16 / 9;
       object-fit: cover;
       object-position: center center;
+    }}
+    .mobile-scan-card {{
+      flex-basis: clamp(210px, 18vw, 280px);
+      padding: 6px 4px 14px;
+    }}
+    .scan-phone-shell,
+    .phone-device {{
+      position: relative;
+      isolation: isolate;
+      width: min(100%, 330px);
+      aspect-ratio: 9 / 19.4;
+      margin: 0 auto;
+      padding: clamp(8px, 2.4%, 12px);
+      border-radius: 44px;
+      background:
+        linear-gradient(145deg, #111318, #3a3d42 45%, #111318);
+      box-shadow:
+        inset 0 0 0 2px rgba(255,255,255,0.12),
+        inset 0 0 0 5px rgba(0,0,0,0.76),
+        0 24px 54px rgba(32,39,51,0.22);
+    }}
+    .scan-phone-shell::before,
+    .phone-device::before {{
+      content: "";
+      position: absolute;
+      inset: 5px;
+      border-radius: 39px;
+      border: 1px solid rgba(255,255,255,0.2);
+      pointer-events: none;
+      z-index: 2;
+    }}
+    .phone-top {{
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 32%;
+      min-width: 84px;
+      height: 25px;
+      border-radius: 999px;
+      background: #050608;
+      transform: translateX(-50%);
+      box-shadow: inset 0 1px 2px rgba(255,255,255,0.12);
+    }}
+    .phone-speaker {{
+      width: 38px;
+      height: 5px;
+      border-radius: 999px;
+      background: #151923;
+    }}
+    .phone-camera {{
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #111b2d;
+      box-shadow: inset 0 0 0 2px #0a0d13;
+    }}
+    .phone-side {{
+      position: absolute;
+      z-index: 0;
+      width: 4px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #2d3035, #0d0e10);
+      opacity: 0.82;
+    }}
+    .phone-side-left {{
+      left: -2px;
+      top: 18%;
+      height: 12%;
+    }}
+    .phone-side-right {{
+      right: -2px;
+      top: 29%;
+      height: 16%;
+    }}
+    .scan-phone-screen,
+    .phone-screen {{
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      border-radius: 34px;
+      background: #ffffff;
+    }}
+    .scan-phone-screen img,
+    .phone-screen img {{
+      display: block;
+      width: 100%;
+      height: 100%;
+      aspect-ratio: auto;
+      object-fit: contain;
+      object-position: center center;
+      background: #ffffff;
     }}
     .scan-card span,
     .scan-card strong,
@@ -920,11 +1235,35 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       font-size: 0.96rem;
     }}
     .context-grid,
-    .method-grid,
-    .reco-grid {{
+    .method-grid {{
       display: grid;
       gap: 14px;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }}
+    .reco-grid {{
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(260px, 320px);
+      grid-template-columns: none;
+      gap: 18px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 2px 2px 24px;
+      margin-inline: -2px;
+      scroll-snap-type: x proximity;
+      scrollbar-gutter: stable;
+      perspective: 1200px;
+    }}
+    .reco-grid::-webkit-scrollbar {{
+      height: 10px;
+    }}
+    .reco-grid::-webkit-scrollbar-track {{
+      background: rgba(32,39,51,0.06);
+      border-radius: 999px;
+    }}
+    .reco-grid::-webkit-scrollbar-thumb {{
+      background: rgba(202,162,59,0.55);
+      border-radius: 999px;
     }}
     .methodology-section {{
       margin-top: 44px;
@@ -1102,6 +1441,15 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       background: #ffffff;
       box-shadow: 0 18px 36px rgba(32,39,51,0.08);
     }}
+    .story-visual-frame.mobile-visual-frame,
+    .axis-story-frame.mobile-visual-frame {{
+      max-width: 390px;
+      overflow: visible;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }}
     .desktop-screen {{
       overflow: hidden;
       background: #ffffff;
@@ -1138,6 +1486,10 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       object-fit: cover;
       object-position: center center;
       background: #ffffff;
+    }}
+    .mobile-visual-frame img {{
+      aspect-ratio: auto;
+      object-fit: contain;
     }}
     .story-visual-empty {{
       display: grid;
@@ -1274,18 +1626,15 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     .tone-critical {{ border-left: 4px solid var(--red); }}
     .tone-high {{ border-left: 4px solid #d98e2f; }}
     .tone-medium {{ border-left: 4px solid var(--gold); }}
-    .reco-grid {{
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 18px;
-      perspective: 1200px;
-    }}
     .reco-card {{
       position: relative;
       isolation: isolate;
       min-height: 270px;
+      width: 100%;
       display: grid;
       align-content: start;
       gap: 14px;
+      scroll-snap-align: start;
       overflow: hidden;
       padding: 28px;
       border: 1px solid rgba(198,161,55,0.22);
@@ -1370,30 +1719,30 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       max-width: 32ch;
       font-size: 0.98rem;
     }}
+    .reco-card .reco-impact {{
+      max-width: 34ch;
+      padding: 10px 12px;
+      border-left: 3px solid var(--gold);
+      background: rgba(255,255,255,0.52);
+      color: var(--ink);
+      font-size: 0.9rem;
+      font-weight: 650;
+    }}
+    .reco-axis {{
+      display: inline-flex;
+      width: max-content;
+      max-width: 100%;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(32,39,51,0.12);
+      background: rgba(32,39,51,0.04);
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 750;
+    }}
     .reco-meta {{
       margin-top: 10px;
       font-size: 0.88rem;
-    }}
-    .reco-cta {{
-      align-self: end;
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 8px;
-      color: var(--ink);
-      font-size: 0.8rem;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-    }}
-    .reco-cta::after {{
-      content: "->";
-      color: var(--gold);
-      transition: transform 220ms ease;
-    }}
-    .reco-card:hover .reco-cta::after,
-    .reco-card:focus-visible .reco-cta::after {{
-      transform: translateX(6px);
     }}
     .footer {{
       display: flex;
@@ -1432,6 +1781,9 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       .method-grid {{
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }}
+      .reco-grid {{
+        grid-auto-columns: minmax(260px, 34vw);
+      }}
       .topbar {{
         gap: 16px;
         padding-inline: 20px;
@@ -1461,6 +1813,13 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       .method-grid,
       .axis-grid {{
         grid-template-columns: 1fr;
+      }}
+      .reco-grid {{
+        grid-auto-columns: minmax(248px, 84vw);
+        padding-bottom: 18px;
+      }}
+      .reco-card {{
+        padding: 24px;
       }}
     }}
   </style>

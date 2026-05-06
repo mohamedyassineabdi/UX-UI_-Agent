@@ -27,7 +27,7 @@ The current frontend flow is:
    - Website screenshots:
      - screenshot-based GTM audit with website context
    - Mobile live app session:
-     - Appium-based Android extraction
+     - Appium-based Android extraction plus mobile GTM audit report
    - App screenshots:
      - screenshot-based GTM audit with mobile-app context
 
@@ -115,7 +115,7 @@ The platform combines multiple audit paths under one launcher:
 - Generates a GTM-oriented 7-axis report from website evidence.
 - Generates GTM reports from uploaded screenshots.
 - Distinguishes website screenshots from mobile app screenshots during review.
-- Connects to Appium to extract Android mobile screens, hierarchies, safe actions, and artifacts.
+- Connects to Appium to extract Android mobile screens, hierarchies, safe actions, artifacts, and a live mobile GTM report.
 - Optionally packages and deploys GTM reports to Vercel.
 
 ## Functionalities
@@ -170,9 +170,7 @@ It:
 
 This is the Android extraction path.
 
-It connects to Appium, launches the app, captures a baseline state, performs bounded all-safe exploration, records screen artifacts, and writes the results under `shared/generated/mobile-audits/<job-id>/`.
-
-It is currently an extraction-first pipeline rather than a full workbook/report scoring flow.
+It connects to Appium, launches the app, captures a baseline state, performs bounded all-safe exploration, records screen artifacts, runs mobile-specific checks, and generates a GTM-style report under `shared/generated/mobile-audits/<job-id>/`.
 
 ## End-to-End Workflow
 

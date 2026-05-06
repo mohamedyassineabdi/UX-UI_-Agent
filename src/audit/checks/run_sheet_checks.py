@@ -48,6 +48,7 @@ PARTNER_SHEET_SPECS = {
         {"row": 10, "criterion_ids": ["no-distracting-animation", "no-distracting-animation-runtime"], "criterion": "There is no distracting blinking, flashing, or animation."},
         {"row": 11, "criterion_ids": ["visual-style-consistency"], "criterion": "Visual styles are consistent throughout the application or site."},
         {"row": 12, "criterion_ids": ["visual-metaphor-clarity"], "criterion": "Visual metaphors used will be understood by both casual and expert users."},
+        {"row": 13, "criterion_ids": ["responsive-desktop-mobile"], "criterion": "The website layout is responsive and adapts correctly between desktop and phone screens."},
     ],
     "Interaction": [
         {"row": 4, "criterion_ids": ["cta-clearly-labeled-and-clickable"], "criterion": "Calls to action (e.g. Register, Add, Submit) are clearly labeled and appear clickable."},

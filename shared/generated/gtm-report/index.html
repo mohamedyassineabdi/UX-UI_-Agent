@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Weefizz</title>
+  <title>Studiomorf</title>
   <style>
     :root {
       --bg: #f6f1e8;
@@ -301,7 +301,7 @@
       display: flex;
       width: max-content;
       gap: 0;
-      animation: scan-marquee 38s linear infinite;
+      animation: scan-marquee var(--scan-duration, 38s) linear infinite;
       will-change: transform;
     }
     .scan-marquee:hover .scan-strip,
@@ -347,6 +347,104 @@
       aspect-ratio: 16 / 9;
       object-fit: cover;
       object-position: center center;
+    }
+    .mobile-scan-card {
+      flex-basis: clamp(210px, 18vw, 280px);
+      padding: 6px 4px 14px;
+    }
+    .scan-phone-shell,
+    .phone-device {
+      position: relative;
+      isolation: isolate;
+      width: min(100%, 330px);
+      aspect-ratio: 9 / 19.4;
+      margin: 0 auto;
+      padding: clamp(8px, 2.4%, 12px);
+      border-radius: 44px;
+      background:
+        linear-gradient(145deg, #111318, #3a3d42 45%, #111318);
+      box-shadow:
+        inset 0 0 0 2px rgba(255,255,255,0.12),
+        inset 0 0 0 5px rgba(0,0,0,0.76),
+        0 24px 54px rgba(32,39,51,0.22);
+    }
+    .scan-phone-shell::before,
+    .phone-device::before {
+      content: "";
+      position: absolute;
+      inset: 5px;
+      border-radius: 39px;
+      border: 1px solid rgba(255,255,255,0.2);
+      pointer-events: none;
+      z-index: 2;
+    }
+    .phone-top {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 32%;
+      min-width: 84px;
+      height: 25px;
+      border-radius: 999px;
+      background: #050608;
+      transform: translateX(-50%);
+      box-shadow: inset 0 1px 2px rgba(255,255,255,0.12);
+    }
+    .phone-speaker {
+      width: 38px;
+      height: 5px;
+      border-radius: 999px;
+      background: #151923;
+    }
+    .phone-camera {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #111b2d;
+      box-shadow: inset 0 0 0 2px #0a0d13;
+    }
+    .phone-side {
+      position: absolute;
+      z-index: 0;
+      width: 4px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #2d3035, #0d0e10);
+      opacity: 0.82;
+    }
+    .phone-side-left {
+      left: -2px;
+      top: 18%;
+      height: 12%;
+    }
+    .phone-side-right {
+      right: -2px;
+      top: 29%;
+      height: 16%;
+    }
+    .scan-phone-screen,
+    .phone-screen {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      border-radius: 34px;
+      background: #ffffff;
+    }
+    .scan-phone-screen img,
+    .phone-screen img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      aspect-ratio: auto;
+      object-fit: contain;
+      object-position: center center;
+      background: #ffffff;
     }
     .scan-card span,
     .scan-card strong,
@@ -410,11 +508,35 @@
       font-size: 0.96rem;
     }
     .context-grid,
-    .method-grid,
-    .reco-grid {
+    .method-grid {
       display: grid;
       gap: 14px;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    .reco-grid {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(260px, 320px);
+      grid-template-columns: none;
+      gap: 18px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 2px 2px 24px;
+      margin-inline: -2px;
+      scroll-snap-type: x proximity;
+      scrollbar-gutter: stable;
+      perspective: 1200px;
+    }
+    .reco-grid::-webkit-scrollbar {
+      height: 10px;
+    }
+    .reco-grid::-webkit-scrollbar-track {
+      background: rgba(32,39,51,0.06);
+      border-radius: 999px;
+    }
+    .reco-grid::-webkit-scrollbar-thumb {
+      background: rgba(202,162,59,0.55);
+      border-radius: 999px;
     }
     .methodology-section {
       margin-top: 44px;
@@ -592,6 +714,15 @@
       background: #ffffff;
       box-shadow: 0 18px 36px rgba(32,39,51,0.08);
     }
+    .story-visual-frame.mobile-visual-frame,
+    .axis-story-frame.mobile-visual-frame {
+      max-width: 390px;
+      overflow: visible;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
     .desktop-screen {
       overflow: hidden;
       background: #ffffff;
@@ -628,6 +759,10 @@
       object-fit: cover;
       object-position: center center;
       background: #ffffff;
+    }
+    .mobile-visual-frame img {
+      aspect-ratio: auto;
+      object-fit: contain;
     }
     .story-visual-empty {
       display: grid;
@@ -764,18 +899,15 @@
     .tone-critical { border-left: 4px solid var(--red); }
     .tone-high { border-left: 4px solid #d98e2f; }
     .tone-medium { border-left: 4px solid var(--gold); }
-    .reco-grid {
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 18px;
-      perspective: 1200px;
-    }
     .reco-card {
       position: relative;
       isolation: isolate;
       min-height: 270px;
+      width: 100%;
       display: grid;
       align-content: start;
       gap: 14px;
+      scroll-snap-align: start;
       overflow: hidden;
       padding: 28px;
       border: 1px solid rgba(198,161,55,0.22);
@@ -860,30 +992,30 @@
       max-width: 32ch;
       font-size: 0.98rem;
     }
+    .reco-card .reco-impact {
+      max-width: 34ch;
+      padding: 10px 12px;
+      border-left: 3px solid var(--gold);
+      background: rgba(255,255,255,0.52);
+      color: var(--ink);
+      font-size: 0.9rem;
+      font-weight: 650;
+    }
+    .reco-axis {
+      display: inline-flex;
+      width: max-content;
+      max-width: 100%;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(32,39,51,0.12);
+      background: rgba(32,39,51,0.04);
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 750;
+    }
     .reco-meta {
       margin-top: 10px;
       font-size: 0.88rem;
-    }
-    .reco-cta {
-      align-self: end;
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 8px;
-      color: var(--ink);
-      font-size: 0.8rem;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-    }
-    .reco-cta::after {
-      content: "->";
-      color: var(--gold);
-      transition: transform 220ms ease;
-    }
-    .reco-card:hover .reco-cta::after,
-    .reco-card:focus-visible .reco-cta::after {
-      transform: translateX(6px);
     }
     .footer {
       display: flex;
@@ -922,6 +1054,9 @@
       .method-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
       }
+      .reco-grid {
+        grid-auto-columns: minmax(260px, 34vw);
+      }
       .topbar {
         gap: 16px;
         padding-inline: 20px;
@@ -952,6 +1087,13 @@
       .axis-grid {
         grid-template-columns: 1fr;
       }
+      .reco-grid {
+        grid-auto-columns: minmax(248px, 84vw);
+        padding-bottom: 18px;
+      }
+      .reco-card {
+        padding: 24px;
+      }
     }
   </style>
 </head>
@@ -969,7 +1111,7 @@
         <div class="brand-secondary">
           <div>
             <span>Audit for</span>
-            <strong>Weefizz</strong>
+            <strong>Studiomorf</strong>
           </div>
         </div>
       </div>
@@ -984,11 +1126,11 @@
     <section class="hero">
       <div class="hero-copy">
         <p class="eyebrow">GTM UX/UI Audit</p>
-        <h1>Weefizz</h1>
-        <p class="hero-lead">Comprehensive evaluation of the user experience and interface of Weefizz website through 7 axes of analysis on 7 main screen(s).</p>
+        <h1>Studiomorf</h1>
+        <p class="hero-lead">Comprehensive evaluation of the user experience and interface of Studiomorf website through 7 axes of analysis on 8 main screen(s).</p>
         <div class="hero-meta">
-          <div><span>Date</span><strong>April 2026</strong></div>
-          <div><span>Pages analyzed</span><strong>7</strong></div>
+          <div><span>Date</span><strong>May 2026</strong></div>
+          <div><span>Pages analyzed</span><strong>8</strong></div>
           <div><span>Audit axes</span><strong>7</strong></div>
         </div>
       </div>
@@ -998,10 +1140,10 @@
     <div class="score-ring" style="--ring-size:170px; --ring-stroke:#caa23b; --ring-width:12.8px;">
       <svg viewBox="0 0 170 170" aria-hidden="true">
         <circle cx="85.0" cy="85.0" r="72.625" class="ring-track"></circle>
-        <circle cx="85.0" cy="85.0" r="72.625" class="ring-progress" style="stroke-dasharray:456.32;stroke-dashoffset:205.34;"></circle>
+        <circle cx="85.0" cy="85.0" r="72.625" class="ring-progress" style="stroke-dasharray:456.32;stroke-dashoffset:196.22;"></circle>
       </svg>
       <div class="score-ring-copy">
-        <strong>5.5</strong>
+        <strong>5.7</strong>
         <span>Overall</span>
       </div>
     </div>
@@ -1019,118 +1161,118 @@
       </div>
       
             <div class="scan-marquee">
-              <div class="scan-strip">
+              <div class="scan-strip" style="--scan-duration: 42s;">
                 <div class="scan-track">
-    <a class="scan-card" href="../../output/screenshots/weefizz.com/Home/page/main.png" target="_blank" rel="noreferrer">
+    <a class="scan-card" href="../../output/screenshots/studiomorf.nl/Home/page/main.png" target="_blank" rel="noreferrer">
       <div class="scan-screen">
         <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-        <img src="../../output/screenshots/weefizz.com/Home/page/main.png" alt="Home screenshot">
+        <img src="../../output/screenshots/studiomorf.nl/Home/page/main.png" alt="Home screenshot">
       </div>
     </a>
     
-    <a class="scan-card" href="../../output/screenshots/weefizz.com/Accueil/page/main.png" target="_blank" rel="noreferrer">
+    <a class="scan-card" href="../../output/screenshots/studiomorf.nl/About/page/main.png" target="_blank" rel="noreferrer">
       <div class="scan-screen">
         <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-        <img src="../../output/screenshots/weefizz.com/Accueil/page/main.png" alt="Accueil screenshot">
+        <img src="../../output/screenshots/studiomorf.nl/About/page/main.png" alt="About screenshot">
       </div>
     </a>
     
-    <a class="scan-card" href="../../output/screenshots/weefizz.com/Accueil/Contact/page/main.png" target="_blank" rel="noreferrer">
+    <a class="scan-card" href="../../output/screenshots/studiomorf.nl/Careers/page/main.png" target="_blank" rel="noreferrer">
       <div class="scan-screen">
         <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-        <img src="../../output/screenshots/weefizz.com/Accueil/Contact/page/main.png" alt="Contact screenshot">
+        <img src="../../output/screenshots/studiomorf.nl/Careers/page/main.png" alt="Careers screenshot">
       </div>
     </a>
     
-    <a class="scan-card" href="../../output/screenshots/weefizz.com/Accueil/Demander%20une%20demo/page/main.png" target="_blank" rel="noreferrer">
+    <a class="scan-card" href="../../output/screenshots/studiomorf.nl/Contact/page/main.png" target="_blank" rel="noreferrer">
       <div class="scan-screen">
         <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-        <img src="../../output/screenshots/weefizz.com/Accueil/Demander%20une%20demo/page/main.png" alt="Demander une démo screenshot">
+        <img src="../../output/screenshots/studiomorf.nl/Contact/page/main.png" alt="Contact screenshot">
       </div>
     </a>
     
-    <a class="scan-card" href="../../output/screenshots/weefizz.com/Accueil/Technologie/page/main.png" target="_blank" rel="noreferrer">
+    <a class="scan-card" href="../../output/screenshots/studiomorf.nl/FAQ/page/main.png" target="_blank" rel="noreferrer">
       <div class="scan-screen">
         <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-        <img src="../../output/screenshots/weefizz.com/Accueil/Technologie/page/main.png" alt="Technologie screenshot">
+        <img src="../../output/screenshots/studiomorf.nl/FAQ/page/main.png" alt="FAQ screenshot">
       </div>
     </a>
     
-    <a class="scan-card" href="../../output/screenshots/weefizz.com/Accueil/WeeFizz%20Fashion/page/main.png" target="_blank" rel="noreferrer">
+    <a class="scan-card" href="../../output/screenshots/studiomorf.nl/Request/page/main.png" target="_blank" rel="noreferrer">
       <div class="scan-screen">
         <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-        <img src="../../output/screenshots/weefizz.com/Accueil/WeeFizz%20Fashion/page/main.png" alt="WeeFizz Fashion screenshot">
+        <img src="../../output/screenshots/studiomorf.nl/Request/page/main.png" alt="Request screenshot">
       </div>
     </a>
     
-    <a class="scan-card" href="../../output/screenshots/weefizz.com/Accueil/WeeFizz%20PRO/page/main.png" target="_blank" rel="noreferrer">
+    <a class="scan-card" href="../../output/screenshots/studiomorf.nl/Services/page/main.png" target="_blank" rel="noreferrer">
       <div class="scan-screen">
         <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-        <img src="../../output/screenshots/weefizz.com/Accueil/WeeFizz%20PRO/page/main.png" alt="WeeFizz PRO screenshot">
+        <img src="../../output/screenshots/studiomorf.nl/Services/page/main.png" alt="Services screenshot">
       </div>
     </a>
     
-    <a class="scan-card" href="../../output/screenshots/weefizz.com/Accueil/Demander%20une%20demo/page/main.png" target="_blank" rel="noreferrer">
+    <a class="scan-card" href="../../output/screenshots/studiomorf.nl/Work/page/main.png" target="_blank" rel="noreferrer">
       <div class="scan-screen">
         <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-        <img src="../../output/screenshots/weefizz.com/Accueil/Demander%20une%20demo/page/main.png" alt="Demander une démo screenshot">
+        <img src="../../output/screenshots/studiomorf.nl/Work/page/main.png" alt="Work screenshot">
       </div>
     </a>
     </div>
                 <div class="scan-track" aria-hidden="true">
-    <a class="scan-card" tabindex="-1" href="../../output/screenshots/weefizz.com/Home/page/main.png" target="_blank" rel="noreferrer">
+    <a tabindex="-1" class="scan-card" href="../../output/screenshots/studiomorf.nl/Home/page/main.png" target="_blank" rel="noreferrer">
       <div class="scan-screen">
         <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-        <img src="../../output/screenshots/weefizz.com/Home/page/main.png" alt="Home screenshot">
+        <img src="../../output/screenshots/studiomorf.nl/Home/page/main.png" alt="Home screenshot">
       </div>
     </a>
     
-    <a class="scan-card" tabindex="-1" href="../../output/screenshots/weefizz.com/Accueil/page/main.png" target="_blank" rel="noreferrer">
+    <a tabindex="-1" class="scan-card" href="../../output/screenshots/studiomorf.nl/About/page/main.png" target="_blank" rel="noreferrer">
       <div class="scan-screen">
         <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-        <img src="../../output/screenshots/weefizz.com/Accueil/page/main.png" alt="Accueil screenshot">
+        <img src="../../output/screenshots/studiomorf.nl/About/page/main.png" alt="About screenshot">
       </div>
     </a>
     
-    <a class="scan-card" tabindex="-1" href="../../output/screenshots/weefizz.com/Accueil/Contact/page/main.png" target="_blank" rel="noreferrer">
+    <a tabindex="-1" class="scan-card" href="../../output/screenshots/studiomorf.nl/Careers/page/main.png" target="_blank" rel="noreferrer">
       <div class="scan-screen">
         <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-        <img src="../../output/screenshots/weefizz.com/Accueil/Contact/page/main.png" alt="Contact screenshot">
+        <img src="../../output/screenshots/studiomorf.nl/Careers/page/main.png" alt="Careers screenshot">
       </div>
     </a>
     
-    <a class="scan-card" tabindex="-1" href="../../output/screenshots/weefizz.com/Accueil/Demander%20une%20demo/page/main.png" target="_blank" rel="noreferrer">
+    <a tabindex="-1" class="scan-card" href="../../output/screenshots/studiomorf.nl/Contact/page/main.png" target="_blank" rel="noreferrer">
       <div class="scan-screen">
         <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-        <img src="../../output/screenshots/weefizz.com/Accueil/Demander%20une%20demo/page/main.png" alt="Demander une démo screenshot">
+        <img src="../../output/screenshots/studiomorf.nl/Contact/page/main.png" alt="Contact screenshot">
       </div>
     </a>
     
-    <a class="scan-card" tabindex="-1" href="../../output/screenshots/weefizz.com/Accueil/Technologie/page/main.png" target="_blank" rel="noreferrer">
+    <a tabindex="-1" class="scan-card" href="../../output/screenshots/studiomorf.nl/FAQ/page/main.png" target="_blank" rel="noreferrer">
       <div class="scan-screen">
         <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-        <img src="../../output/screenshots/weefizz.com/Accueil/Technologie/page/main.png" alt="Technologie screenshot">
+        <img src="../../output/screenshots/studiomorf.nl/FAQ/page/main.png" alt="FAQ screenshot">
       </div>
     </a>
     
-    <a class="scan-card" tabindex="-1" href="../../output/screenshots/weefizz.com/Accueil/WeeFizz%20Fashion/page/main.png" target="_blank" rel="noreferrer">
+    <a tabindex="-1" class="scan-card" href="../../output/screenshots/studiomorf.nl/Request/page/main.png" target="_blank" rel="noreferrer">
       <div class="scan-screen">
         <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-        <img src="../../output/screenshots/weefizz.com/Accueil/WeeFizz%20Fashion/page/main.png" alt="WeeFizz Fashion screenshot">
+        <img src="../../output/screenshots/studiomorf.nl/Request/page/main.png" alt="Request screenshot">
       </div>
     </a>
     
-    <a class="scan-card" tabindex="-1" href="../../output/screenshots/weefizz.com/Accueil/WeeFizz%20PRO/page/main.png" target="_blank" rel="noreferrer">
+    <a tabindex="-1" class="scan-card" href="../../output/screenshots/studiomorf.nl/Services/page/main.png" target="_blank" rel="noreferrer">
       <div class="scan-screen">
         <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-        <img src="../../output/screenshots/weefizz.com/Accueil/WeeFizz%20PRO/page/main.png" alt="WeeFizz PRO screenshot">
+        <img src="../../output/screenshots/studiomorf.nl/Services/page/main.png" alt="Services screenshot">
       </div>
     </a>
     
-    <a class="scan-card" tabindex="-1" href="../../output/screenshots/weefizz.com/Accueil/Demander%20une%20demo/page/main.png" target="_blank" rel="noreferrer">
+    <a tabindex="-1" class="scan-card" href="../../output/screenshots/studiomorf.nl/Work/page/main.png" target="_blank" rel="noreferrer">
       <div class="scan-screen">
         <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-        <img src="../../output/screenshots/weefizz.com/Accueil/Demander%20une%20demo/page/main.png" alt="Demander une démo screenshot">
+        <img src="../../output/screenshots/studiomorf.nl/Work/page/main.png" alt="Work screenshot">
       </div>
     </a>
     </div>
@@ -1147,7 +1289,7 @@
         </div>
       </div>
       <div class="context-grid">
-        <div class="context-card"><span>Pages audited</span><strong>7</strong></div>
+        <div class="context-card"><span>Pages audited</span><strong>8</strong></div>
         <div class="context-card"><span>Navigation scope</span><strong>7</strong></div>
         <div class="context-card"><span>Axes reviewed</span><strong>7</strong></div>
       </div>
@@ -1200,20 +1342,20 @@
         </defs>
         <polygon points="260.0,220.0 283.5,231.3 289.2,256.7 273.0,277.0 247.0,277.0 230.8,256.7 236.5,231.3" fill="none" stroke="rgba(31,39,51,0.08)" stroke-width="1"></polygon><text x="266" y="224.0" fill="rgba(93,103,117,0.9)" font-size="12">2</text><polygon points="260.0,190.0 306.9,212.6 318.5,263.4 286.0,304.1 234.0,304.1 201.5,263.4 213.1,212.6" fill="none" stroke="rgba(31,39,51,0.08)" stroke-width="1"></polygon><text x="266" y="194.0" fill="rgba(93,103,117,0.9)" font-size="12">4</text><polygon points="260.0,160.0 330.4,193.9 347.7,270.0 299.0,331.1 221.0,331.1 172.3,270.0 189.6,193.9" fill="none" stroke="rgba(31,39,51,0.08)" stroke-width="1"></polygon><text x="266" y="164.0" fill="rgba(93,103,117,0.9)" font-size="12">6</text><polygon points="260.0,130.0 353.8,175.2 377.0,276.7 312.1,358.1 207.9,358.1 143.0,276.7 166.2,175.2" fill="none" stroke="rgba(31,39,51,0.08)" stroke-width="1"></polygon><text x="266" y="134.0" fill="rgba(93,103,117,0.9)" font-size="12">8</text><polygon points="260.0,100.0 377.3,156.5 406.2,283.4 325.1,385.1 194.9,385.1 113.8,283.4 142.7,156.5" fill="none" stroke="rgba(31,39,51,0.08)" stroke-width="1"></polygon><text x="266" y="104.0" fill="rgba(93,103,117,0.9)" font-size="12">10</text>
         <line x1="260" y1="250" x2="260.0" y2="100.0" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line><line x1="260" y1="250" x2="377.3" y2="156.5" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line><line x1="260" y1="250" x2="406.2" y2="283.4" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line><line x1="260" y1="250" x2="325.1" y2="385.1" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line><line x1="260" y1="250" x2="194.9" y2="385.1" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line><line x1="260" y1="250" x2="113.8" y2="283.4" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line><line x1="260" y1="250" x2="142.7" y2="156.5" stroke="rgba(31,39,51,0.10)" stroke-width="1"></line>
-        <polygon points="260.0,151.0 328.0,195.8 347.7,270.0 286.0,304.1 224.9,323.0 175.2,269.4 201.4,203.2" fill="url(#radarFill)" stroke="#caa23b" stroke-width="3"></polygon>
-        <circle cx="260.0" cy="151.0" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle><circle cx="328.0" cy="195.8" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle><circle cx="347.7" cy="270.0" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle><circle cx="286.0" cy="304.1" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle><circle cx="224.9" cy="323.0" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle><circle cx="175.2" cy="269.4" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle><circle cx="201.4" cy="203.2" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle>
+        <polygon points="260.0,155.5 318.6,203.2 353.6,271.4 288.6,309.5 220.3,332.4 163.5,272.0 201.4,203.2" fill="url(#radarFill)" stroke="#caa23b" stroke-width="3"></polygon>
+        <circle cx="260.0" cy="155.5" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle><circle cx="318.6" cy="203.2" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle><circle cx="353.6" cy="271.4" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle><circle cx="288.6" cy="309.5" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle><circle cx="220.3" cy="332.4" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle><circle cx="163.5" cy="272.0" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle><circle cx="201.4" cy="203.2" r="4.5" fill="#caa23b" stroke="#ffffff" stroke-width="2"></circle>
         <text x="260.0" y="65.5" text-anchor="middle" fill="#4d5868" font-size="15" font-weight="600">Task Execution</text><text x="404.2" y="135.0" text-anchor="start" fill="#4d5868" font-size="15" font-weight="600">Flow &amp; Architecture</text><text x="439.9" y="291.1" text-anchor="start" fill="#4d5868" font-size="15" font-weight="600">Trust &amp; Accessibility</text><text x="340.1" y="416.2" text-anchor="start" fill="#4d5868" font-size="15" font-weight="600">UI Consistency</text><text x="179.9" y="416.2" text-anchor="end" fill="#4d5868" font-size="15" font-weight="600">Visual Brand</text><text x="80.1" y="291.1" text-anchor="end" fill="#4d5868" font-size="15" font-weight="600">Content &amp; Microcopy</text><text x="115.8" y="135.0" text-anchor="end" fill="#4d5868" font-size="15" font-weight="600">Market Alignment</text>
       </svg>
     </div>
     
         <div class="axis-grid">
-    <article class="axis-tile tone-low">
+    <article class="axis-tile tone-medium">
       <span class="floating-step">1</span>
       <h4>Task Execution</h4>
       <p>How clearly the interface helps a first-time visitor understand the next step and complete the primary task without friction.</p>
       <div class="axis-tile-meta">
-        <strong>6.6/10</strong>
-        <span>Low severity</span>
+        <strong>6.3/10</strong>
+        <span>Medium severity</span>
       </div>
     </article>
     
@@ -1222,7 +1364,7 @@
       <h4>Flow &amp; Architecture</h4>
       <p>How understandable the navigation model, page structure, and wayfinding feel across the visible journey.</p>
       <div class="axis-tile-meta">
-        <strong>5.8/10</strong>
+        <strong>5.0/10</strong>
         <span>Medium severity</span>
       </div>
     </article>
@@ -1232,7 +1374,7 @@
       <h4>Trust &amp; Accessibility</h4>
       <p>How credible, safe, legible, and inclusive the visible experience feels for real-world use.</p>
       <div class="axis-tile-meta">
-        <strong>6.0/10</strong>
+        <strong>6.4/10</strong>
         <span>Medium severity</span>
       </div>
     </article>
@@ -1242,7 +1384,7 @@
       <h4>UI Consistency</h4>
       <p>How consistently components, styles, and recurring interaction patterns are applied across the visible experience.</p>
       <div class="axis-tile-meta">
-        <strong>4.0/10</strong>
+        <strong>4.4/10</strong>
         <span>High severity</span>
       </div>
     </article>
@@ -1252,18 +1394,18 @@
       <h4>Visual Brand</h4>
       <p>How well the visible visual direction communicates brand quality, hierarchy, and differentiation on first impression.</p>
       <div class="axis-tile-meta">
-        <strong>5.4/10</strong>
+        <strong>6.1/10</strong>
         <span>Medium severity</span>
       </div>
     </article>
     
-    <article class="axis-tile tone-medium">
+    <article class="axis-tile tone-low">
       <span class="floating-step">6</span>
       <h4>Content &amp; Microcopy</h4>
       <p>How clearly visible messaging, headings, labels, and CTA text explain value, meaning, and the next step.</p>
       <div class="axis-tile-meta">
-        <strong>5.8/10</strong>
-        <span>Medium severity</span>
+        <strong>6.6/10</strong>
+        <span>Low severity</span>
       </div>
     </article>
     
@@ -1291,119 +1433,14 @@
     <article class="story-row tone-high">
       <div class="story-index">01</div>
       <div class="story-media">
-        <div class="story-visual-frame">
+        <div class="story-visual-frame ">
           <div class="desktop-screen">
             <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
             <div class="desktop-screen-body">
-              <img src="evidence/issue-01-verbs-are-used-for-all-actions-e-g-save-go-submit-continue.png" alt="Verbs are used for all actions (e.g. Save, Go, Submit, Continue). evidence">
+              <img src="evidence/issue-01-website-layout-breaks-on-phone-screens.png" alt="Website layout breaks on phone screens">
             </div>
           </div>
-        </div>
-      </div>
-      <div class="story-score-pane">
-        
-    <div class="score-ring" style="--ring-size:128px; --ring-stroke:#caa23b; --ring-width:9.6px;">
-      <svg viewBox="0 0 128 128" aria-hidden="true">
-        <circle cx="64.0" cy="64.0" r="53.2" class="ring-track"></circle>
-        <circle cx="64.0" cy="64.0" r="53.2" class="ring-progress" style="stroke-dasharray:334.27;stroke-dashoffset:200.56;"></circle>
-      </svg>
-      <div class="score-ring-copy">
-        <strong>4.0</strong>
-        
-      </div>
     </div>
-    
-      </div>
-      <div class="story-copy">
-        <span class="severity-badge severity-high"><span class="severity-icon">!</span>Major Issue</span>
-        <h3>Verbs are used for all actions (e.g. Save, Go, Submit, Continue).</h3>
-        <p><strong>Issue:</strong> On Accueil, the audit found that &#x27;Verbs are used for all actions (e.g. Save, Go, Submit, Continue).&#x27; is not fully met. Action labels do not pass the verb criterion. At least one page relies too heavily on non-verb action labels.</p>
-        <p><strong>Why it matters:</strong> This matters because recurring patterns do not behave or look consistently, which makes the product feel less mature. In a GTM context, visible friction on Accueil can make the product feel harder to understand, trust, or adopt during a first review.</p>
-        <p><strong>Direction:</strong> Prefer direct verb-led action labels such as Search, Add to cart, Continue, Save, or Send.</p>
-      </div>
-    </article>
-    
-    <article class="story-row tone-high">
-      <div class="story-index">02</div>
-      <div class="story-media">
-        <div class="story-visual-frame">
-          <div class="desktop-screen">
-            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-            <div class="desktop-screen-body">
-              <img src="evidence/issue-02-users-have-control-over-interactive-content-experiences-or-w.png" alt="Users have control over interactive content, experiences or workflows — where they’re going, how they get there, and how easily they can stop and start. evidence">
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="story-score-pane">
-        
-    <div class="score-ring" style="--ring-size:128px; --ring-stroke:#caa23b; --ring-width:9.6px;">
-      <svg viewBox="0 0 128 128" aria-hidden="true">
-        <circle cx="64.0" cy="64.0" r="53.2" class="ring-track"></circle>
-        <circle cx="64.0" cy="64.0" r="53.2" class="ring-progress" style="stroke-dasharray:334.27;stroke-dashoffset:200.56;"></circle>
-      </svg>
-      <div class="score-ring-copy">
-        <strong>4.0</strong>
-        
-      </div>
-    </div>
-    
-      </div>
-      <div class="story-copy">
-        <span class="severity-badge severity-high"><span class="severity-icon">!</span>Major Issue</span>
-        <h3>Users have control over interactive content, experiences or workflows — where they’re going, how they get there, and how easily they can stop and start.</h3>
-        <p><strong>Issue:</strong> On Demander une démo, the audit found that &#x27;Users have control over interactive content, experiences or workflows — where they’re going, how they get there, and how easily they can stop and start.&#x27; is not fully met. User control over flows does not pass. The available signals do not strongly support user control over interactive flows.</p>
-        <p><strong>Why it matters:</strong> This matters because recurring patterns do not behave or look consistently, which makes the product feel less mature. In a GTM context, visible friction on Demander une démo can make the product feel harder to understand, trust, or adopt during a first review.</p>
-        <p><strong>Direction:</strong> Expose back, cancel, close, search, filter, and escape routes consistently, and add runtime checks to verify actual flow control.</p>
-      </div>
-    </article>
-    
-    <article class="story-row tone-high">
-      <div class="story-index">03</div>
-      <div class="story-media">
-        <div class="story-visual-frame">
-          <div class="desktop-screen">
-            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-            <div class="desktop-screen-body">
-              <img src="evidence/issue-03-the-ui-and-all-buttons-or-controls-responds-consistently-to-.png" alt="The UI (and all buttons or controls) responds consistently to user actions in terms of visual display, appropriate context and data functionality. evidence">
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="story-score-pane">
-        
-    <div class="score-ring" style="--ring-size:128px; --ring-stroke:#caa23b; --ring-width:9.6px;">
-      <svg viewBox="0 0 128 128" aria-hidden="true">
-        <circle cx="64.0" cy="64.0" r="53.2" class="ring-track"></circle>
-        <circle cx="64.0" cy="64.0" r="53.2" class="ring-progress" style="stroke-dasharray:334.27;stroke-dashoffset:200.56;"></circle>
-      </svg>
-      <div class="score-ring-copy">
-        <strong>4.0</strong>
-        
-      </div>
-    </div>
-    
-      </div>
-      <div class="story-copy">
-        <span class="severity-badge severity-high"><span class="severity-icon">!</span>Major Issue</span>
-        <h3>The UI (and all buttons or controls) responds consistently to user actions in terms of visual display, appropriate context and data functionality.</h3>
-        <p><strong>Issue:</strong> On Accueil, the audit found that &#x27;The UI (and all buttons or controls) responds consistently to user actions in terms of visual display, appropriate context and data functionality.&#x27; is not fully met. Control response consistency does not pass. The visible control styles are too inconsistent to support reliable interaction behavior expectations.</p>
-        <p><strong>Why it matters:</strong> This matters because recurring patterns do not behave or look consistently, which makes the product feel less mature. In a GTM context, visible friction on Accueil can make the product feel harder to understand, trust, or adopt during a first review.</p>
-        <p><strong>Direction:</strong> Standardize control variants and add runtime hover, focus, active, and disabled-state extraction.</p>
-      </div>
-    </article>
-    
-    <article class="story-row tone-high">
-      <div class="story-index">04</div>
-      <div class="story-media">
-        <div class="story-visual-frame">
-          <div class="desktop-screen">
-            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-            <div class="desktop-screen-body">
-              <img src="evidence/issue-04-search-is-available-on-every-page-not-just-the-homepage.png" alt="Search is available on every page, not just the homepage. evidence">
-            </div>
-          </div>
-        </div>
       </div>
       <div class="story-score-pane">
         
@@ -1421,34 +1458,34 @@
       </div>
       <div class="story-copy">
         <span class="severity-badge severity-high"><span class="severity-icon">!</span>Major Issue</span>
-        <h3>Search is available on every page, not just the homepage.</h3>
-        <p><strong>Issue:</strong> On Home, the audit found that &#x27;Search is available on every page, not just the homepage.&#x27; is not fully met. Actual site-search inputs detected on every page was not found.</p>
-        <p><strong>Why it matters:</strong> This matters because prospects may not immediately understand why this product is relevant for their context or what step to take next. In a GTM context, visible friction on Home can make the product feel harder to understand, trust, or adopt during a first review.</p>
-        <p><strong>Direction:</strong> Make the target audience, commercial proof, and next-step strategy more explicit and more tightly connected on the page.</p>
+        <h3>Website layout breaks on phone screens</h3>
+        <p><strong>Issue:</strong> On Home, the audit found that the website does not adapt reliably from desktop to phone. Desktop viewport 1440x900; phone viewport 390x844. The phone render exposes desktop-layout content that does not adapt correctly (measured overflow: 0px).</p>
+        <p><strong>Why it matters:</strong> This matters because mobile visitors cannot evaluate offers, navigation, or promotions with confidence when the page keeps desktop layout assumptions on a phone. In a GTM context, this can directly reduce discovery, store/product engagement, and trust for first-time mobile users.</p>
+        <p><strong>Direction:</strong> Rebuild the responsive breakpoint for the affected templates: remove fixed-width rows, let content groups collapse to a readable single-column flow, make hero/media blocks fluid, and test at 390px, 430px, 768px, and desktop widths before publishing.</p>
       </div>
     </article>
     
     <article class="story-row tone-high">
-      <div class="story-index">05</div>
+      <div class="story-index">02</div>
       <div class="story-media">
-        <div class="story-visual-frame">
+        <div class="story-visual-frame ">
           <div class="desktop-screen">
             <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
             <div class="desktop-screen-body">
-              <img src="evidence/issue-05-most-common-devices-browsers-and-screen-resolutions-are-supp.png" alt="Most common devices, browsers and screen resolutions are supported. evidence">
+              <img src="evidence/issue-02-visual-styles-are-consistent-throughout-the-application-or-s.png" alt="Visual styles are consistent throughout the application or site.">
             </div>
           </div>
-        </div>
+    </div>
       </div>
       <div class="story-score-pane">
         
     <div class="score-ring" style="--ring-size:128px; --ring-stroke:#caa23b; --ring-width:9.6px;">
       <svg viewBox="0 0 128 128" aria-hidden="true">
         <circle cx="64.0" cy="64.0" r="53.2" class="ring-track"></circle>
-        <circle cx="64.0" cy="64.0" r="53.2" class="ring-progress" style="stroke-dasharray:334.27;stroke-dashoffset:153.76;"></circle>
+        <circle cx="64.0" cy="64.0" r="53.2" class="ring-progress" style="stroke-dasharray:334.27;stroke-dashoffset:187.19;"></circle>
       </svg>
       <div class="score-ring-copy">
-        <strong>5.4</strong>
+        <strong>4.4</strong>
         
       </div>
     </div>
@@ -1456,10 +1493,115 @@
       </div>
       <div class="story-copy">
         <span class="severity-badge severity-high"><span class="severity-icon">!</span>Major Issue</span>
-        <h3>Most common devices, browsers and screen resolutions are supported.</h3>
-        <p><strong>Issue:</strong> On Home, the audit found that &#x27;Most common devices, browsers and screen resolutions are supported.&#x27; is not fully met. Viewport support is only partially evidenced The audited pages appear stable in the single tested viewport, but broader device and screen-resolution support cannot be confirmed from one viewport profile alone.</p>
-        <p><strong>Why it matters:</strong> This matters because the interface does not project enough confidence, clarity, or brand distinctiveness at first glance. In a GTM context, visible friction on Home can make the product feel harder to understand, trust, or adopt during a first review.</p>
-        <p><strong>Direction:</strong> Run the audit on at least mobile, tablet, and desktop viewport profiles to validate support more reliably.</p>
+        <h3>Visual styles are consistent throughout the application or site.</h3>
+        <p><strong>Issue:</strong> On About, the audit found that &#x27;Visual styles are consistent throughout the application or site.&#x27; is not fully met. Visual style inconsistency detected across repeated components Repeated component families use too many visual variants across the audited pages, which suggests design-system drift or inconsistent implementation.</p>
+        <p><strong>Why it matters:</strong> This matters because recurring patterns do not behave or look consistently, which makes the product feel less mature. In a GTM context, visible friction on About can make the product feel harder to understand, trust, or adopt during a first review.</p>
+        <p><strong>Direction:</strong> Standardize repeated components such as buttons, links, form controls, headings, and CTA patterns using shared design tokens and clearly defined visual variants.</p>
+      </div>
+    </article>
+    
+    <article class="story-row tone-high">
+      <div class="story-index">03</div>
+      <div class="story-media">
+        <div class="story-visual-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-03-similar-types-of-information-are-presented-in-similar-consis.png" alt="Similar types of information are presented in similar, consistent ways.">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="story-score-pane">
+        
+    <div class="score-ring" style="--ring-size:128px; --ring-stroke:#caa23b; --ring-width:9.6px;">
+      <svg viewBox="0 0 128 128" aria-hidden="true">
+        <circle cx="64.0" cy="64.0" r="53.2" class="ring-track"></circle>
+        <circle cx="64.0" cy="64.0" r="53.2" class="ring-progress" style="stroke-dasharray:334.27;stroke-dashoffset:187.19;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>4.4</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="story-copy">
+        <span class="severity-badge severity-high"><span class="severity-icon">!</span>Major Issue</span>
+        <h3>Similar types of information are presented in similar, consistent ways.</h3>
+        <p><strong>Issue:</strong> On About, the audit found that &#x27;Similar types of information are presented in similar, consistent ways.&#x27; is not fully met. Consistency of similar information does not pass Repeated information families vary substantially across pages or templates.</p>
+        <p><strong>Why it matters:</strong> This matters because recurring patterns do not behave or look consistently, which makes the product feel less mature. In a GTM context, visible friction on About can make the product feel harder to understand, trust, or adopt during a first review.</p>
+        <p><strong>Direction:</strong> Standardize repeated visual families such as headings, buttons, links, cards, and labels.</p>
+      </div>
+    </article>
+    
+    <article class="story-row tone-high">
+      <div class="story-index">04</div>
+      <div class="story-media">
+        <div class="story-visual-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-04-items-that-are-functionally-or-contextually-connected-are-gr.png" alt="Items that are functionally or contextually connected are grouped together visually (proximity &amp; alignment).">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="story-score-pane">
+        
+    <div class="score-ring" style="--ring-size:128px; --ring-stroke:#caa23b; --ring-width:9.6px;">
+      <svg viewBox="0 0 128 128" aria-hidden="true">
+        <circle cx="64.0" cy="64.0" r="53.2" class="ring-track"></circle>
+        <circle cx="64.0" cy="64.0" r="53.2" class="ring-progress" style="stroke-dasharray:334.27;stroke-dashoffset:187.19;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>4.4</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="story-copy">
+        <span class="severity-badge severity-high"><span class="severity-icon">!</span>Major Issue</span>
+        <h3>Items that are functionally or contextually connected are grouped together visually (proximity &amp; alignment).</h3>
+        <p><strong>Issue:</strong> On Request, the audit found that &#x27;Items that are functionally or contextually connected are grouped together visually (proximity &amp; alignment).&#x27; is not fully met. Visual grouping does not pass. At least one page does not group related items clearly enough through proximity and alignment.</p>
+        <p><strong>Why it matters:</strong> This matters because recurring patterns do not behave or look consistently, which makes the product feel less mature. In a GTM context, visible friction on Request can make the product feel harder to understand, trust, or adopt during a first review.</p>
+        <p><strong>Direction:</strong> Use clearer grouping containers, alignment systems, and predictable intra-group versus inter-group spacing.</p>
+      </div>
+    </article>
+    
+    <article class="story-row tone-high">
+      <div class="story-index">05</div>
+      <div class="story-media">
+        <div class="story-visual-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-05-no-more-than-two-2-distinct-font-families-are-used-e-g-helve.png" alt="No more than two (2) distinct font families are used (e.g. Helvetica &amp; Times).">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="story-score-pane">
+        
+    <div class="score-ring" style="--ring-size:128px; --ring-stroke:#caa23b; --ring-width:9.6px;">
+      <svg viewBox="0 0 128 128" aria-hidden="true">
+        <circle cx="64.0" cy="64.0" r="53.2" class="ring-track"></circle>
+        <circle cx="64.0" cy="64.0" r="53.2" class="ring-progress" style="stroke-dasharray:334.27;stroke-dashoffset:187.19;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>4.4</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="story-copy">
+        <span class="severity-badge severity-high"><span class="severity-icon">!</span>Major Issue</span>
+        <h3>No more than two (2) distinct font families are used (e.g. Helvetica &amp; Times).</h3>
+        <p><strong>Issue:</strong> On About, the audit found that &#x27;No more than two (2) distinct font families are used (e.g. Helvetica &amp; Times).&#x27; is not fully met. Font family count is slightly high The site uses more repeated font families than expected for a tightly controlled design system. Observed signal: fontUsage: __fontbase_99b6b0: 251.</p>
+        <p><strong>Why it matters:</strong> This matters because recurring patterns do not behave or look consistently, which makes the product feel less mature. In a GTM context, visible friction on About can make the product feel harder to understand, trust, or adopt during a first review.</p>
+        <p><strong>Direction:</strong> Reduce repeated font families or consolidate typography into a smaller branded system.</p>
       </div>
     </article>
     </div>
@@ -1473,17 +1615,192 @@
         </div>
       </div>
       <div class="axis-stories">
-    <article class="axis-story tone-low" id="axis-1">
+    <article class="axis-story tone-medium" id="axis-1">
       <div class="story-index">01</div>
       <div class="axis-story-media">
-        <div class="axis-story-frame">
+        <div class="axis-story-frame ">
           <div class="desktop-screen">
             <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
             <div class="desktop-screen-body">
-              <img src="evidence/issue-101-verbs-are-used-for-all-actions-e-g-save-go-submit-continue.png" alt="Task Execution visual evidence">
+              <img src="evidence/issue-101-calls-to-action-e-g-register-add-submit-are-clearly-labeled-.png" alt="Task Execution visual evidence">
             </div>
           </div>
-        </div>
+    </div>
+      </div>
+      <div class="axis-story-score">
+        
+    <div class="score-ring" style="--ring-size:154px; --ring-stroke:#caa23b; --ring-width:11.5px;">
+      <svg viewBox="0 0 154 154" aria-hidden="true">
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-track"></circle>
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-progress" style="stroke-dasharray:409.82;stroke-dashoffset:151.63;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>6.3</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="axis-story-copy">
+        <h3>Task Execution</h3>
+        <p><strong>Commercial impact:</strong> Friction in key tasks increases abandonment and weakens the product story in a live sales context.</p>
+        <p><strong>Lead issue:</strong> Calls to action (e.g. Register, Add, Submit) are clearly labeled and appear clickable.</p>
+        <p><strong>Observed friction:</strong> On Home, the audit found that &#x27;Calls to action (e.g. Register, Add, Submit) are clearly labeled and appear clickable.&#x27; is not fully met. CTA labeling and clickability are only partially effective. Some actions are labeled or styled clearly, but others may not strongly signal clickability.</p>
+        <p><strong>Recommended move:</strong> Convert ambiguous icon-only or ghost controls into labeled actions with visible button states. Prioritize primary journey CTAs such as `View services`, `View work`, `Contact us`, `Start a project`, or equivalent labels that match the site&#x27;s actual language and information architecture.</p>
+      </div>
+    </article>
+    
+    <article class="axis-story tone-medium" id="axis-2">
+      <div class="story-index">02</div>
+      <div class="axis-story-media">
+        <div class="axis-story-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-102-website-layout-breaks-on-phone-screens.png" alt="Flow &amp; Architecture visual evidence">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="axis-story-score">
+        
+    <div class="score-ring" style="--ring-size:154px; --ring-stroke:#caa23b; --ring-width:11.5px;">
+      <svg viewBox="0 0 154 154" aria-hidden="true">
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-track"></circle>
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-progress" style="stroke-dasharray:409.82;stroke-dashoffset:204.91;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>5.0</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="axis-story-copy">
+        <h3>Flow &amp; Architecture</h3>
+        <p><strong>Commercial impact:</strong> Weak architecture slows comprehension and makes the offer feel less mature and less navigable.</p>
+        <p><strong>Lead issue:</strong> Website layout breaks on phone screens</p>
+        <p><strong>Observed friction:</strong> On Home, the audit found that the website does not adapt reliably from desktop to phone. Desktop viewport 1440x900; phone viewport 390x844. The phone render exposes desktop-layout content that does not adapt correctly (measured overflow: 0px).</p>
+        <p><strong>Recommended move:</strong> Rebuild the responsive breakpoint for the affected templates: remove fixed-width rows, let content groups collapse to a readable single-column flow, make hero/media blocks fluid, and test at 390px, 430px, 768px, and desktop widths before publishing.</p>
+      </div>
+    </article>
+    
+    <article class="axis-story tone-medium" id="axis-3">
+      <div class="story-index">03</div>
+      <div class="axis-story-media">
+        <div class="axis-story-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-103-help-and-instructions-e-g-examples-information-required-are-.png" alt="Trust &amp; Accessibility visual evidence">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="axis-story-score">
+        
+    <div class="score-ring" style="--ring-size:154px; --ring-stroke:#caa23b; --ring-width:11.5px;">
+      <svg viewBox="0 0 154 154" aria-hidden="true">
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-track"></circle>
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-progress" style="stroke-dasharray:409.82;stroke-dashoffset:147.54;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>6.4</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="axis-story-copy">
+        <h3>Trust &amp; Accessibility</h3>
+        <p><strong>Commercial impact:</strong> Visible trust and accessibility gaps increase perceived risk and narrow the reachable audience.</p>
+        <p><strong>Lead issue:</strong> Help and instructions (e.g. examples, information required) are provided where necessary, in context with particular fields or sections.</p>
+        <p><strong>Observed friction:</strong> On Home, the audit found that &#x27;Help and instructions (e.g. examples, information required) are provided where necessary, in context with particular fields or sections.&#x27; is not fully met. Contextual help requires field-level helper text, described-by references, or distinct inline examples.</p>
+        <p><strong>Recommended move:</strong> Add or strengthen reassurance cues, improve visible legibility and control clarity, and remove avoidable trust-damaging signals.</p>
+      </div>
+    </article>
+    
+    <article class="axis-story tone-high" id="axis-4">
+      <div class="story-index">04</div>
+      <div class="axis-story-media">
+        <div class="axis-story-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-104-visual-styles-are-consistent-throughout-the-application-or-s.png" alt="UI Consistency visual evidence">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="axis-story-score">
+        
+    <div class="score-ring" style="--ring-size:154px; --ring-stroke:#caa23b; --ring-width:11.5px;">
+      <svg viewBox="0 0 154 154" aria-hidden="true">
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-track"></circle>
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-progress" style="stroke-dasharray:409.82;stroke-dashoffset:229.50;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>4.4</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="axis-story-copy">
+        <h3>UI Consistency</h3>
+        <p><strong>Commercial impact:</strong> Inconsistent UI signals reduce perceived product maturity and make repeat use less efficient.</p>
+        <p><strong>Lead issue:</strong> Visual styles are consistent throughout the application or site.</p>
+        <p><strong>Observed friction:</strong> On About, the audit found that &#x27;Visual styles are consistent throughout the application or site.&#x27; is not fully met. Visual style inconsistency detected across repeated components Repeated component families use too many visual variants across the audited pages, which suggests design-system drift or inconsistent implementation.</p>
+        <p><strong>Recommended move:</strong> Standardize repeated components such as buttons, links, form controls, headings, and CTA patterns using shared design tokens and clearly defined visual variants.</p>
+      </div>
+    </article>
+    
+    <article class="axis-story tone-medium" id="axis-5">
+      <div class="story-index">05</div>
+      <div class="axis-story-media">
+        <div class="axis-story-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-105-colors-are-not-over-saturated-and-don-t-vibrate-or-fatigue-t.png" alt="Visual Brand visual evidence">
+            </div>
+          </div>
+    </div>
+      </div>
+      <div class="axis-story-score">
+        
+    <div class="score-ring" style="--ring-size:154px; --ring-stroke:#caa23b; --ring-width:11.5px;">
+      <svg viewBox="0 0 154 154" aria-hidden="true">
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-track"></circle>
+        <circle cx="77.0" cy="77.0" r="65.225" class="ring-progress" style="stroke-dasharray:409.82;stroke-dashoffset:159.83;"></circle>
+      </svg>
+      <div class="score-ring-copy">
+        <strong>6.1</strong>
+        
+      </div>
+    </div>
+    
+      </div>
+      <div class="axis-story-copy">
+        <h3>Visual Brand</h3>
+        <p><strong>Commercial impact:</strong> A weak visual narrative lowers memorability, credibility, and differentiation on first impression.</p>
+        <p><strong>Lead issue:</strong> Colors are not over-saturated and don’t vibrate or fatigue the eye.</p>
+        <p><strong>Observed friction:</strong> On About, the audit found that &#x27;Colors are not over-saturated and don’t vibrate or fatigue the eye.&#x27; is not fully met. Some oversaturated colors were detected. Some pages include highly saturated colors that may feel visually aggressive in context.</p>
+        <p><strong>Recommended move:</strong> Reduce saturation on dominant accent colors and large surfaces, reserving intense colors for small intentional accents.</p>
+      </div>
+    </article>
+    
+    <article class="axis-story tone-low" id="axis-6">
+      <div class="story-index">06</div>
+      <div class="axis-story-media">
+        <div class="axis-story-frame ">
+          <div class="desktop-screen">
+            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
+            <div class="desktop-screen-body">
+              <img src="evidence/issue-106-standard-browser-functions-e-g-back-forward-copy-paste-are-s.png" alt="Content &amp; Microcopy visual evidence">
+            </div>
+          </div>
+    </div>
       </div>
       <div class="axis-story-score">
         
@@ -1500,200 +1817,25 @@
     
       </div>
       <div class="axis-story-copy">
-        <h3>Task Execution</h3>
-        <p><strong>Commercial impact:</strong> Friction in key tasks increases abandonment and weakens the product story in a live sales context.</p>
-        <p><strong>Lead issue:</strong> Verbs are used for all actions (e.g. Save, Go, Submit, Continue).</p>
-        <p><strong>Observed friction:</strong> On Accueil, the audit found that &#x27;Verbs are used for all actions (e.g. Save, Go, Submit, Continue).&#x27; is not fully met. Action labels do not pass the verb criterion. At least one page relies too heavily on non-verb action labels.</p>
-        <p><strong>Recommended move:</strong> Prefer direct verb-led action labels such as Search, Add to cart, Continue, Save, or Send.</p>
-      </div>
-    </article>
-    
-    <article class="axis-story tone-medium" id="axis-2">
-      <div class="story-index">02</div>
-      <div class="axis-story-media">
-        <div class="axis-story-frame">
-          <div class="desktop-screen">
-            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-            <div class="desktop-screen-body">
-              <img src="evidence/issue-102-search-is-available-on-every-page-not-just-the-homepage.png" alt="Flow &amp; Architecture visual evidence">
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="axis-story-score">
-        
-    <div class="score-ring" style="--ring-size:154px; --ring-stroke:#caa23b; --ring-width:11.5px;">
-      <svg viewBox="0 0 154 154" aria-hidden="true">
-        <circle cx="77.0" cy="77.0" r="65.225" class="ring-track"></circle>
-        <circle cx="77.0" cy="77.0" r="65.225" class="ring-progress" style="stroke-dasharray:409.82;stroke-dashoffset:172.12;"></circle>
-      </svg>
-      <div class="score-ring-copy">
-        <strong>5.8</strong>
-        
-      </div>
-    </div>
-    
-      </div>
-      <div class="axis-story-copy">
-        <h3>Flow &amp; Architecture</h3>
-        <p><strong>Commercial impact:</strong> Weak architecture slows comprehension and makes the offer feel less mature and less navigable.</p>
-        <p><strong>Lead issue:</strong> Search is available on every page, not just the homepage.</p>
-        <p><strong>Observed friction:</strong> On Home, the audit found that &#x27;Search is available on every page, not just the homepage.&#x27; is not fully met. Actual site-search inputs detected on every page was not found.</p>
-        <p><strong>Recommended move:</strong> Clarify navigation labels, strengthen page grouping, and order content around the buyer&#x27;s next likely question.</p>
-      </div>
-    </article>
-    
-    <article class="axis-story tone-medium" id="axis-3">
-      <div class="story-index">03</div>
-      <div class="axis-story-media">
-        <div class="axis-story-frame">
-          <div class="desktop-screen">
-            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-            <div class="desktop-screen-body">
-              <img src="evidence/issue-103-most-common-devices-browsers-and-screen-resolutions-are-supp.png" alt="Trust &amp; Accessibility visual evidence">
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="axis-story-score">
-        
-    <div class="score-ring" style="--ring-size:154px; --ring-stroke:#caa23b; --ring-width:11.5px;">
-      <svg viewBox="0 0 154 154" aria-hidden="true">
-        <circle cx="77.0" cy="77.0" r="65.225" class="ring-track"></circle>
-        <circle cx="77.0" cy="77.0" r="65.225" class="ring-progress" style="stroke-dasharray:409.82;stroke-dashoffset:163.93;"></circle>
-      </svg>
-      <div class="score-ring-copy">
-        <strong>6.0</strong>
-        
-      </div>
-    </div>
-    
-      </div>
-      <div class="axis-story-copy">
-        <h3>Trust &amp; Accessibility</h3>
-        <p><strong>Commercial impact:</strong> Visible trust and accessibility gaps increase perceived risk and narrow the reachable audience.</p>
-        <p><strong>Lead issue:</strong> Most common devices, browsers and screen resolutions are supported.</p>
-        <p><strong>Observed friction:</strong> On Home, the audit found that &#x27;Most common devices, browsers and screen resolutions are supported.&#x27; is not fully met. Viewport support is only partially evidenced The audited pages appear stable in the single tested viewport, but broader device and screen-resolution support cannot be confirmed from one viewport profile alone.</p>
-        <p><strong>Recommended move:</strong> Run the audit on at least mobile, tablet, and desktop viewport profiles to validate support more reliably.</p>
-      </div>
-    </article>
-    
-    <article class="axis-story tone-high" id="axis-4">
-      <div class="story-index">04</div>
-      <div class="axis-story-media">
-        <div class="axis-story-frame">
-          <div class="desktop-screen">
-            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-            <div class="desktop-screen-body">
-              <img src="evidence/issue-104-verbs-are-used-for-all-actions-e-g-save-go-submit-continue.png" alt="UI Consistency visual evidence">
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="axis-story-score">
-        
-    <div class="score-ring" style="--ring-size:154px; --ring-stroke:#caa23b; --ring-width:11.5px;">
-      <svg viewBox="0 0 154 154" aria-hidden="true">
-        <circle cx="77.0" cy="77.0" r="65.225" class="ring-track"></circle>
-        <circle cx="77.0" cy="77.0" r="65.225" class="ring-progress" style="stroke-dasharray:409.82;stroke-dashoffset:245.89;"></circle>
-      </svg>
-      <div class="score-ring-copy">
-        <strong>4.0</strong>
-        
-      </div>
-    </div>
-    
-      </div>
-      <div class="axis-story-copy">
-        <h3>UI Consistency</h3>
-        <p><strong>Commercial impact:</strong> Inconsistent UI signals reduce perceived product maturity and make repeat use less efficient.</p>
-        <p><strong>Lead issue:</strong> Verbs are used for all actions (e.g. Save, Go, Submit, Continue).</p>
-        <p><strong>Observed friction:</strong> On Accueil, the audit found that &#x27;Verbs are used for all actions (e.g. Save, Go, Submit, Continue).&#x27; is not fully met. Action labels do not pass the verb criterion. At least one page relies too heavily on non-verb action labels.</p>
-        <p><strong>Recommended move:</strong> Prefer direct verb-led action labels such as Search, Add to cart, Continue, Save, or Send.</p>
-      </div>
-    </article>
-    
-    <article class="axis-story tone-medium" id="axis-5">
-      <div class="story-index">05</div>
-      <div class="axis-story-media">
-        <div class="axis-story-frame">
-          <div class="desktop-screen">
-            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-            <div class="desktop-screen-body">
-              <img src="evidence/issue-105-most-common-devices-browsers-and-screen-resolutions-are-supp.png" alt="Visual Brand visual evidence">
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="axis-story-score">
-        
-    <div class="score-ring" style="--ring-size:154px; --ring-stroke:#caa23b; --ring-width:11.5px;">
-      <svg viewBox="0 0 154 154" aria-hidden="true">
-        <circle cx="77.0" cy="77.0" r="65.225" class="ring-track"></circle>
-        <circle cx="77.0" cy="77.0" r="65.225" class="ring-progress" style="stroke-dasharray:409.82;stroke-dashoffset:188.52;"></circle>
-      </svg>
-      <div class="score-ring-copy">
-        <strong>5.4</strong>
-        
-      </div>
-    </div>
-    
-      </div>
-      <div class="axis-story-copy">
-        <h3>Visual Brand</h3>
-        <p><strong>Commercial impact:</strong> A weak visual narrative lowers memorability, credibility, and differentiation on first impression.</p>
-        <p><strong>Lead issue:</strong> Most common devices, browsers and screen resolutions are supported.</p>
-        <p><strong>Observed friction:</strong> On Home, the audit found that &#x27;Most common devices, browsers and screen resolutions are supported.&#x27; is not fully met. Viewport support is only partially evidenced The audited pages appear stable in the single tested viewport, but broader device and screen-resolution support cannot be confirmed from one viewport profile alone.</p>
-        <p><strong>Recommended move:</strong> Run the audit on at least mobile, tablet, and desktop viewport profiles to validate support more reliably.</p>
-      </div>
-    </article>
-    
-    <article class="axis-story tone-medium" id="axis-6">
-      <div class="story-index">06</div>
-      <div class="axis-story-media">
-        <div class="axis-story-frame">
-          <div class="desktop-screen">
-            <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
-            <div class="desktop-screen-body">
-              <img src="evidence/issue-106-verbs-are-used-for-all-actions-e-g-save-go-submit-continue.png" alt="Content &amp; Microcopy visual evidence">
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="axis-story-score">
-        
-    <div class="score-ring" style="--ring-size:154px; --ring-stroke:#caa23b; --ring-width:11.5px;">
-      <svg viewBox="0 0 154 154" aria-hidden="true">
-        <circle cx="77.0" cy="77.0" r="65.225" class="ring-track"></circle>
-        <circle cx="77.0" cy="77.0" r="65.225" class="ring-progress" style="stroke-dasharray:409.82;stroke-dashoffset:172.12;"></circle>
-      </svg>
-      <div class="score-ring-copy">
-        <strong>5.8</strong>
-        
-      </div>
-    </div>
-    
-      </div>
-      <div class="axis-story-copy">
         <h3>Content &amp; Microcopy</h3>
         <p><strong>Commercial impact:</strong> Unclear messaging makes the value proposition, controls, and next steps harder to understand and repeat.</p>
-        <p><strong>Lead issue:</strong> Verbs are used for all actions (e.g. Save, Go, Submit, Continue).</p>
-        <p><strong>Observed friction:</strong> On Accueil, the audit found that &#x27;Verbs are used for all actions (e.g. Save, Go, Submit, Continue).&#x27; is not fully met. Action labels do not pass the verb criterion. At least one page relies too heavily on non-verb action labels.</p>
-        <p><strong>Recommended move:</strong> Prefer direct verb-led action labels such as Search, Add to cart, Continue, Save, or Send.</p>
+        <p><strong>Lead issue:</strong> Standard browser functions (e.g. Back, Forward, Copy, Paste) are supported.</p>
+        <p><strong>Observed friction:</strong> On About, the audit found that &#x27;Standard browser functions (e.g. Back, Forward, Copy, Paste) are supported.&#x27; is not fully met. Standard browser support is only partially evidenced. The available extraction is too static to fully verify back, forward, copy, and paste support.</p>
+        <p><strong>Recommended move:</strong> Add runtime navigation and field interaction checks to verify back, forward, copy, paste, and native input behavior.</p>
       </div>
     </article>
     
     <article class="axis-story tone-medium" id="axis-7">
       <div class="story-index">07</div>
       <div class="axis-story-media">
-        <div class="axis-story-frame">
+        <div class="axis-story-frame ">
           <div class="desktop-screen">
             <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
             <div class="desktop-screen-body">
               <img src="evidence/issue-107-search-is-available-on-every-page-not-just-the-homepage.png" alt="Market Alignment visual evidence">
             </div>
           </div>
-        </div>
+    </div>
       </div>
       <div class="axis-story-score">
         
@@ -1714,7 +1856,7 @@
         <p><strong>Commercial impact:</strong> Weak GTM alignment makes it harder for prospects to see why the offer is relevant and what to do next.</p>
         <p><strong>Lead issue:</strong> Search is available on every page, not just the homepage.</p>
         <p><strong>Observed friction:</strong> On Home, the audit found that &#x27;Search is available on every page, not just the homepage.&#x27; is not fully met. Actual site-search inputs detected on every page was not found.</p>
-        <p><strong>Recommended move:</strong> Make the target audience, commercial proof, and next-step strategy more explicit and more tightly connected on the page.</p>
+        <p><strong>Recommended move:</strong> Add a persistent site search entry in the header on desktop and mobile, keep it available on key service, portfolio, resource, and contact pages, and return typed-ahead suggestions for services, case studies, or articles so prospects can reach relevant content quickly.</p>
       </div>
     </article>
     </div>
@@ -1731,48 +1873,53 @@
         <article class="reco-card priority-critical" tabindex="0">
           <span class="reco-orb">01</span>
           <span class="reco-badge">Critical</span>
-          <h4>Verbs are used for all actions (e.g. Save, Go, Submit, Continue).</h4>
-          <p>Prefer direct verb-led action labels such as Search, Add to cart, Continue, Save, or Send.</p>
-          <span class="reco-cta">Recommended move</span>
+          <h4>Website layout breaks on phone screens</h4>
+          <p>Rebuild the responsive breakpoint for the affected templates: remove fixed-width rows, let content groups collapse to a readable single-column flow, make hero/media blocks fluid, and test at 390px, 430px, 768px, and desktop widths before publishing. Start with Home, then reuse the same breakpoint rules across category and promotion templates. Acceptance check: at 390px width there should be no clipped primary content, no desktop-width product rows, and navigation/actions should remain reachable without horizontal panning.</p>
+          <p class="reco-impact">Mobile conversion risk on Home: phone users see a broken layout before they can browse offers or navigate.</p>
+          <span class="reco-axis">Flow &amp; Architecture</span>
         </article>
         
         <article class="reco-card priority-critical" tabindex="0">
           <span class="reco-orb">02</span>
           <span class="reco-badge">Critical</span>
-          <h4>Users have control over interactive content, experiences or workflows — where they’re going, how they get there, and how easily they can stop and start.</h4>
-          <p>Expose back, cancel, close, search, filter, and escape routes consistently, and add runtime checks to verify actual flow control.</p>
-          <span class="reco-cta">Recommended move</span>
+          <h4>Visual styles are consistent throughout the application or site.</h4>
+          <p>Standardize repeated components such as buttons, links, form controls, headings, and CTA patterns using shared design tokens and clearly defined visual variants. Use the captured evidence on About as the acceptance target: Visual style inconsistency detected across repeated components Repeated component families use too many visual variants across the audited pages, which suggests design-system drift</p>
+          <p class="reco-impact">Major UI Consistency risk on About; fix on this template before scaling to sibling pages.</p>
+          <span class="reco-axis">UI Consistency</span>
         </article>
         
         <article class="reco-card priority-critical" tabindex="0">
           <span class="reco-orb">03</span>
           <span class="reco-badge">Critical</span>
-          <h4>The UI (and all buttons or controls) responds consistently to user actions in terms of visual display, appropriate context and data functionality.</h4>
-          <p>Standardize control variants and add runtime hover, focus, active, and disabled-state extraction.</p>
-          <span class="reco-cta">Recommended move</span>
+          <h4>Similar types of information are presented in similar, consistent ways.</h4>
+          <p>Standardize repeated visual families such as headings, buttons, links, cards, and labels. Use the captured evidence on About as the acceptance target: Consistency of similar information does not pass Repeated information families vary substantially across pages or templates.</p>
+          <p class="reco-impact">Major UI Consistency risk on About; fix on this template before scaling to sibling pages.</p>
+          <span class="reco-axis">UI Consistency</span>
         </article>
         
         <article class="reco-card priority-critical" tabindex="0">
           <span class="reco-orb">04</span>
           <span class="reco-badge">Critical</span>
-          <h4>Search is available on every page, not just the homepage.</h4>
-          <p>Make the target audience, commercial proof, and next-step strategy more explicit and more tightly connected on the page.</p>
-          <span class="reco-cta">Recommended move</span>
+          <h4>Items that are functionally or contextually connected are grouped together visually (proximity &amp; alignment).</h4>
+          <p>Use clearer grouping containers, alignment systems, and predictable intra-group versus inter-group spacing. Use the captured evidence on Request as the acceptance target: Visual grouping does not pass At least one page does not group related items clearly enough through proximity and alignment.</p>
+          <p class="reco-impact">Major UI Consistency risk on Request; fix on this template before scaling to sibling pages.</p>
+          <span class="reco-axis">UI Consistency</span>
         </article>
         
         <article class="reco-card priority-critical" tabindex="0">
           <span class="reco-orb">05</span>
           <span class="reco-badge">Critical</span>
-          <h4>Most common devices, browsers and screen resolutions are supported.</h4>
-          <p>Run the audit on at least mobile, tablet, and desktop viewport profiles to validate support more reliably.</p>
-          <span class="reco-cta">Recommended move</span>
+          <h4>No more than two (2) distinct font families are used (e.g. Helvetica &amp; Times).</h4>
+          <p>Reduce repeated font families or consolidate typography into a smaller branded system. Use the captured evidence on About as the acceptance target: fontUsage: __fontbase_99b6b0: 251</p>
+          <p class="reco-impact">Major UI Consistency risk on About; fix on this template before scaling to sibling pages.</p>
+          <span class="reco-axis">UI Consistency</span>
         </article>
         </div>
     </section>
 
     <footer class="footer">
       <span>Generated from the automated GTM audit pipeline.</span>
-      <span>weefizz.com</span>
+      <span>studiomorf.nl</span>
     </footer>
   </div>
 </body>
