@@ -278,7 +278,7 @@
       .intro-sequence {
         background: transparent;
         isolation: isolate;
-        min-height: 164vh;
+        min-height: 100vh;
         position: relative;
       }
 
@@ -299,8 +299,7 @@
       }
 
       .intro-sequence > .hero {
-        position: sticky;
-        top: 0;
+        position: relative;
         z-index: 1;
       }
 
@@ -2550,10 +2549,6 @@
           padding: 128px 24px 78px;
         }
 
-        .intro-sequence {
-          min-height: 154vh;
-        }
-
         .scroll-transition {
           min-height: 72vh;
         }
@@ -3300,6 +3295,7 @@
         const [transitionProgress, setTransitionProgress] = useState(0);
         const [processProgress, setProcessProgress] = useState(0);
         const [launchStep, setLaunchStep] = useState("choose");
+        const [auditUnlocked, setAuditUnlocked] = useState(false);
         const auditSectionRef = useRef(null);
         const screenshotFilesRef = useRef([]);
 
@@ -3418,8 +3414,11 @@
         }, [job?.id, job?.status]);
 
         function scrollToAudit() {
-          if (!auditSectionRef.current) return;
-          auditSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+          setAuditUnlocked(true);
+          window.setTimeout(() => {
+            if (!auditSectionRef.current) return;
+            auditSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 0);
         }
 
         function selectExperience(nextExperienceType) {
@@ -3628,9 +3627,8 @@
             e(
               "nav",
               { className: "home-nav", "aria-label": "Home navigation" },
-              e("a", { href: "#features" }, "Features"),
-              e("a", { href: "#about" }, "About"),
-              e("button", { type: "button", onClick: scrollToAudit }, "Launch")
+              e("a", { href: "#features", onClick: (event) => event.preventDefault() }, "Features"),
+              e("a", { href: "#about", onClick: (event) => event.preventDefault() }, "About")
             )
           ),
           e(
@@ -3639,10 +3637,9 @@
             e(
               "div",
               { className: "intro-sequence" },
-              e(Hero, { onLaunch: scrollToAudit }),
-              e(ScrollTransition)
+              e(Hero, { onLaunch: scrollToAudit })
             ),
-            e(
+            auditUnlocked && e(
               "section",
               { className: "launch-section", id: "audit", ref: auditSectionRef, "aria-labelledby": "launch-heading" },
               e(
