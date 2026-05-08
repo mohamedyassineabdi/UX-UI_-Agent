@@ -87,45 +87,12 @@ img {
   min-width: 0;
 }
 
-.ey-brand {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 10px;
+.ey-studio-logo {
+  display: block;
+  width: clamp(118px, 11vw, 154px);
+  height: auto;
+  flex: 0 0 auto;
   color: var(--ink);
-  white-space: nowrap;
-}
-
-.ey-slash {
-  width: 42px;
-  height: 10px;
-  margin-bottom: 26px;
-  transform: skewX(-24deg);
-  transform-origin: left center;
-  background: var(--accent);
-  border-radius: 2px;
-}
-
-.ey-wordmark {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  line-height: 1;
-}
-
-.ey-wordmark-ey {
-  font-size: 2.25rem;
-  font-weight: 800;
-  letter-spacing: -0.06em;
-}
-
-.ey-wordmark-studio {
-  font-size: 1.55rem;
-  font-weight: 500;
-  letter-spacing: -0.04em;
-}
-
-.ey-wordmark-plus {
-  color: #ff5f7a;
 }
 
 .brand-divider {
@@ -957,12 +924,8 @@ img {
     gap: var(--space-3);
   }
 
-  .ey-wordmark-ey {
-    font-size: 1.95rem;
-  }
-
-  .ey-wordmark-studio {
-    font-size: 1.3rem;
+  .ey-studio-logo {
+    width: 142px;
   }
 
   .client-brand-logo-wrap {
@@ -995,17 +958,8 @@ img {
     display: none;
   }
 
-  .ey-slash {
-    width: 34px;
-    margin-bottom: 20px;
-  }
-
-  .ey-wordmark-ey {
-    font-size: 1.75rem;
-  }
-
-  .ey-wordmark-studio {
-    font-size: 1.2rem;
+  .ey-studio-logo {
+    width: 126px;
   }
 
   .client-brand-copy {

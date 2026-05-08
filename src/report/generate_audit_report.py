@@ -25,6 +25,23 @@ DEFAULT_WORKBOOK = GENERATED_DIR / "UX-Audit-Workbook-final.xlsx"
 DEFAULT_OUTPUT_DIR = GENERATED_DIR / "audit-report"
 SPOTLIGHT_FRAME_WIDTH = 1920
 SPOTLIGHT_FRAME_HEIGHT = 1080
+EY_STUDIO_LOGO_SVG = """
+<svg class="ey-studio-logo" viewBox="0 0 400 154" role="img" aria-label="EY Studio plus" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ey-plus-gradient-report-shell" x1="350" y1="91" x2="389" y2="130" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.22" stop-color="#28d7ff"/>
+      <stop offset="0.48" stop-color="#8b35ff"/>
+      <stop offset="0.72" stop-color="#ff2aa1"/>
+      <stop offset="1" stop-color="#ffe600"/>
+    </linearGradient>
+  </defs>
+  <polygon points="0,52 149,0 149,29 0,52" fill="#ffe600"/>
+  <text x="0" y="132" fill="currentColor" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="79" font-weight="900" letter-spacing="-5">EY</text>
+  <text x="146" y="132" fill="currentColor" font-family="Arial, Helvetica, sans-serif" font-size="63" font-weight="700" letter-spacing="-3">Studio</text>
+  <path d="M363 91h13v13h13v13h-13v13h-13v-13h-13v-13h13V91Z" fill="url(#ey-plus-gradient-report-shell)"/>
+</svg>
+"""
 
 MATCH_STOPWORDS = {
     "a", "an", "and", "are", "as", "at", "be", "by", "de", "des", "du", "en", "et",
@@ -903,13 +920,7 @@ def render_index_html(report_data: Dict[str, Any]) -> str:
   <div class="report-shell">
     <header class="report-topbar">
       <a class="brand-suite" href="#hero" aria-label="Go to audit overview">
-        <span class="ey-brand" aria-hidden="true">
-          <span class="ey-slash"></span>
-          <span class="ey-wordmark">
-            <span class="ey-wordmark-ey">EY</span>
-            <span class="ey-wordmark-studio">Studio<span class="ey-wordmark-plus">+</span></span>
-          </span>
-        </span>
+        {EY_STUDIO_LOGO_SVG}
         <span class="brand-divider" aria-hidden="true"></span>
         <span class="client-brand">
           <span id="client-brand-logo-wrap" class="client-brand-logo-wrap is-empty">

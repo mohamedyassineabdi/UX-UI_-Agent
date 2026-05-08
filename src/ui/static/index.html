@@ -183,7 +183,7 @@
       }
 
       .view-home .brand-logo {
-        width: 128px;
+        width: 126px;
       }
 
       .home-nav {
@@ -222,9 +222,10 @@
       }
 
       .brand-logo {
+        color: #ffffff;
         display: block;
         height: auto;
-        width: clamp(142px, 11vw, 184px);
+        width: clamp(118px, 11vw, 154px);
       }
 
       .topbar-meta {
@@ -3151,19 +3152,29 @@
             "svg",
             {
               className: "brand-logo",
-              viewBox: "0 0 527 226",
+              viewBox: "0 0 400 154",
               fill: "none",
               xmlns: "http://www.w3.org/2000/svg",
               "aria-hidden": "true",
               focusable: "false",
             },
-            e("path", { d: "M61 87L210 35V64L61 87Z", fill: "#FFE600" }),
-            e("text", { x: "58", y: "170", fill: "#FFFFFF", fontFamily: "Arial Black, Arial, sans-serif", fontSize: "88", fontWeight: "900", letterSpacing: "-6" }, "EY"),
-            e("text", { x: "207", y: "169", fill: "#FFFFFF", fontFamily: "Arial, Helvetica, sans-serif", fontSize: "70", fontWeight: "700", letterSpacing: "-4" }, "Studio"),
-            e("rect", { x: "447", y: "127", width: "17", height: "51", fill: "#F72585" }),
-            e("rect", { x: "430", y: "144", width: "17", height: "17", fill: "#FFE600" }),
-            e("rect", { x: "447", y: "144", width: "17", height: "17", fill: "#8A2DFF" }),
-            e("rect", { x: "464", y: "144", width: "17", height: "17", fill: "#00A7B5" })
+            e(
+              "defs",
+              null,
+              e(
+                "linearGradient",
+                { id: "ey-plus-gradient-ui", x1: "350", y1: "91", x2: "389", y2: "130", gradientUnits: "userSpaceOnUse" },
+                e("stop", { offset: "0", stopColor: "#ffffff" }),
+                e("stop", { offset: "0.22", stopColor: "#28d7ff" }),
+                e("stop", { offset: "0.48", stopColor: "#8b35ff" }),
+                e("stop", { offset: "0.72", stopColor: "#ff2aa1" }),
+                e("stop", { offset: "1", stopColor: "#ffe600" })
+              )
+            ),
+            e("polygon", { points: "0,52 149,0 149,29 0,52", fill: "#ffe600" }),
+            e("text", { x: "0", y: "132", fill: "currentColor", fontFamily: "Arial Black, Arial, Helvetica, sans-serif", fontSize: "79", fontWeight: "900", letterSpacing: "-5" }, "EY"),
+            e("text", { x: "146", y: "132", fill: "currentColor", fontFamily: "Arial, Helvetica, sans-serif", fontSize: "63", fontWeight: "700", letterSpacing: "-3" }, "Studio"),
+            e("path", { d: "M363 91h13v13h13v13h-13v13h-13v-13h-13v-13h13V91Z", fill: "url(#ey-plus-gradient-ui)" })
           )
         );
       }

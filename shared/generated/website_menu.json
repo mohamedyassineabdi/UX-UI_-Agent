@@ -1,98 +1,239 @@
 {
-  "homepage": "https://studiomorf.nl/",
-  "language": "en",
+  "homepage": "https://www.poulinagroupholding.com/",
+  "language": "fr-FR",
   "auth": {
     "signin": null,
     "signup": null
   },
-  "search": null,
+  "search": {
+    "name": "Rechercher...",
+    "url": null,
+    "type": "input"
+  },
   "navigation": [
     {
-      "name": "About",
-      "url": "https://studiomorf.nl/about",
+      "name": "Actualités",
+      "url": "https://www.poulinagroupholding.com/actualites/",
       "type": "link",
       "children": []
     },
     {
-      "name": "Careers",
-      "url": "https://studiomorf.nl/careers",
+      "name": "Carrière",
+      "url": "https://www.poulinagroupholding.com/carriere/",
+      "type": "menu",
+      "children": [
+        {
+          "name": "General",
+          "type": "section",
+          "children": [
+            {
+              "name": "Poulina Académie",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/poulina-academie/",
+              "children": []
+            },
+            {
+              "name": "Poulina Onboarding",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/poulina-onboarding/",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Engagements",
+      "url": null,
+      "type": "menu",
+      "children": [
+        {
+          "name": "General",
+          "type": "section",
+          "children": [
+            {
+              "name": "Développement durable",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/developpement-durable/",
+              "children": []
+            },
+            {
+              "name": "Fondation Poulina pour le savoir",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/fondation-pgh/",
+              "children": []
+            },
+            {
+              "name": "Gouvernance éthique",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/gouvernance-ethique/",
+              "children": []
+            },
+            {
+              "name": "Responsabilité sociale",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/responsabilite-sociale/",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Investisseurs",
+      "url": "https://www.poulinagroupholding.com/investisseurs/",
       "type": "link",
       "children": []
     },
     {
-      "name": "Contact",
-      "url": "https://studiomorf.nl/contact",
-      "type": "link",
-      "children": []
+      "name": "Le Groupe",
+      "url": null,
+      "type": "menu",
+      "children": [
+        {
+          "name": "General",
+          "type": "section",
+          "children": [
+            {
+              "name": "A propos",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/a-propos/",
+              "children": []
+            },
+            {
+              "name": "Notre Stratégie de Développement",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/notre-strategie-de-developpement/",
+              "children": []
+            }
+          ]
+        }
+      ]
     },
     {
-      "name": "FAQ",
-      "url": "https://studiomorf.nl/faq",
-      "type": "link",
-      "children": []
-    },
-    {
-      "name": "Request",
-      "url": "https://studiomorf.nl/request",
-      "type": "link",
-      "children": []
-    },
-    {
-      "name": "Services",
-      "url": "https://studiomorf.nl/services",
-      "type": "link",
-      "children": []
-    },
-    {
-      "name": "Work",
-      "url": "https://studiomorf.nl/work",
-      "type": "link",
-      "children": []
+      "name": "Produits et services",
+      "url": "https://www.poulinagroupholding.com/produits-et-services/",
+      "type": "menu",
+      "children": [
+        {
+          "name": "General",
+          "type": "section",
+          "children": [
+            {
+              "name": "Alimentation et Boissons",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/service/alimentation-et-boissons/",
+              "children": []
+            },
+            {
+              "name": "Autres activités",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/service/autres-activites/",
+              "children": []
+            },
+            {
+              "name": "Aviculture",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/service/aviculture/",
+              "children": []
+            },
+            {
+              "name": "Bois",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/service/bois/",
+              "children": []
+            },
+            {
+              "name": "Electroménagers",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/service/electromenagers/",
+              "children": []
+            },
+            {
+              "name": "Emballage",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/service/emballage/",
+              "children": []
+            },
+            {
+              "name": "Matériaux de Construction",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/service/materiaux-de-construction/",
+              "children": []
+            },
+            {
+              "name": "Nutrition Animale",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/service/nutrition-animale/",
+              "children": []
+            },
+            {
+              "name": "Photovoltaïque",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/service/photovoltaique/",
+              "children": []
+            },
+            {
+              "name": "Services IT",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/service/services-it/",
+              "children": []
+            },
+            {
+              "name": "Transformation d’acier",
+              "type": "link",
+              "url": "https://www.poulinagroupholding.com/service/transformation-dacier/",
+              "children": []
+            }
+          ]
+        }
+      ]
     }
   ],
   "extra": {
     "desktop": {
-      "forms_detected": 0,
-      "total_internal_links": 23,
-      "external_links": 57,
-      "title": "STUDIO MORF - Branding & Design",
-      "page_size_kb": 278.64,
-      "images_found": 67,
+      "forms_detected": 2,
+      "total_internal_links": 152,
+      "external_links": 2,
+      "title": "Poulina Group Holding",
+      "page_size_kb": 208.72,
+      "images_found": 29,
       "mode": "desktop",
-      "page_language": "en",
+      "page_language": "fr-FR",
       "ai_recovery": {
-        "used": true,
-        "reason": "ai_failed:no_children_detected",
+        "used": false,
+        "reason": "not_needed",
         "clicked_candidate": null,
         "ai_response": null,
         "improved": false,
-        "error": "Ollama request failed: Client error '400 Bad Request' for url 'http://127.0.0.1:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400"
+        "error": null
       }
     },
     "mobile": {
-      "forms_detected": 0,
-      "total_internal_links": 23,
-      "external_links": 57,
-      "title": "STUDIO MORF - Branding & Design",
-      "page_size_kb": 280.04,
-      "images_found": 67,
+      "forms_detected": 2,
+      "total_internal_links": 152,
+      "external_links": 2,
+      "title": "Poulina Group Holding",
+      "page_size_kb": 204.11,
+      "images_found": 17,
       "mode": "mobile",
-      "page_language": "en",
+      "page_language": "fr-FR",
       "ai_recovery": {
-        "used": true,
-        "reason": "ai_failed:too_few_menu_items",
+        "used": false,
+        "reason": "not_needed",
         "clicked_candidate": null,
         "ai_response": null,
         "improved": false,
-        "error": "Ollama request failed: Client error '400 Bad Request' for url 'http://127.0.0.1:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400"
+        "error": null
       }
     },
-    "menu_count": 7,
-    "navbar_score": 8.0,
+    "menu_count": 6,
+    "navbar_score": 11.0,
     "source_container": "merged(desktop+mobile)",
-    "sitemap_found": "https://studiomorf.nl/sitemap.xml",
-    "robots_txt": "https://studiomorf.nl/robots.txt",
-    "crawl_time_ms": 32947
+    "sitemap_found": "https://www.poulinagroupholding.com/wp-sitemap.xml",
+    "robots_txt": "https://www.poulinagroupholding.com/robots.txt",
+    "crawl_time_ms": 87640
   },
-  "requested_language": "en-US"
+  "requested_language": "en-US",
+  "language_warning": "Requested English, but detected page language was fr-FR."
 }

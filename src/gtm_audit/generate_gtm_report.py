@@ -29,6 +29,26 @@ AXIS_LABELS = {
 }
 
 
+def ey_studio_logo_svg(class_name: str = "ey-studio-logo") -> str:
+    return f"""
+    <svg class="{html.escape(class_name)}" viewBox="0 0 400 154" role="img" aria-label="EY Studio plus" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="ey-plus-gradient" x1="350" y1="91" x2="389" y2="130" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#ffffff"/>
+          <stop offset="0.22" stop-color="#28d7ff"/>
+          <stop offset="0.48" stop-color="#8b35ff"/>
+          <stop offset="0.72" stop-color="#ff2aa1"/>
+          <stop offset="1" stop-color="#ffe600"/>
+        </linearGradient>
+      </defs>
+      <polygon points="0,52 149,0 149,29 0,52" fill="#ffe600"/>
+      <text x="0" y="132" fill="currentColor" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="79" font-weight="900" letter-spacing="-5">EY</text>
+      <text x="146" y="132" fill="currentColor" font-family="Arial, Helvetica, sans-serif" font-size="63" font-weight="700" letter-spacing="-3">Studio</text>
+      <path d="M363 91h13v13h13v13h-13v13h-13v-13h-13v-13h13V91Z" fill="url(#ey-plus-gradient)"/>
+    </svg>
+    """
+
+
 def clean_text(value: Any) -> str:
     return " ".join(str(value or "").split()).strip()
 
@@ -790,34 +810,13 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     }}
     .brand-primary {{
       position: relative;
-      padding-top: 10px;
+      flex: 0 0 auto;
+    }}
+    .ey-studio-logo {{
+      display: block;
+      width: clamp(118px, 11vw, 154px);
+      height: auto;
       color: var(--ink);
-    }}
-    .brand-primary::before {{
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 44px;
-      height: 8px;
-      background: #ffd44d;
-      transform: skewX(-22deg);
-    }}
-    .brand-ey {{
-      display: inline-flex;
-      align-items: flex-end;
-      gap: 6px;
-    }}
-    .brand-ey strong {{
-      font-size: 1.7rem;
-      line-height: 1;
-      letter-spacing: -0.04em;
-    }}
-    .brand-ey span {{
-      font-size: 1rem;
-      line-height: 1.1;
-      padding-bottom: 3px;
-      font-weight: 600;
     }}
     .brand-divider {{
       width: 1px;
@@ -1829,10 +1828,7 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     <header class="topbar">
       <div class="brand-lockups">
         <div class="brand-primary">
-          <div class="brand-ey">
-            <strong>EY</strong>
-            <span>Studio+</span>
-          </div>
+          {ey_studio_logo_svg()}
         </div>
         <span class="brand-divider" aria-hidden="true"></span>
         <div class="brand-secondary">
