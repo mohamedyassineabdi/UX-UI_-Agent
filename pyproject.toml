@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "figma-audit"
+version = "0.1.0"
+description = "Reusable Python pipeline for fetching and normalizing Figma files."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "pydantic>=2.7,<3.0",
+  "requests>=2.31,<3.0",
+  "python-dotenv>=1.0,<2.0",
+  "pillow>=10.0,<12.0",
+]
+
+[project.scripts]
+figma-audit = "figma_audit.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["figma_audit*"]
+
+[tool.setuptools.package-data]
+figma_audit = ["resources/*.json"]

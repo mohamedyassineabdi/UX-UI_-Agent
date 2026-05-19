@@ -1,0 +1,26 @@
+Test sans quota Figma/Ollama
+===========================
+
+Verification code, zero API :
+venv\Scripts\python.exe main.py validate-criteria
+venv\Scripts\python.exe -m unittest discover -s tests
+
+Analyse locale depuis le fichier deja normalise, zero API :
+venv\Scripts\python.exe main.py detect-normalized --input data\normalized\normalized_file.json --output data\_quota_safe_test\draft_detections.json --detection-workers 2
+venv\Scripts\python.exe main.py build-report --detections data\_quota_safe_test\draft_detections.json --output data\_quota_safe_test\draft_detection_review.html --no-polish
+
+Rapport complet mais protege contre la quota :
+venv\Scripts\python.exe main.py full-report "<FIGMA_URL>" --offline
+
+Mode offline :
+- utilise uniquement data\raw\cache si le cache correspond au file_key/node_id
+- ne fait aucun fetch live Figma si le cache manque
+- desactive les annotations via Figma Images API
+- desactive les captures navigateur et le polish Ollama
+- produit un rapport base sur les donnees statiques disponibles
+
+Qualite de l'analyse :
+- strong = detection mesuree + evidence visuelle reelle/rendue
+- moderate = bon signal statique Figma, a valider humainement
+- weak = piste utile, pas une conclusion client finale
+- les claims runtime, marche/business, et accessibilite formelle doivent rester en review humaine

@@ -1,0 +1,658 @@
+{
+  "metadata": {
+    "source_file": "C:\\Users\\Achref\\Downloads\\UX-UI criterias (1).xlsx",
+    "generated_on": "2026-05-05",
+    "purpose": "Validated, logic-tight, mobile-app-first UX/UI criteria set for visible Figma/prototype audits.",
+    "status": "mobile_visible_top_layer_runtime_verification",
+    "principles": [
+      "Criteria must be observable from visible mobile UI evidence whenever possible.",
+      "When phone-sized app frames exist, inspect the content a user would see in those mobile viewports before broader file structure.",
+      "Prefer top/foreground layer evidence over background, off-canvas, component-library, or lower-layer implementation details.",
+      "Do not flag an issue unless the affected element is visible in the opened Figma/prototype view or inside a phone-sized visible app screen.",
+      "Do not claim formal accessibility compliance from static Figma data alone.",
+      "Separate objective signals from expert judgment.",
+      "Avoid double-counting the same issue under multiple axes.",
+      "Severity should reflect user impact, business impact, and confidence of evidence."
+    ],
+    "reference_sources": [
+      {
+        "id": "wcag22_understanding",
+        "name": "W3C WAI: Understanding WCAG 2.2",
+        "url": "https://www.w3.org/WAI/WCAG22/understanding/",
+        "used_for": "Accessibility scope, contrast, focus, target size, labels, input assistance, predictable navigation, and limitations."
+      },
+      {
+        "id": "wcag_contrast_minimum",
+        "name": "W3C WAI: Understanding Success Criterion 1.4.3 Contrast (Minimum)",
+        "url": "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html",
+        "used_for": "Text contrast thresholds and exceptions."
+      },
+      {
+        "id": "wcag_target_size_minimum",
+        "name": "W3C WAI: Understanding Success Criterion 2.5.8 Target Size (Minimum)",
+        "url": "https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html",
+        "used_for": "Pointer target size and spacing guidance."
+      },
+      {
+        "id": "wai_form_labels",
+        "name": "W3C WAI Forms Tutorial: Labeling Controls",
+        "url": "https://www.w3.org/WAI/tutorials/forms/labels/",
+        "used_for": "Form label clarity, label-control relationship, button labeling, and visible labels."
+      },
+      {
+        "id": "wai_form_instructions",
+        "name": "W3C WAI Forms Tutorial: Form Instructions",
+        "url": "https://www.w3.org/WAI/tutorials/forms/instructions/",
+        "used_for": "Input instructions, required/optional indicators, data formats, and placeholder limitations."
+      },
+      {
+        "id": "nng_heuristics",
+        "name": "Nielsen Norman Group: 10 Usability Heuristics for User Interface Design",
+        "url": "https://www.nngroup.com/articles/ten-usability-heuristics/",
+        "used_for": "System status, real-world language, user control, consistency, error prevention, recognition over recall, minimalism, and error recovery."
+      }
+    ]
+  },
+  "criteria": [
+    {
+      "id": "task_execution",
+      "order": 1,
+      "name": "Task Execution & Conversion Flow",
+      "short_name": "Task Execution",
+      "focus": [
+        "interaction",
+        "forms",
+        "feedback",
+        "primary action"
+      ],
+      "validated_definition": "How clearly the visible interface helps a first-time user identify the primary next step, start it, understand its consequences, and complete or recover from it without avoidable friction.",
+      "core_question": "Can the target user identify the primary action and complete the visible task with confidence?",
+      "business_impact": "Friction in key tasks increases abandonment and weakens the product story in sales or conversion contexts.",
+      "user_impact": "Users must spend extra effort guessing what to do, what will happen, or whether their action succeeded.",
+      "default_fix": "Clarify the primary action, reduce competing actions, label form requirements, and show visible progress, validation, confirmation, and recovery cues.",
+      "validated_logic": {
+        "healthy_signals": [
+          "A single primary CTA or next step is visible, specific, and visually prioritized.",
+          "The CTA label describes the outcome, not just a generic action.",
+          "Forms expose labels, required state, format hints, validation, and confirmation where relevant.",
+          "Loading, success, error, disabled, and empty states are visible or clearly planned in the UI set.",
+          "Destructive or high-commitment actions include confirmation, cancellation, or recovery affordances."
+        ],
+        "failure_modes": [
+          "The primary CTA is vague, hidden, visually weak, or competing with too many equivalent actions.",
+          "A visible multi-field form or task has no visible completion action such as Save, Submit, Continue, Sign in, Search, or an equivalent outcome CTA.",
+          "A form asks for input without labels, format expectations, required/optional cues, or recovery guidance.",
+          "A step transition or action consequence is unclear from the visible UI.",
+          "The UI relies on the user remembering information from another screen instead of keeping needed context visible.",
+          "Destructive or high-risk controls appear too easy to trigger by mistake."
+        ],
+        "do_not_flag_when": [
+          "Backend behavior is unknown and no visible UI evidence suggests confusion or risk.",
+          "A static component-library example does not show a complete task, but also does not show a visible task blocker.",
+          "A single search field or one-off input can reasonably complete through keyboard submission or another visible platform convention.",
+          "A longer task is broken into clear, justified stages with visible progress and guidance.",
+          "Multiple CTAs represent genuinely different user intents and the hierarchy is clear."
+        ]
+      },
+      "evidence_expectations": [
+        "Quote visible CTA labels, form labels, helper text, validation messages, confirmation messages, or step names.",
+        "Point to the exact control, form, state, or region that creates or resolves task uncertainty.",
+        "Explain the likely effect on completion, confidence, or error risk."
+      ],
+      "figma_detection_support": {
+        "can_estimate": [
+          "CTA count and visual prominence when a coherent task viewport is visible",
+          "presence of labels near input-like components",
+          "button/control naming",
+          "visible loading/error/success state frames",
+          "destructive action labels with nearby cancellation, undo, or confirmation cues",
+          "multi-field form screens that lack a visible completion action"
+        ],
+        "needs_human_review": [
+          "whether the CTA matches the business goal",
+          "whether the task sequence is appropriate",
+          "whether feedback timing works in implementation",
+          "whether a state is reachable in the actual product"
+        ]
+      },
+      "severity_ladder": {
+        "high": "The main action is hard to spot, hard to trust, or visibly risky to complete.",
+        "medium": "The task is usable, but ambiguity or weak feedback would slow or discourage completion.",
+        "low": "The task is understandable, with localized friction or polish issues."
+      },
+      "primary_references": [
+        "nng_heuristics",
+        "wai_form_labels",
+        "wai_form_instructions"
+      ],
+      "keywords": [
+        "cta",
+        "primary action",
+        "submit",
+        "continue",
+        "form",
+        "input",
+        "error",
+        "confirmation",
+        "loading",
+        "feedback",
+        "workflow"
+      ]
+    },
+    {
+      "id": "flow_architecture",
+      "order": 2,
+      "name": "Flow Logic & Information Architecture",
+      "short_name": "Flow & Architecture",
+      "focus": [
+        "navigation",
+        "wayfinding",
+        "page structure",
+        "information scent"
+      ],
+      "validated_definition": "How clearly the visible journey communicates where users are, what each area contains, what belongs together, and where to go next.",
+      "core_question": "Can a user understand location, structure, grouping, and next destinations without repeatedly re-orienting?",
+      "business_impact": "Weak architecture slows comprehension and makes the offer or product feel less mature, less navigable, and harder to evaluate.",
+      "user_impact": "Users struggle to locate information, understand page relationships, or predict where a navigation choice will lead.",
+      "default_fix": "Clarify navigation labels, strengthen grouping and section order, and organize content around the user's next likely question.",
+      "validated_logic": {
+        "healthy_signals": [
+          "Navigation labels are specific, familiar, and differentiated.",
+          "The page or screen structure moves from overview to detail in a coherent order.",
+          "Headings, sections, and visual grouping make relationships clear.",
+          "Repeated navigation appears in predictable positions and order.",
+          "Users can infer where they are and what each destination contains."
+        ],
+        "failure_modes": [
+          "Navigation is present but labels are generic, overlapping, or unclear.",
+          "A visible mobile navigation container repeats the same destination label for multiple choices.",
+          "Section order follows internal company logic instead of user decision flow.",
+          "Different screens use inconsistent structure, forcing re-orientation.",
+          "Important destinations or information are hidden behind weak hierarchy or ambiguous labels.",
+          "Related content is visually fragmented, or unrelated content appears grouped."
+        ],
+        "do_not_flag_when": [
+          "Only one screen is visible and no journey-level claim can be supported.",
+          "A generic word appears in ordinary content but not inside a visible navigation, tab, menu, toolbar, or breadcrumb structure.",
+          "Navigation labels are specific and differentiated, even when icons or styling are still generic placeholders.",
+          "An unconventional layout still communicates location, grouping, and next steps clearly.",
+          "A missing page or hidden navigation item cannot be observed from the supplied evidence."
+        ]
+      },
+      "evidence_expectations": [
+        "Reference visible navigation labels, headings, section titles, breadcrumbs, tabs, or grouping patterns.",
+        "Explain how the visible order supports or interrupts the likely user path.",
+        "Avoid claiming broken architecture from invisible pages or assumed flows."
+      ],
+      "figma_detection_support": {
+        "can_estimate": [
+          "visible navigation label specificity and duplication",
+          "heading hierarchy",
+          "section ordering",
+          "repeated layout structures",
+          "presence of breadcrumb/tab/sidebar-like patterns",
+          "whether a visible navigation container uses generic destination labels"
+        ],
+        "needs_human_review": [
+          "whether labels match user mental models",
+          "whether the flow matches the actual buying or product journey",
+          "whether hidden interactions change the navigation model"
+        ]
+      },
+      "severity_ladder": {
+        "high": "Users would struggle to understand where to go, what page they are on, or how the offer is organized.",
+        "medium": "The structure is usable, but wayfinding or grouping creates avoidable orientation cost.",
+        "low": "The journey is understandable, with minor scan, grouping, or label efficiency issues."
+      },
+      "primary_references": [
+        "nng_heuristics"
+      ],
+      "keywords": [
+        "navigation",
+        "menu",
+        "breadcrumb",
+        "wayfinding",
+        "information architecture",
+        "section order",
+        "grouping",
+        "orientation",
+        "findability",
+        "layout"
+      ]
+    },
+    {
+      "id": "trust_accessibility",
+      "order": 3,
+      "name": "Trust, Risk & Accessibility",
+      "short_name": "Trust & Accessibility",
+      "focus": [
+        "accessibility",
+        "legibility",
+        "forms",
+        "credibility",
+        "risk reduction"
+      ],
+      "validated_definition": "How credible, safe, readable, and inclusive the visible experience appears, with accessibility claims limited to what static UI evidence can support.",
+      "core_question": "Does the visible UI provide enough trust cues and accessibility-friendly presentation to avoid obvious credibility or usability barriers?",
+      "business_impact": "Visible trust and accessibility gaps increase perceived risk, reduce conversion confidence, and narrow the reachable audience.",
+      "user_impact": "Some users may not feel safe, included, or able to read and operate the experience comfortably.",
+      "default_fix": "Improve visible legibility, labels, control clarity, target sizing, reassurance cues, proof, privacy/security signals, and error/help affordances.",
+      "validated_logic": {
+        "healthy_signals": [
+          "Text contrast appears sufficient for normal and large text, with contrast treated as a measurable check where color data is available.",
+          "Controls are visually identifiable, large enough, and not crowded in ways that increase accidental activation risk.",
+          "Forms use visible labels and instructions, not placeholder-only guidance.",
+          "Risky user moments include reassurance cues such as privacy, security, proof, contact, policy, or support information.",
+          "The UI avoids broken imagery, suspicious claims, or rendering defects that visibly reduce credibility."
+        ],
+        "failure_modes": [
+          "Low-contrast text, faint controls, tiny target areas, or crowded controls create visible access risk.",
+          "Inputs rely on placeholders only or lack clear labels, instructions, or required/optional cues.",
+          "The design asks for sensitive action or trust without visible proof, privacy, security, contact, or reassurance.",
+          "Important information is hidden in decorative treatment or ambiguous imagery.",
+          "Broken assets, careless rendering, or synthetic-looking visuals undermine credibility."
+        ],
+        "do_not_flag_when": [
+          "Keyboard order, screen-reader names, ARIA, or runtime focus behavior cannot be observed from the static design.",
+          "A formal WCAG pass/fail claim would require implemented code, browser testing, or assistive technology testing.",
+          "Proof or policy content may exist outside the provided frames and no visible trust-risk moment is present."
+        ]
+      },
+      "evidence_expectations": [
+        "Cite exact text, controls, images, trust elements, labels, or proof sections.",
+        "Use measured color contrast when possible; otherwise mark the finding as visual estimate.",
+        "Use cautious language for accessibility compliance and credibility judgments."
+      ],
+      "figma_detection_support": {
+        "can_estimate": [
+          "text/background contrast from solid colors",
+          "small text sizes",
+          "control bounding boxes and spacing",
+          "presence of form labels",
+          "proof/contact/privacy/security keywords",
+          "broken or missing image placeholders"
+        ],
+        "needs_human_review": [
+          "screen-reader accessibility",
+          "keyboard focus order and focus visibility in code",
+          "semantic HTML and ARIA behavior",
+          "actual credibility of claims",
+          "whether imagery is authentic or appropriate"
+        ]
+      },
+      "severity_ladder": {
+        "high": "Visible issues would likely reduce trust, exclude some users, or make the product feel unsafe or careless.",
+        "medium": "The UI is mostly usable, but meaningful visible barriers or reassurance gaps remain.",
+        "low": "Trust and accessibility cues are broadly present, with localized weakness or uncertainty."
+      },
+      "primary_references": [
+        "wcag22_understanding",
+        "wcag_contrast_minimum",
+        "wcag_target_size_minimum",
+        "wai_form_labels",
+        "wai_form_instructions",
+        "nng_heuristics"
+      ],
+      "keywords": [
+        "contrast",
+        "focus",
+        "target size",
+        "label",
+        "instructions",
+        "required",
+        "privacy",
+        "security",
+        "trust",
+        "proof",
+        "contact",
+        "accessibility",
+        "wcag"
+      ]
+    },
+    {
+      "id": "ui_consistency",
+      "order": 4,
+      "name": "UI Consistency & Interaction Predictability",
+      "short_name": "UI Consistency",
+      "focus": [
+        "component consistency",
+        "interaction predictability",
+        "design system",
+        "platform conventions"
+      ],
+      "validated_definition": "How reliably repeated components, labels, layouts, states, and interaction patterns communicate the same meaning across the visible experience.",
+      "core_question": "Do repeated controls and patterns look and behave consistently enough that users do not need to relearn them?",
+      "business_impact": "Inconsistent UI signals reduce perceived product maturity and make repeat use less efficient.",
+      "user_impact": "Users may hesitate because equivalent controls or patterns appear to mean different things.",
+      "default_fix": "Normalize repeated controls, labels, states, spacing, and hierarchy while preserving meaningful differences for state, priority, or context.",
+      "validated_logic": {
+        "healthy_signals": [
+          "Equivalent actions use consistent labels, placement, styling, and hierarchy.",
+          "Component families share stable size, spacing, shape, typography, and state treatment.",
+          "Navigation, cards, forms, and CTAs use recognizable patterns across screens or sections.",
+          "Differences communicate meaningful state, priority, role, or context.",
+          "The UI follows common platform and industry conventions where users would expect them."
+        ],
+        "failure_modes": [
+          "Equivalent actions look unrelated or switch labels, tone, emphasis, or placement without reason.",
+          "Spacing, typography, radius, color, or card treatments vary enough to weaken predictability.",
+          "A section or page appears to belong to a different product without an intentional context change.",
+          "Interactive and non-interactive elements look too similar, or repeated controls change affordance.",
+          "The UI mixes conventions in ways that increase cognitive load."
+        ],
+        "do_not_flag_when": [
+          "A difference clearly communicates state, priority, destructive intent, disabled status, or context.",
+          "Brand-led variation does not harm recognition, predictability, or task completion.",
+          "Only one example of a component exists, making consistency impossible to assess."
+        ]
+      },
+      "evidence_expectations": [
+        "Compare at least two visible examples when claiming inconsistency.",
+        "Name the component family, pattern, state, or repeated action that changes.",
+        "Explain whether the difference harms predictability or simply represents meaningful hierarchy."
+      ],
+      "figma_detection_support": {
+        "can_estimate": [
+          "repeated component names",
+          "duplicate structures with different style values",
+          "spacing and radius variants",
+          "CTA label variants",
+          "button/card/form family differences"
+        ],
+        "needs_human_review": [
+          "whether variation is intentional",
+          "whether platform conventions apply",
+          "whether interaction behavior matches visual treatment"
+        ]
+      },
+      "severity_ladder": {
+        "high": "Visible inconsistency makes the product feel unreliable, immature, or cognitively expensive to use.",
+        "medium": "Most patterns work, but recurring inconsistency would slow trust-building or repeated use.",
+        "low": "The interface is coherent overall, with localized or cosmetic inconsistency."
+      },
+      "primary_references": [
+        "nng_heuristics"
+      ],
+      "keywords": [
+        "consistency",
+        "design system",
+        "pattern",
+        "predictable",
+        "spacing",
+        "component",
+        "same order",
+        "visual style",
+        "layout consistency",
+        "platform convention"
+      ]
+    },
+    {
+      "id": "visual_brand",
+      "order": 5,
+      "name": "Visual Brand & Hierarchy",
+      "short_name": "Visual Brand",
+      "focus": [
+        "visual hierarchy",
+        "brand credibility",
+        "imagery",
+        "composition"
+      ],
+      "validated_definition": "How effectively the visual system directs attention, supports comprehension, and communicates a credible, distinctive brand impression without reducing usability.",
+      "core_question": "Does the visual system make the product feel credible, memorable, and easy to scan at first glance?",
+      "business_impact": "A weak visual narrative lowers memorability, credibility, differentiation, and perceived product quality.",
+      "user_impact": "Users may miss the important message, distrust the product, or fail to understand what matters first.",
+      "default_fix": "Strengthen focal hierarchy, reduce visual noise, improve visual grouping, and align imagery, color, and composition with the product promise.",
+      "validated_logic": {
+        "healthy_signals": [
+          "Hierarchy directs attention from primary message to proof to action.",
+          "Visual weight, spacing, typography, and composition make primary content easy to distinguish.",
+          "Imagery and color support the offer and audience rather than feeling generic or decorative.",
+          "The interface balances distinctiveness with restraint and legibility.",
+          "Brand expression supports trust without overpowering content or task clarity."
+        ],
+        "failure_modes": [
+          "Everything competes for attention and no focal path is clear.",
+          "Generic, mismatched, or synthetic-looking imagery weakens credibility or differentiation.",
+          "Decorative treatment overwhelms content, proof, navigation, or action cues.",
+          "The interface feels visually flat, noisy, or disconnected from the product promise.",
+          "Important content is visually subordinate to low-value decoration."
+        ],
+        "do_not_flag_when": [
+          "The issue is primarily readability, contrast, or access risk; use trust_accessibility instead.",
+          "Brand taste is subjective and does not harm hierarchy, credibility, or commercial clarity.",
+          "A minimal visual direction is intentional and still makes priority and credibility clear."
+        ]
+      },
+      "evidence_expectations": [
+        "Name the focal area, hierarchy conflict, image treatment, or competing element.",
+        "Explain how the visual treatment changes first-impression trust, comprehension, or differentiation.",
+        "Avoid abstract taste critique; tie the finding to visible user or business effect."
+      ],
+      "figma_detection_support": {
+        "can_estimate": [
+          "text size hierarchy",
+          "dominant visual areas",
+          "density and competing focal points",
+          "image placeholder usage",
+          "color and contrast distribution"
+        ],
+        "needs_human_review": [
+          "brand appropriateness",
+          "image authenticity",
+          "market category expectations",
+          "emotional tone and memorability"
+        ]
+      },
+      "severity_ladder": {
+        "high": "Visible hierarchy or imagery materially weakens comprehension, credibility, or brand confidence.",
+        "medium": "The experience is serviceable, but visual direction undersells the offer or creates friction.",
+        "low": "The visual system works overall, with secondary hierarchy or polish opportunities."
+      },
+      "primary_references": [
+        "nng_heuristics"
+      ],
+      "keywords": [
+        "visual hierarchy",
+        "brand",
+        "imagery",
+        "hero",
+        "focal point",
+        "distinctive",
+        "polish",
+        "color palette",
+        "composition",
+        "visual noise"
+      ]
+    },
+    {
+      "id": "content_microcopy",
+      "order": 6,
+      "name": "Content, Labels & Microcopy",
+      "short_name": "Content & Microcopy",
+      "focus": [
+        "message clarity",
+        "headings",
+        "labels",
+        "CTA copy",
+        "plain language"
+      ],
+      "validated_definition": "How clearly visible words explain what the product is, who it helps, why it matters, what each control means, and what happens next.",
+      "core_question": "Do the visible words use user language and make the message and actions immediately understandable?",
+      "business_impact": "Unclear copy makes the value proposition, controls, and next steps harder to understand, remember, and repeat.",
+      "user_impact": "Users must infer meaning from vague, clever, internal, or inconsistent language.",
+      "default_fix": "Rewrite headings, labels, helper text, and CTAs in concrete user language that clarifies value, action, consequence, and expectations.",
+      "validated_logic": {
+        "healthy_signals": [
+          "Headlines explain what the product is, who it is for, and why it matters.",
+          "CTA labels use concrete outcome-oriented language.",
+          "Labels and helper text reduce ambiguity around controls, formats, and consequences.",
+          "Copy is scannable, specific, and consistent across repeated actions.",
+          "Terminology matches user mental models and avoids unexplained internal jargon."
+        ],
+        "failure_modes": [
+          "Headlines are generic, clever, or company-centered rather than user-centered.",
+          "Buttons or labels force users to guess what a control does or what happens next.",
+          "Copy is dense, repetitive, vague, or jargon-heavy enough to weaken scanning.",
+          "The same concept is named multiple ways without purpose.",
+          "Value claims are broad but not supported by concrete meaning in nearby text."
+        ],
+        "do_not_flag_when": [
+          "A short heading is clear because nearby context, proof, or CTA supplies the missing meaning.",
+          "Missing business context prevents judging market specificity but the visible copy is still clear.",
+          "Specialist terminology is appropriate for the target audience and explained where needed."
+        ]
+      },
+      "evidence_expectations": [
+        "Quote the actual heading, label, CTA, helper text, or sentence that supports the finding.",
+        "Explain what a first-time visitor would still not understand.",
+        "Separate copy clarity from visual hierarchy unless the wording and presentation jointly create the issue."
+      ],
+      "figma_detection_support": {
+        "can_estimate": [
+          "generic CTA labels",
+          "placeholder text",
+          "duplicate label variants",
+          "long text blocks",
+          "common jargon markers",
+          "missing text near inputs"
+        ],
+        "needs_human_review": [
+          "audience-specific language fit",
+          "value proposition strength",
+          "tone appropriateness",
+          "commercial claim credibility"
+        ]
+      },
+      "severity_ladder": {
+        "high": "Visible wording makes the product, action, or value proposition hard to understand.",
+        "medium": "The copy is understandable, but vague, generic, or inconsistent enough to slow decision-making.",
+        "low": "The wording is mostly clear, with localized wording or tone improvements."
+      },
+      "primary_references": [
+        "nng_heuristics",
+        "wai_form_labels",
+        "wai_form_instructions"
+      ],
+      "keywords": [
+        "copy",
+        "microcopy",
+        "heading",
+        "headline",
+        "label",
+        "button text",
+        "terminology",
+        "jargon",
+        "plain language",
+        "value proposition",
+        "cta label"
+      ]
+    },
+    {
+      "id": "market_alignment",
+      "order": 7,
+      "name": "Market Alignment & Offer Clarity",
+      "short_name": "Market Alignment",
+      "focus": [
+        "visible identity copy",
+        "offer label clarity",
+        "placeholder identity text",
+        "specific visible CTA text",
+        "boxable commercial copy"
+      ],
+      "validated_definition": "Whether visible product, company, offer, and CTA text is specific enough to be understood from the screenshot alone.",
+      "core_question": "Does the visible screen still contain boxable placeholder identity or generic offer copy that prevents basic understanding?",
+      "business_impact": "Visible placeholder or generic identity copy makes the design look unfinished and harder to evaluate.",
+      "user_impact": "Users and clients may not understand the real product, section, or action when the visible text is still template copy.",
+      "default_fix": "Replace boxed placeholder identity, offer, or CTA text with specific user-facing copy.",
+      "validated_logic": {
+        "healthy_signals": [
+          "Visible product, company, section, and CTA labels use final copy rather than template labels.",
+          "The main offer or product label is specific enough to understand without inspecting Figma layer names.",
+          "Commercial CTAs use clear outcome wording when they are visible."
+        ],
+        "failure_modes": [
+          "Visible text says Company Name, Product Name, App Name, Tagline, Title, Label, or similar template wording.",
+          "A visible CTA is generic and the surrounding visible copy does not explain the outcome.",
+          "A visible offer label is too vague to explain what the screen is presenting."
+        ],
+        "do_not_flag_when": [
+          "The concern depends on missing business strategy, target audience, pricing, proof, or positioning that is not visibly represented.",
+          "No exact text, CTA, placeholder, or incomplete UI element can be boxed.",
+          "The design may need business review, but the screenshot does not contain a visible copy problem."
+        ]
+      },
+      "evidence_expectations": [
+        "Reference the exact visible text or UI element that can be boxed.",
+        "Tie the finding to basic understanding of the visible screen.",
+        "Do not infer market, credibility, or business strategy problems from absent context."
+      ],
+      "figma_detection_support": {
+        "can_estimate": [
+          "placeholder identity text",
+          "generic visible offer labels",
+          "generic CTA wording"
+        ],
+        "needs_human_review": [
+          "actual business strategy",
+          "target audience fit",
+          "competitive relevance",
+          "proof credibility"
+        ]
+      },
+      "severity_ladder": {
+        "high": "A primary visible identity or CTA is still placeholder text.",
+        "medium": "A visible offer or CTA label is generic enough to confuse the screen purpose.",
+        "low": "A secondary visible commercial label needs more specific wording."
+      },
+      "primary_references": [
+        "nng_heuristics"
+      ],
+      "keywords": [
+        "placeholder identity",
+        "product name",
+        "company name",
+        "offer label",
+        "cta wording",
+        "visible copy"
+      ]
+    }
+  ],
+  "cross_axis_rules": {
+    "deduplication_priority": [
+      {
+        "when": "The issue is about formal or visible access barriers such as contrast, labels, target size, focus visibility, or legibility.",
+        "use_axis": "trust_accessibility"
+      },
+      {
+        "when": "The issue is about unclear words, labels, value explanation, or CTA wording.",
+        "use_axis": "content_microcopy"
+      },
+      {
+        "when": "The issue is about completing a visible task, knowing consequences, or getting feedback.",
+        "use_axis": "task_execution"
+      },
+      {
+        "when": "The issue is about navigation, grouping, structure, or orientation.",
+        "use_axis": "flow_architecture"
+      },
+      {
+        "when": "The issue is about repeated component/pattern inconsistency.",
+        "use_axis": "ui_consistency"
+      },
+      {
+        "when": "The issue is about focal hierarchy, imagery, brand impression, or visual attention.",
+        "use_axis": "visual_brand"
+      },
+      {
+        "when": "The issue is about target audience, offer relevance, proof, differentiation, or commercial CTA strategy.",
+        "use_axis": "market_alignment"
+      }
+    ],
+    "confidence_levels": {
+      "high": "Direct visible evidence supports the finding, and the criterion can be assessed from static UI with low ambiguity.",
+      "medium": "Visible evidence supports the finding, but business context, hidden states, or implementation behavior may change the conclusion.",
+      "low": "The finding is a useful hypothesis but requires product context, analytics, user research, or implemented behavior to confirm."
+    },
+    "formal_accessibility_note": "Static Figma inspection can estimate several accessibility risks, but WCAG conformance requires implemented UI testing, including keyboard behavior, semantic structure, accessible names, browser behavior, and assistive technology support."
+  }
+}
