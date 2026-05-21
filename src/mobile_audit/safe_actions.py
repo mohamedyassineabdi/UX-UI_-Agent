@@ -77,8 +77,8 @@ MODAL_FOLLOWUP_SAFE_RULES: list[tuple[re.Pattern[str], int, int, str, str]] = [
 BLOCKED_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(turn off|disable|delete|remove|erase|clear data|unsubscribe|deactivate|supprimer|effacer|desactiver|désactiver)\b", re.IGNORECASE), "destructive or state-changing action"),
     (re.compile(r"\b(log out|logout|sign out)\b", re.IGNORECASE), "session-ending action"),
-    (re.compile(r"\b(buy|purchase|checkout|pay|subscribe|confirm|place order|acheter|payer|abonner|confirmer|commande)\b", re.IGNORECASE), "commerce or commitment action"),
-    (re.compile(r"\b(save|apply|submit|send|post|publish|accept all|allow|autoriser|accepter|tout accepter|enregistrer|appliquer|soumettre|envoyer|publier)\b", re.IGNORECASE), "commits a product or permission state change"),
+    (re.compile(r"\b(buy|purchase|checkout|pay|subscribe|confirm|place order|add to cart|add cart|acheter|payer|abonner|confirmer|commande)\b", re.IGNORECASE), "commerce or commitment action"),
+    (re.compile(r"\b(save|apply|submit|send|post|publish|accept all|allow|follow|like|rate|review|upload|autoriser|accepter|tout accepter|enregistrer|appliquer|soumettre|envoyer|publier)\b", re.IGNORECASE), "commits a product or permission state change"),
 ]
 
 APP_NAVIGATION_PHRASES = {
@@ -148,7 +148,6 @@ UTILITY_ACTION_PHRASES = {
 }
 
 UNSAFE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"search", re.IGNORECASE), "search field or search action"),
     (re.compile(r"voice search|microphone|mic\b", re.IGNORECASE), "voice input action"),
     (re.compile(r"\bshare\b", re.IGNORECASE), "sharing action"),
     (re.compile(r"\bfacebook\b|\byoutube\b|\binstagram\b|\btiktok\b|\bx\b", re.IGNORECASE), "external social or content destination"),
@@ -184,7 +183,12 @@ PROGRESSION_PHRASES = {
     "done",
     "finish",
     "continue as guest",
+    "continue without account",
+    "use without account",
     "browse as guest",
+    "browse",
+    "lets go",
+    "got it",
     "guest mode",
     "mode guest",
     "commencer",
@@ -235,13 +239,82 @@ AUTH_ENTRY_PHRASES = {
     "creer un compte",
 }
 
+GENERIC_NAVIGATION_TOKENS = {
+    "home",
+    "feed",
+    "discover",
+    "explore",
+    "search",
+    "profile",
+    "account",
+    "settings",
+    "notifications",
+    "messages",
+    "inbox",
+    "activity",
+    "saved",
+    "favorites",
+    "favourites",
+    "cart",
+    "basket",
+    "menu",
+    "more",
+    "help",
+    "support",
+}
+
+NAVIGATION_RESOURCE_TOKENS = {
+    "nav",
+    "navigation",
+    "tab",
+    "tabs",
+    "bottom",
+    "toolbar",
+    "menu",
+    "drawer",
+    "section",
+}
+
+CONTENT_DESTINATION_TOKENS = {
+    "article",
+    "story",
+    "post",
+    "item",
+    "product",
+    "detail",
+    "details",
+    "card",
+    "tile",
+    "row",
+    "cell",
+    "category",
+    "collection",
+    "lesson",
+    "course",
+    "episode",
+    "event",
+    "store",
+    "location",
+    "map",
+}
+
+EXPANSION_TOKENS = {
+    "more",
+    "see all",
+    "view all",
+    "show all",
+    "open",
+    "expand",
+    "details",
+}
+
 
 def is_progression_label(value: Any) -> bool:
-    return _has_phrase(_fold_label(value), PROGRESSION_PHRASES)
+    return _fold_label(value) in PROGRESSION_PHRASES
 
 
 def is_defer_label(value: Any) -> bool:
-    return _has_phrase(_fold_label(value), DEFER_PHRASES)
+    return _fold_label(value) in DEFER_PHRASES
 
 
 def _is_auth_entry_label(value: Any) -> bool:
@@ -261,8 +334,99 @@ def _is_utility_action_label(value: Any) -> bool:
     return _has_phrase(_fold_label(value), UTILITY_ACTION_PHRASES)
 
 
+def _resource_tail(value: Any) -> str:
+    resource_id = _text(value).lower()
+    if not resource_id:
+        return ""
+    return resource_id.split("/")[-1].split(":")[-1].replace("_", " ").replace("-", " ").strip()
+
+
+def _semantic_blob(tappable: dict[str, Any]) -> str:
+    parts = [
+        _primary_label(tappable),
+        _resource_tail(tappable.get("resource_id")),
+        _text(tappable.get("class_name")).rsplit(".", 1)[-1],
+        _text(tappable.get("control_role")),
+    ]
+    return _fold_label(" ".join(part for part in parts if part))
+
+
+def _has_any_token(blob: str, tokens: set[str]) -> bool:
+    padded = f" {blob} "
+    return any(f" {token} " in padded or token in blob for token in tokens)
+
+
+def _is_mutating_control_class(tappable: dict[str, Any]) -> bool:
+    class_name = _text(tappable.get("class_name")).lower()
+    role = _text(tappable.get("control_role")).lower()
+    return any(token in class_name or token in role for token in ("switch", "checkbox", "checkedtextview", "toggle"))
+
+
+def _is_generic_safe_navigation_target(tappable: dict[str, Any], context: dict[str, Any]) -> bool:
+    blob = _semantic_blob(tappable)
+    if not blob:
+        return False
+    if _is_bottom_navigation_target(tappable, context):
+        return True
+    if _has_any_token(blob, NAVIGATION_RESOURCE_TOKENS) and _has_any_token(blob, GENERIC_NAVIGATION_TOKENS):
+        return True
+    class_name = _text(tappable.get("class_name")).lower()
+    if ("tab" in class_name or "menu" in class_name) and not _looks_like_generic_wrapper_label(_primary_label(tappable)):
+        return True
+    return False
+
+
+def _is_generic_readonly_destination(tappable: dict[str, Any], context: dict[str, Any]) -> bool:
+    label = _primary_label(tappable)
+    if _looks_like_generic_wrapper_label(label):
+        return False
+    if _looks_like_step_progress_label(label):
+        return False
+    blob = _semantic_blob(tappable)
+    if _has_any_token(blob, EXPANSION_TOKENS):
+        return True
+    if _has_any_token(blob, CONTENT_DESTINATION_TOKENS):
+        return True
+    role = _text(tappable.get("control_role"))
+    surface_profile = _text(context.get("surface_profile") or context.get("screen_type"))
+    if role in {"synthetic_text_target", "synthetic_card", "generic_card"}:
+        return surface_profile in {
+            "list_feed",
+            "detail_screen",
+            "scrollable_collection",
+            "content_feed",
+            "home_dashboard",
+            "navigation_shell",
+            "home_feed",
+            "program_overview_screen",
+        }
+    if surface_profile in {"list_feed", "detail_screen", "scrollable_collection", "content_feed", "home_dashboard", "navigation_shell", "home_feed"}:
+        word_count = len([part for part in _fold_label(label).split() if part])
+        return 1 <= word_count <= 8 and len(label) <= 80
+    return False
+
+
 def _looks_like_generic_wrapper_label(value: Any) -> bool:
-    return _fold_label(value) in {"", "view", "viewgroup", "button", "imagebutton", "action", "layout", "framelayout", "linearlayout"}
+    return _fold_label(value) in {
+        "",
+        "view",
+        "viewgroup",
+        "button",
+        "imagebutton",
+        "action",
+        "layout",
+        "framelayout",
+        "linearlayout",
+        "constraintlayout",
+        "coordinatorlayout",
+        "composeview",
+        "scrollview",
+        "recyclerview",
+        "content",
+        "android id content",
+        "action bar root",
+        "root",
+    }
 
 
 def _has_richer_safe_peer(label: str, context: dict[str, Any]) -> bool:
@@ -534,6 +698,17 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
             "selection_score": -180,
         }
 
+    if _is_mutating_control_class(tappable):
+        return {
+            **tappable,
+            "action_category": "state_toggle",
+            "safe_action": "unsafe",
+            "safe_reason": "toggle, checkbox, or switch control can mutate app state",
+            "safety_score": -88,
+            "exploration_score": -88,
+            "selection_score": -176,
+        }
+
     if control_type == "slider":
         exploration_score = 72 if surface_profile in {"onboarding_screen", "form_screen"} else 44
         selection_reason = (
@@ -579,6 +754,18 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
             "selection_reason": selection_reason,
         }
 
+    if _is_generic_safe_navigation_target(tappable, context):
+        return {
+            **tappable,
+            "action_category": "navigation",
+            "safe_action": "safe",
+            "safe_reason": "generic in-app navigation target",
+            "safety_score": 88,
+            "exploration_score": 74,
+            "selection_score": 162,
+            "selection_reason": "opens a likely in-app navigation destination inferred from position, role, label, or resource id",
+        }
+
     if _is_content_card_label(label):
         return {
             **tappable,
@@ -589,6 +776,18 @@ def classify_tappable(tappable: dict[str, Any], context: Optional[dict[str, Any]
             "exploration_score": 70,
             "selection_score": 156,
             "selection_reason": "opens promotional, catalogue, or detail content without an obvious commitment action",
+        }
+
+    if _is_generic_readonly_destination(tappable, context):
+        return {
+            **tappable,
+            "action_category": "content_card",
+            "safe_action": "safe",
+            "safe_reason": "generic read-only content or detail destination",
+            "safety_score": 82,
+            "exploration_score": 62,
+            "selection_score": 144,
+            "selection_reason": "opens likely in-app content, detail, category, or expansion surface without an obvious commitment action",
         }
 
     if _is_utility_action_label(label):

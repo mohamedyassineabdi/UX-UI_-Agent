@@ -9,7 +9,8 @@
       {
         "imports": {
           "three": "https://cdn.jsdelivr.net/npm/three@v0.151.3/build/three.module.min.js",
-          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.151.3/examples/jsm/"
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.151.3/examples/jsm/",
+          "ogl": "https://cdn.jsdelivr.net/npm/ogl/dist/ogl.mjs"
         }
       }
     </script>
@@ -18,8 +19,19 @@
     <script src="https://unpkg.com/gsap@3.11.5/dist/gsap.min.js"></script>
     <script src="https://unpkg.com/gsap@3.11.5/dist/ScrollTrigger.min.js"></script>
     <script src="./config.js"></script>
+    <script>
+      (() => {
+        try {
+          const savedTheme = window.localStorage.getItem("UX_UI_AUDITOR_THEME");
+          document.documentElement.dataset.theme = savedTheme === "light" ? "light" : "dark";
+        } catch (_error) {
+          document.documentElement.dataset.theme = "dark";
+        }
+      })();
+    </script>
     <style>
       :root {
+        color-scheme: dark;
         --bg: #232332;
         --bg-2: #2b2c3c;
         --panel: rgba(37, 37, 51, 0.88);
@@ -51,7 +63,9 @@
       }
 
       html {
+        overflow-x: hidden;
         scroll-behavior: smooth;
+        width: 100%;
       }
 
       body {
@@ -61,6 +75,9 @@
         letter-spacing: -0.01em;
         margin: 0;
         min-height: 100vh;
+        overflow-x: hidden;
+        overflow-y: auto;
+        width: 100%;
       }
 
       button,
@@ -859,11 +876,6 @@
         display: none;
       }
 
-      .robot-video-assets,
-      .shader-assets {
-        display: none;
-      }
-
       .webgl-fallback {
         display: none;
       }
@@ -975,15 +987,6 @@
 
       .motif-star::after {
         inset: 16px;
-      }
-
-      .robot-script-hooks {
-        height: 1px;
-        left: -9999px;
-        overflow: hidden;
-        position: fixed;
-        top: -9999px;
-        width: 1px;
       }
 
       .robot-portrait {
@@ -2839,39 +2842,413 @@
           flex-direction: column;
         }
       }
+
+      .theme-switcher {
+        align-items: center;
+        background: rgba(255, 255, 255, 0.055);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        display: inline-flex;
+        gap: 3px;
+        padding: 3px;
+      }
+
+      .theme-mode-button {
+        align-items: center;
+        background: transparent;
+        border: 0;
+        border-radius: 9px;
+        color: rgba(247, 244, 255, 0.58);
+        cursor: pointer;
+        display: inline-flex;
+        font-size: 0.84rem;
+        font-weight: 850;
+        gap: 7px;
+        min-height: 32px;
+        padding: 0 12px;
+        transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+      }
+
+      .theme-mode-button:hover {
+        color: var(--text);
+        transform: translateY(-1px);
+      }
+
+      .theme-mode-button.active {
+        background: #f7f7f8;
+        color: #111018;
+      }
+
+      .theme-mode-button .icon {
+        height: 15px;
+        width: 15px;
+      }
+
+      .home-nav .theme-mode-button {
+        background: transparent;
+        border: 0;
+        border-radius: 9px;
+        color: rgba(247, 244, 255, 0.58);
+        min-height: 32px;
+        padding: 0 12px;
+      }
+
+      .home-nav .theme-mode-button.active {
+        background: #f7f7f8;
+        color: #111018;
+      }
+
+      .hero > .hero-orb {
+        z-index: 0;
+      }
+
+      .hero-orb {
+        aspect-ratio: 1;
+        height: min(76vh, 840px);
+        left: 50%;
+        min-height: clamp(360px, 62vh, 640px);
+        opacity: var(--orb-opacity, 0.92);
+        overflow: visible;
+        pointer-events: auto;
+        position: absolute;
+        top: 50%;
+        transform: translate(-50%, -50%) scale(var(--orb-scale, 1));
+        transform-origin: center;
+        width: min(92vw, 840px);
+        will-change: opacity, transform;
+      }
+
+      .orb-container {
+        height: 100%;
+        position: relative;
+        width: 100%;
+      }
+
+      .orb-container canvas {
+        display: block;
+        height: 100%;
+        inset: 0;
+        position: absolute;
+        width: 100%;
+      }
+
+      .hero-content {
+        z-index: 2;
+      }
+
+      :root[data-theme="light"] {
+        color-scheme: light;
+        --bg: #f7f4ff;
+        --bg-2: #ede9f8;
+        --panel: rgba(255, 255, 255, 0.82);
+        --panel-strong: rgba(255, 255, 255, 0.94);
+        --panel-soft: rgba(36, 39, 62, 0.055);
+        --line: rgba(50, 48, 78, 0.14);
+        --line-strong: rgba(119, 78, 255, 0.28);
+        --text: #171621;
+        --muted: #5d5870;
+        --faint: #7a748d;
+        --shadow: 0 34px 96px rgba(71, 61, 118, 0.16);
+      }
+
+      :root[data-theme="light"] body {
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      :root[data-theme="light"] .view-home.app-shell {
+        background:
+          radial-gradient(ellipse at 50% -8%, rgba(137, 112, 255, 0.24), rgba(255, 255, 255, 0.32) 18rem, transparent 48rem),
+          radial-gradient(ellipse at 50% 43vh, rgba(105, 187, 255, 0.18), transparent 58vh),
+          radial-gradient(ellipse at 52% 116vh, rgba(236, 93, 173, 0.11), transparent 76vh),
+          linear-gradient(180deg, #fbf9ff 0%, #f5f1ff 44%, #ffffff 100%);
+      }
+
+      :root[data-theme="light"] .view-home.app-shell::before {
+        background:
+          radial-gradient(ellipse at 50% 12%, rgba(131, 112, 255, 0.18), transparent 34rem),
+          radial-gradient(ellipse at 48% 78%, rgba(237, 102, 174, 0.1), transparent 40rem);
+        opacity: 0.8;
+      }
+
+      :root[data-theme="light"] .topbar {
+        background: rgba(255, 255, 255, 0.76);
+        border-bottom-color: rgba(47, 45, 76, 0.12);
+        box-shadow: 0 18px 54px rgba(77, 69, 116, 0.12);
+      }
+
+      :root[data-theme="light"] .view-home .topbar {
+        border-color: rgba(47, 45, 76, 0.12);
+      }
+
+      :root[data-theme="light"] .brand-logo {
+        color: #16151f;
+      }
+
+      :root[data-theme="light"] .home-nav a {
+        color: rgba(34, 32, 48, 0.58);
+      }
+
+      :root[data-theme="light"] .home-nav a:hover {
+        color: var(--text);
+      }
+
+      :root[data-theme="light"] .theme-switcher {
+        background: rgba(28, 29, 44, 0.055);
+        border-color: rgba(44, 42, 66, 0.12);
+      }
+
+      :root[data-theme="light"] .theme-mode-button {
+        color: rgba(34, 32, 48, 0.58);
+      }
+
+      :root[data-theme="light"] .theme-mode-button:hover {
+        color: var(--text);
+      }
+
+      :root[data-theme="light"] .theme-mode-button.active {
+        background: #171621;
+        color: #ffffff;
+      }
+
+      :root[data-theme="light"] .home-nav .theme-mode-button {
+        background: transparent;
+        color: rgba(34, 32, 48, 0.58);
+      }
+
+      :root[data-theme="light"] .home-nav .theme-mode-button.active {
+        background: #171621;
+        color: #ffffff;
+      }
+
+      :root[data-theme="light"] .hero::before {
+        background:
+          radial-gradient(circle at 18% 20%, rgba(99, 116, 255, 0.08), transparent 16rem),
+          radial-gradient(circle at 74% 18%, rgba(191, 99, 255, 0.11), transparent 18rem),
+          radial-gradient(circle at 62% 84%, rgba(113, 221, 255, 0.1), transparent 26rem);
+        opacity: 0.76;
+      }
+
+      :root[data-theme="light"] .hero::after {
+        background:
+          radial-gradient(circle at center, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.14) 48%, rgba(238, 234, 249, 0.58) 100%);
+      }
+
+      :root[data-theme="light"] .hero h1,
+      :root[data-theme="light"] .launch-copy h2,
+      :root[data-theme="light"] .audit-panel h2,
+      :root[data-theme="light"] .modal h2,
+      :root[data-theme="light"] .process-step strong,
+      :root[data-theme="light"] .choice strong {
+        color: var(--text);
+      }
+
+      :root[data-theme="light"] .hero-copy,
+      :root[data-theme="light"] .launch-copy p,
+      :root[data-theme="light"] .process-step p,
+      :root[data-theme="light"] .panel-subtitle,
+      :root[data-theme="light"] .field-note,
+      :root[data-theme="light"] .stage,
+      :root[data-theme="light"] .status-strip,
+      :root[data-theme="light"] .artifact-summary,
+      :root[data-theme="light"] .scan-step {
+        color: var(--muted);
+      }
+
+      :root[data-theme="light"] .hero-release,
+      :root[data-theme="light"] .transition-caption,
+      :root[data-theme="light"] .ey-pill,
+      :root[data-theme="light"] .launch-selected-label {
+        background: rgba(255, 255, 255, 0.7);
+        border-color: rgba(55, 52, 82, 0.12);
+        box-shadow: 0 18px 44px rgba(77, 69, 116, 0.08);
+        color: #655f78;
+      }
+
+      :root[data-theme="light"] .transition-caption span,
+      :root[data-theme="light"] .hero-release strong {
+        background: #171621;
+        color: #ffffff;
+      }
+
+      :root[data-theme="light"] .primary {
+        box-shadow: 0 18px 36px rgba(224, 187, 0, 0.2);
+      }
+
+      :root[data-theme="light"] .secondary,
+      :root[data-theme="light"] .ghost,
+      :root[data-theme="light"] .mobile-discovery-panel,
+      :root[data-theme="light"] .choice,
+      :root[data-theme="light"] .segmented button,
+      :root[data-theme="light"] .status-strip {
+        background: rgba(255, 255, 255, 0.66);
+        border-color: rgba(50, 48, 78, 0.13);
+        color: var(--text);
+      }
+
+      :root[data-theme="light"] .ghost:hover,
+      :root[data-theme="light"] .secondary:hover {
+        background: rgba(255, 255, 255, 0.86);
+      }
+
+      :root[data-theme="light"] .segmented button.active {
+        background: linear-gradient(180deg, #ffe828 0%, #ffe100 100%);
+        border-color: rgba(223, 188, 0, 0.36);
+        color: #252535;
+      }
+
+      :root[data-theme="light"] .launch-section::before {
+        background:
+          radial-gradient(ellipse at 50% 36%, rgba(136, 108, 255, 0.12), transparent 62%),
+          radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.52), transparent 50%);
+      }
+
+      :root[data-theme="light"] .audit-panel,
+      :root[data-theme="light"] .modal {
+        background:
+          radial-gradient(circle at 12% 100%, rgba(84, 104, 255, 0.08), transparent 18rem),
+          radial-gradient(circle at 100% 0%, rgba(238, 102, 172, 0.08), transparent 18rem),
+          rgba(255, 255, 255, 0.88);
+        border-color: rgba(50, 48, 78, 0.14);
+        box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.78);
+      }
+
+      :root[data-theme="light"] .field label,
+      :root[data-theme="light"] .field-legend {
+        color: #292638;
+      }
+
+      :root[data-theme="light"] .field input,
+      :root[data-theme="light"] .field select {
+        background: rgba(255, 255, 255, 0.78);
+        border-color: rgba(50, 48, 78, 0.14);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        color: var(--text);
+      }
+
+      :root[data-theme="light"] .field input::placeholder {
+        color: rgba(91, 86, 115, 0.48);
+      }
+
+      :root[data-theme="light"] .choice.active {
+        background:
+          linear-gradient(135deg, rgba(92, 111, 255, 0.09), rgba(242, 103, 183, 0.08)),
+          rgba(255, 255, 255, 0.9);
+        border-color: rgba(126, 86, 235, 0.42);
+        box-shadow: 0 0 0 1px rgba(126, 86, 235, 0.12), 0 18px 48px rgba(88, 81, 145, 0.1);
+      }
+
+      :root[data-theme="light"] .choice-icon {
+        background: rgba(29, 31, 48, 0.06);
+      }
+
+      :root[data-theme="light"] .choice small,
+      :root[data-theme="light"] .mobile-discovery-panel span,
+      :root[data-theme="light"] .screenshot-name-row small {
+        color: var(--muted);
+      }
+
+      :root[data-theme="light"] .upload-zone {
+        background: #eef2fb;
+        border-color: rgba(84, 94, 128, 0.34);
+      }
+
+      :root[data-theme="light"] .upload-zone strong {
+        color: var(--text);
+      }
+
+      :root[data-theme="light"] .upload-zone span {
+        color: #63708c;
+      }
+
+      :root[data-theme="light"] .upload-zone-icon {
+        background: rgba(255, 255, 255, 0.72);
+        border-color: rgba(84, 94, 128, 0.22);
+        color: #56627c;
+      }
+
+      :root[data-theme="light"] .screenshot-card,
+      :root[data-theme="light"] .scan-panel,
+      :root[data-theme="light"] .artifact-summary {
+        background: rgba(255, 255, 255, 0.7);
+        border-color: rgba(50, 48, 78, 0.13);
+      }
+
+      :root[data-theme="light"] .screenshot-thumb {
+        background:
+          linear-gradient(45deg, rgba(58, 59, 82, 0.06) 25%, transparent 25%),
+          linear-gradient(-45deg, rgba(58, 59, 82, 0.06) 25%, transparent 25%),
+          rgba(238, 240, 248, 0.92);
+        background-size: 18px 18px;
+      }
+
+      :root[data-theme="light"] .status-strip strong,
+      :root[data-theme="light"] .artifact-summary strong {
+        color: var(--text);
+      }
+
+      :root[data-theme="light"] .progress-wrap,
+      :root[data-theme="light"] .modal .progress-wrap {
+        background: rgba(34, 34, 52, 0.08);
+        border-color: rgba(34, 34, 52, 0.08);
+      }
+
+      :root[data-theme="light"] .modal-backdrop {
+        background:
+          radial-gradient(circle at 50% 8%, rgba(255, 230, 0, 0.12), transparent 28rem),
+          rgba(247, 244, 255, 0.72);
+      }
+
+      :root[data-theme="light"] .modal::before {
+        background: linear-gradient(90deg, transparent, rgba(126, 86, 235, 0.36), transparent);
+      }
+
+      :root[data-theme="light"] .scan-empty-state strong {
+        color: #ffffff;
+      }
+
+      :root[data-theme="light"] .scan-step.complete {
+        color: var(--text);
+      }
+
+      :root[data-theme="light"] .artifact-path {
+        background: rgba(27, 26, 40, 0.08);
+        color: var(--text);
+      }
+
+      :root[data-theme="light"] .error {
+        background: rgba(255, 92, 122, 0.1);
+        border-color: rgba(255, 92, 122, 0.28);
+        color: #8d2a3d;
+      }
     </style>
   </head>
   <body>
     <div id="root"></div>
-    <div class="robot-video-assets" aria-hidden="true">
-      <div class="eye-video w-embed">
-        <video id="eye-video" crossorigin="anonymous" playsinline autoplay muted loop width="100%" style="display: none;">
-          <source src="https://web-assets.chaingpt.org/assets/video/animations/eyes_video-transcode.mp4" />
-          <source src="https://web-assets.chaingpt.org/assets/video/animations/eyes_video-transcode.webm" />
-        </video>
-      </div>
-      <div class="touch-video w-embed">
-        <video id="click-video" crossorigin="anonymous" playsinline muted width="100%" style="display: none;">
-          <source src="https://web-assets.chaingpt.org/assets/video/animations/touch_video-transcode.mp4" />
-          <source src="https://web-assets.chaingpt.org/assets/video/animations/touch_video-transcode.webm" />
-        </video>
-      </div>
-    </div>
-    <div class="shader-assets" aria-hidden="true">
-      <script id="vertexShader" type="x-shader/x-vertex">
-        varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }
-      </script>
-      <script id="fragmentShader" type="x-shader/x-fragment">
-        #ifdef GL_ES precision highp float; #endif uniform sampler2D videoTexture; varying vec2 vUv; void main( void ) { vec4 textColor = texture(videoTexture, vUv); gl_FragColor = vec4(textColor.rgb, textColor.r + textColor.g + textColor.b); }
-      </script>
-    </div>
-    <div class="robot-script-hooks" aria-hidden="true">
-      <div class="pupils"></div>
-      <div class="unlimited-solutions"></div>
-    </div>
     <script>
       const { useEffect, useMemo, useRef, useState } = React;
       const e = React.createElement;
+      const THEME_STORAGE_KEY = "UX_UI_AUDITOR_THEME";
+
+      function readStoredTheme() {
+        try {
+          const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+          if (savedTheme === "light" || savedTheme === "dark") return savedTheme;
+        } catch (_error) {
+          return "dark";
+        }
+        return document.documentElement.dataset.theme === "light" ? "light" : "dark";
+      }
+
+      function applyThemePreference(theme) {
+        const nextTheme = theme === "light" ? "light" : "dark";
+        document.documentElement.dataset.theme = nextTheme;
+        try {
+          window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+        } catch (_error) {
+          // Local storage can be unavailable in locked-down browser contexts.
+        }
+      }
 
       function Icon({ name }) {
         const paths = {
@@ -2880,10 +3257,13 @@
           check: "M5 12l4 4L19 6",
           close: "M6 6l12 12M18 6L6 18",
           doc: "M7 3h7l4 4v14H7zM14 3v5h5M9 13h6M9 17h6",
+          figma: "M9 3h6a3 3 0 010 6H9a3 3 0 010-6zM9 9h6a3 3 0 010 6H9V9zM9 15h3a3 3 0 11-3 3v-3zM9 9a3 3 0 100 6h3V9H9zM9 3a3 3 0 100 6h3V3H9z",
           globe: "M12 3a9 9 0 100 18 9 9 0 000-18zM3 12h18M12 3c2.4 2.5 3.6 5.5 3.6 9S14.4 18.5 12 21c-2.4-2.5-3.6-5.5-3.6-9S9.6 5.5 12 3z",
           image: "M5 5h14v14H5zM8 15l3-3 2 2 3-4 3 5M8.5 9.5h.01",
+          moon: "M21 12.8A8.5 8.5 0 1111.2 3a6.5 6.5 0 009.8 9.8z",
           phone: "M9 3h6a2 2 0 012 2v14a2 2 0 01-2 2H9a2 2 0 01-2-2V5a2 2 0 012-2zM11 18h2",
           spark: "M12 3l1.7 5.2L19 10l-5.3 1.8L12 17l-1.7-5.2L5 10l5.3-1.8L12 3z",
+          sun: "M12 4V2M12 22v-2M4.93 4.93 3.52 3.52M20.48 20.48l-1.41-1.41M4 12H2M22 12h-2M4.93 19.07l-1.41 1.41M20.48 3.52l-1.41 1.41M12 8a4 4 0 100 8 4 4 0 000-8z",
           upload: "M12 16V5M7 10l5-5 5 5M5 19h14",
         };
         return e(
@@ -2909,6 +3289,376 @@
       function defaultScreenshotLabel(file, index) {
         const stem = (file.name || "").replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
         return stem || `Screenshot ${index + 1}`;
+      }
+
+      const OGL_IMPORT_URL = "https://cdn.jsdelivr.net/npm/ogl/dist/ogl.mjs";
+      let oglLoadPromise = null;
+
+      function loadOgl() {
+        if (!oglLoadPromise) {
+          oglLoadPromise = import(OGL_IMPORT_URL);
+        }
+        return oglLoadPromise;
+      }
+
+      const ORB_VERTEX_SHADER = `
+        precision highp float;
+        attribute vec2 position;
+        attribute vec2 uv;
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = vec4(position, 0.0, 1.0);
+        }
+      `;
+
+      const ORB_FRAGMENT_SHADER = `
+        precision highp float;
+
+        uniform float iTime;
+        uniform vec3 iResolution;
+        uniform float hue;
+        uniform float hover;
+        uniform float rot;
+        uniform float hoverIntensity;
+        uniform vec3 backgroundColor;
+        varying vec2 vUv;
+
+        vec3 rgb2yiq(vec3 c) {
+          float y = dot(c, vec3(0.299, 0.587, 0.114));
+          float i = dot(c, vec3(0.596, -0.274, -0.322));
+          float q = dot(c, vec3(0.211, -0.523, 0.312));
+          return vec3(y, i, q);
+        }
+
+        vec3 yiq2rgb(vec3 c) {
+          float r = c.x + 0.956 * c.y + 0.621 * c.z;
+          float g = c.x - 0.272 * c.y - 0.647 * c.z;
+          float b = c.x - 1.106 * c.y + 1.703 * c.z;
+          return vec3(r, g, b);
+        }
+
+        vec3 adjustHue(vec3 color, float hueDeg) {
+          float hueRad = hueDeg * 3.14159265 / 180.0;
+          vec3 yiq = rgb2yiq(color);
+          float cosA = cos(hueRad);
+          float sinA = sin(hueRad);
+          float i = yiq.y * cosA - yiq.z * sinA;
+          float q = yiq.y * sinA + yiq.z * cosA;
+          yiq.y = i;
+          yiq.z = q;
+          return yiq2rgb(yiq);
+        }
+
+        vec3 hash33(vec3 p3) {
+          p3 = fract(p3 * vec3(0.1031, 0.11369, 0.13787));
+          p3 += dot(p3, p3.yxz + 19.19);
+          return -1.0 + 2.0 * fract(vec3(
+            p3.x + p3.y,
+            p3.x + p3.z,
+            p3.y + p3.z
+          ) * p3.zyx);
+        }
+
+        float snoise3(vec3 p) {
+          const float K1 = 0.333333333;
+          const float K2 = 0.166666667;
+          vec3 i = floor(p + (p.x + p.y + p.z) * K1);
+          vec3 d0 = p - (i - (i.x + i.y + i.z) * K2);
+          vec3 e = step(vec3(0.0), d0 - d0.yzx);
+          vec3 i1 = e * (1.0 - e.zxy);
+          vec3 i2 = 1.0 - e.zxy * (1.0 - e);
+          vec3 d1 = d0 - (i1 - K2);
+          vec3 d2 = d0 - (i2 - K1);
+          vec3 d3 = d0 - 0.5;
+          vec4 h = max(0.6 - vec4(
+            dot(d0, d0),
+            dot(d1, d1),
+            dot(d2, d2),
+            dot(d3, d3)
+          ), 0.0);
+          vec4 n = h * h * h * h * vec4(
+            dot(d0, hash33(i)),
+            dot(d1, hash33(i + i1)),
+            dot(d2, hash33(i + i2)),
+            dot(d3, hash33(i + 1.0))
+          );
+          return dot(vec4(31.316), n);
+        }
+
+        vec4 extractAlpha(vec3 colorIn) {
+          float a = max(max(colorIn.r, colorIn.g), colorIn.b);
+          return vec4(colorIn.rgb / (a + 1e-5), a);
+        }
+
+        const vec3 baseColor1 = vec3(0.611765, 0.262745, 0.996078);
+        const vec3 baseColor2 = vec3(0.298039, 0.760784, 0.913725);
+        const vec3 baseColor3 = vec3(0.062745, 0.078431, 0.600000);
+        const float innerRadius = 0.6;
+        const float noiseScale = 0.65;
+
+        float light1(float intensity, float attenuation, float dist) {
+          return intensity / (1.0 + dist * attenuation);
+        }
+        float light2(float intensity, float attenuation, float dist) {
+          return intensity / (1.0 + dist * dist * attenuation);
+        }
+
+        vec4 draw(vec2 uv) {
+          vec3 color1 = adjustHue(baseColor1, hue);
+          vec3 color2 = adjustHue(baseColor2, hue);
+          vec3 color3 = adjustHue(baseColor3, hue);
+
+          float ang = atan(uv.y, uv.x);
+          float len = length(uv);
+          float invLen = len > 0.0 ? 1.0 / len : 0.0;
+
+          float bgLuminance = dot(backgroundColor, vec3(0.299, 0.587, 0.114));
+
+          float n0 = snoise3(vec3(uv * noiseScale, iTime * 0.5)) * 0.5 + 0.5;
+          float r0 = mix(mix(innerRadius, 1.0, 0.4), mix(innerRadius, 1.0, 0.6), n0);
+          float d0 = distance(uv, (r0 * invLen) * uv);
+          float v0 = light1(1.0, 10.0, d0);
+
+          v0 *= smoothstep(r0 * 1.05, r0, len);
+          float innerFade = smoothstep(r0 * 0.8, r0 * 0.95, len);
+          v0 *= mix(innerFade, 1.0, bgLuminance * 0.7);
+          float cl = cos(ang + iTime * 2.0) * 0.5 + 0.5;
+
+          float a = iTime * -1.0;
+          vec2 pos = vec2(cos(a), sin(a)) * r0;
+          float d = distance(uv, pos);
+          float v1 = light2(1.5, 5.0, d);
+          v1 *= light1(1.0, 50.0, d0);
+
+          float v2 = smoothstep(1.0, mix(innerRadius, 1.0, n0 * 0.5), len);
+          float v3 = smoothstep(innerRadius, mix(innerRadius, 1.0, 0.5), len);
+
+          vec3 colBase = mix(color1, color2, cl);
+          float fadeAmount = mix(1.0, 0.1, bgLuminance);
+
+          vec3 darkCol = mix(color3, colBase, v0);
+          darkCol = (darkCol + v1) * v2 * v3;
+          darkCol = clamp(darkCol, 0.0, 1.0);
+
+          vec3 lightCol = (colBase + v1) * mix(1.0, v2 * v3, fadeAmount);
+          lightCol = mix(backgroundColor, lightCol, v0);
+          lightCol = clamp(lightCol, 0.0, 1.0);
+
+          vec3 finalCol = mix(darkCol, lightCol, bgLuminance);
+
+          vec4 extracted = extractAlpha(finalCol);
+          float darkMask = 1.0 - smoothstep(0.98, 1.1, len);
+          float lightMask = 1.0 - smoothstep(0.78, 0.92, len);
+          float alphaMask = mix(darkMask, lightMask, bgLuminance);
+          float alphaValue = mix(extracted.a, max(v0, 0.62), bgLuminance);
+          return vec4(extracted.rgb, alphaValue * alphaMask);
+        }
+
+        vec4 mainImage(vec2 fragCoord) {
+          vec2 center = iResolution.xy * 0.5;
+          float size = min(iResolution.x, iResolution.y);
+          vec2 uv = (fragCoord - center) / size * 2.0;
+
+          float angle = rot;
+          float s = sin(angle);
+          float c = cos(angle);
+          uv = vec2(c * uv.x - s * uv.y, s * uv.x + c * uv.y);
+
+          uv.x += hover * hoverIntensity * 0.1 * sin(uv.y * 10.0 + iTime);
+          uv.y += hover * hoverIntensity * 0.1 * sin(uv.x * 10.0 + iTime);
+
+          return draw(uv);
+        }
+
+        void main() {
+          vec2 fragCoord = vUv * iResolution.xy;
+          vec4 col = mainImage(fragCoord);
+          gl_FragColor = vec4(col.rgb * col.a, col.a);
+        }
+      `;
+
+      function hslToVec3(h, s, l, Vec3) {
+        let r;
+        let g;
+        let b;
+
+        if (s === 0) {
+          r = l;
+          g = l;
+          b = l;
+        } else {
+          const hue2rgb = (p, q, t) => {
+            let next = t;
+            if (next < 0) next += 1;
+            if (next > 1) next -= 1;
+            if (next < 1 / 6) return p + (q - p) * 6 * next;
+            if (next < 1 / 2) return q;
+            if (next < 2 / 3) return p + (q - p) * (2 / 3 - next) * 6;
+            return p;
+          };
+
+          const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+          const p = 2 * l - q;
+          r = hue2rgb(p, q, h + 1 / 3);
+          g = hue2rgb(p, q, h);
+          b = hue2rgb(p, q, h - 1 / 3);
+        }
+
+        return new Vec3(r, g, b);
+      }
+
+      function colorToVec3(color, Vec3) {
+        const value = String(color || "").trim();
+
+        if (value.startsWith("#")) {
+          const hex = value.slice(1);
+          const normalized = hex.length === 3 ? hex.split("").map((part) => `${part}${part}`).join("") : hex;
+          if (normalized.length >= 6) {
+            const r = parseInt(normalized.slice(0, 2), 16) / 255;
+            const g = parseInt(normalized.slice(2, 4), 16) / 255;
+            const b = parseInt(normalized.slice(4, 6), 16) / 255;
+            return new Vec3(r, g, b);
+          }
+        }
+
+        const rgbMatch = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+        if (rgbMatch) {
+          return new Vec3(parseInt(rgbMatch[1], 10) / 255, parseInt(rgbMatch[2], 10) / 255, parseInt(rgbMatch[3], 10) / 255);
+        }
+
+        const hslMatch = value.match(/hsla?\((\d+),\s*(\d+)%,\s*(\d+)%/i);
+        if (hslMatch) {
+          return hslToVec3(parseInt(hslMatch[1], 10) / 360, parseInt(hslMatch[2], 10) / 100, parseInt(hslMatch[3], 10) / 100, Vec3);
+        }
+
+        return new Vec3(0, 0, 0);
+      }
+
+      function Orb({ hue = 0, hoverIntensity = 0.2, rotateOnHover = true, forceHoverState = false, backgroundColor = "#000000" }) {
+        const ctnDom = useRef(null);
+
+        useEffect(() => {
+          let isCancelled = false;
+          let teardown = () => {};
+
+          loadOgl()
+            .then(({ Geometry, Mesh, Program, Renderer, Vec3 }) => {
+              if (isCancelled) return;
+              const container = ctnDom.current;
+              if (!container) return;
+
+              const renderer = new Renderer({ alpha: true, premultipliedAlpha: false });
+              const gl = renderer.gl;
+              gl.clearColor(0, 0, 0, 0);
+              container.appendChild(gl.canvas);
+
+              const geometry = new Geometry(gl, {
+                position: { size: 2, data: new Float32Array([-1, -1, 3, -1, -1, 3]) },
+                uv: { size: 2, data: new Float32Array([0, 0, 2, 0, 0, 2]) },
+              });
+              const program = new Program(gl, {
+                vertex: ORB_VERTEX_SHADER,
+                fragment: ORB_FRAGMENT_SHADER,
+                uniforms: {
+                  iTime: { value: 0 },
+                  iResolution: { value: new Vec3(gl.canvas.width, gl.canvas.height, gl.canvas.width / Math.max(gl.canvas.height, 1)) },
+                  hue: { value: hue },
+                  hover: { value: 0 },
+                  rot: { value: 0 },
+                  hoverIntensity: { value: hoverIntensity },
+                  backgroundColor: { value: colorToVec3(backgroundColor, Vec3) },
+                },
+              });
+
+              const mesh = new Mesh(gl, { geometry, program });
+              const resizeObserver = "ResizeObserver" in window ? new ResizeObserver(resize) : null;
+              let targetHover = 0;
+              let currentRot = 0;
+              let lastTime = performance.now();
+              let rafId = 0;
+              const rotationSpeed = 0.3;
+
+              function resize() {
+                if (!container) return;
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                const width = Math.max(1, container.clientWidth);
+                const height = Math.max(1, container.clientHeight);
+                renderer.setSize(width * dpr, height * dpr);
+                gl.canvas.style.width = `${width}px`;
+                gl.canvas.style.height = `${height}px`;
+                program.uniforms.iResolution.value.set(gl.canvas.width, gl.canvas.height, gl.canvas.width / Math.max(gl.canvas.height, 1));
+              }
+
+              function handleMouseMove(event) {
+                const rect = container.getBoundingClientRect();
+                const width = rect.width;
+                const height = rect.height;
+                if (!width || !height) return;
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                const size = Math.min(width, height);
+                const centerX = width / 2;
+                const centerY = height / 2;
+                const uvX = ((x - centerX) / size) * 2.0;
+                const uvY = ((y - centerY) / size) * 2.0;
+
+                targetHover = Math.sqrt(uvX * uvX + uvY * uvY) < 0.8 ? 1 : 0;
+              }
+
+              function handleMouseLeave() {
+                targetHover = 0;
+              }
+
+              function update(time) {
+                rafId = window.requestAnimationFrame(update);
+                const dt = (time - lastTime) * 0.001;
+                lastTime = time;
+
+                program.uniforms.iTime.value = time * 0.001;
+                program.uniforms.hue.value = hue;
+                program.uniforms.hoverIntensity.value = hoverIntensity;
+                program.uniforms.backgroundColor.value = colorToVec3(backgroundColor, Vec3);
+
+                const effectiveHover = forceHoverState ? 1 : targetHover;
+                program.uniforms.hover.value += (effectiveHover - program.uniforms.hover.value) * 0.1;
+
+                if (rotateOnHover && effectiveHover > 0.5) {
+                  currentRot += dt * rotationSpeed;
+                }
+                program.uniforms.rot.value = currentRot;
+
+                renderer.render({ scene: mesh });
+              }
+
+              resize();
+              if (resizeObserver) resizeObserver.observe(container);
+              window.addEventListener("resize", resize);
+              container.addEventListener("mousemove", handleMouseMove);
+              container.addEventListener("mouseleave", handleMouseLeave);
+              rafId = window.requestAnimationFrame(update);
+
+              teardown = () => {
+                if (rafId) window.cancelAnimationFrame(rafId);
+                if (resizeObserver) resizeObserver.disconnect();
+                window.removeEventListener("resize", resize);
+                container.removeEventListener("mousemove", handleMouseMove);
+                container.removeEventListener("mouseleave", handleMouseLeave);
+                if (container.contains(gl.canvas)) container.removeChild(gl.canvas);
+                gl.getExtension("WEBGL_lose_context")?.loseContext();
+              };
+            })
+            .catch((orbError) => {
+              console.warn("Orb background disabled:", orbError);
+            });
+
+          return () => {
+            isCancelled = true;
+            teardown();
+          };
+        }, [hue, hoverIntensity, rotateOnHover, forceHoverState, backgroundColor]);
+
+        return e("div", { ref: ctnDom, className: "orb-container" });
       }
 
       function ParticleField({ className = "" }) {
@@ -3174,6 +3924,35 @@
         );
       }
 
+      function ThemeSwitcher({ theme, onChange }) {
+        return e(
+          "div",
+          { className: "theme-switcher", role: "group", "aria-label": "Color theme" },
+          e(
+            "button",
+            {
+              className: `theme-mode-button ${theme === "dark" ? "active" : ""}`.trim(),
+              type: "button",
+              onClick: () => onChange("dark"),
+              "aria-pressed": theme === "dark" ? "true" : "false",
+            },
+            e(Icon, { name: "moon" }),
+            "Dark"
+          ),
+          e(
+            "button",
+            {
+              className: `theme-mode-button ${theme === "light" ? "active" : ""}`.trim(),
+              type: "button",
+              onClick: () => onChange("light"),
+              "aria-pressed": theme === "light" ? "true" : "false",
+            },
+            e(Icon, { name: "sun" }),
+            "Light"
+          )
+        );
+      }
+
       function normalizeApiBaseUrl(value) {
         return String(value || "").trim().replace(/\/+$/, "");
       }
@@ -3270,11 +4049,13 @@
       }
 
       function App() {
+        const [theme, setTheme] = useState(readStoredTheme);
         const [experienceType, setExperienceType] = useState("website");
         const [websiteInputType, setWebsiteInputType] = useState("url");
         const [mobileInputType, setMobileInputType] = useState("live");
         const [mode, setMode] = useState("gtm");
         const [url, setUrl] = useState("");
+        const [figmaUrl, setFigmaUrl] = useState("");
         const [siteName, setSiteName] = useState("Client Website Screenshots");
         const [mobileAppLabel, setMobileAppLabel] = useState("Android App Audit");
         const [mobileAppPackage, setMobileAppPackage] = useState("");
@@ -3300,6 +4081,7 @@
         const screenshotFilesRef = useRef([]);
 
         const isWebsiteUrlAudit = experienceType === "website" && websiteInputType === "url";
+        const isFigmaAudit = experienceType === "figma";
         const isScreenshotAudit = (experienceType === "website" && websiteInputType === "screenshot") || (experienceType === "mobile" && mobileInputType === "screenshot");
         const isMobileLiveAudit = experienceType === "mobile" && mobileInputType === "live";
         const screenshotSurfaceType = experienceType === "mobile" ? "mobile_app" : "website";
@@ -3307,14 +4089,20 @@
         const canStart = useMemo(() => {
           if (isSubmitting) return false;
           if (isWebsiteUrlAudit) return url.trim().length > 3;
+          if (isFigmaAudit) return figmaUrl.trim().length > 12;
           if (isScreenshotAudit) return screenshotFiles.length > 0;
           return isMobileLiveAudit;
-        }, [isMobileLiveAudit, isScreenshotAudit, isSubmitting, isWebsiteUrlAudit, screenshotFiles.length, url]);
+        }, [figmaUrl, isFigmaAudit, isMobileLiveAudit, isScreenshotAudit, isSubmitting, isWebsiteUrlAudit, screenshotFiles.length, url]);
 
         const completionText = useMemo(() => {
+          if (isFigmaAudit) return "Open the generated editable Figma audit report and review the scoring, text, and screenshots.";
           if (isMobileLiveAudit) return "Open the generated mobile audit report and review the extracted artifacts.";
           return "Open the deployed report with evidence, confidence, status, and supporting detail.";
-        }, [isMobileLiveAudit]);
+        }, [isFigmaAudit, isMobileLiveAudit]);
+
+        useEffect(() => {
+          applyThemePreference(theme);
+        }, [theme]);
 
         useEffect(() => {
           screenshotFilesRef.current = screenshotFiles;
@@ -3545,6 +4333,12 @@
                   udid: mobileUdid.trim(),
                 }),
               });
+            } else if (isFigmaAudit) {
+              response = await apiFetch("/api/audits", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ auditType: "figma", figmaUrl: figmaUrl.trim() }),
+              });
             } else {
               response = await apiFetch("/api/audits", {
                 method: "POST",
@@ -3587,6 +4381,7 @@
 
         const bridgeProgress = Math.min(1, Math.max(0, (transitionProgress - 0.08) / 0.5));
         const auditReveal = Math.min(1, Math.max(0, (transitionProgress - 0.44) / 0.5));
+        const orbBackgroundColor = theme === "light" ? "#f7f4ff" : "#0d0a12";
         const shellStyle = {
           "--hero-opacity": String(Math.max(0.14, 1 - transitionProgress * 0.86)),
           "--hero-lift": `${-transitionProgress * 112}px`,
@@ -3594,6 +4389,8 @@
           "--hero-blur": `${transitionProgress * 9}px`,
           "--particle-opacity": String(Math.max(0.48, 0.94 - transitionProgress * 0.34)),
           "--particle-scale": String(1 + transitionProgress * 0.12),
+          "--orb-opacity": String(Math.max(0.5, 0.94 - transitionProgress * 0.34)),
+          "--orb-scale": String(1 + transitionProgress * 0.08),
           "--bridge-opacity": String(bridgeProgress),
           "--bridge-soft-opacity": String(bridgeProgress * 0.58),
           "--bridge-rise": `${(1 - bridgeProgress) * 82}px`,
@@ -3627,8 +4424,7 @@
             e(
               "nav",
               { className: "home-nav", "aria-label": "Home navigation" },
-              e("a", { href: "#features", onClick: (event) => event.preventDefault() }, "Features"),
-              e("a", { href: "#about", onClick: (event) => event.preventDefault() }, "About")
+              e(ThemeSwitcher, { theme, onChange: setTheme })
             )
           ),
           e(
@@ -3637,7 +4433,7 @@
             e(
               "div",
               { className: "intro-sequence" },
-              e(Hero, { onLaunch: scrollToAudit })
+              e(Hero, { onLaunch: scrollToAudit, theme, orbBackgroundColor })
             ),
             auditUnlocked && e(
               "section",
@@ -3707,6 +4503,13 @@
                         onClick: () => selectExperience("mobile"),
                         title: "Mobile app audit",
                         text: "Audit a live mobile app session or uploaded app screenshots",
+                      }),
+                      e(AuditChoice, {
+                        active: experienceType === "figma",
+                        icon: "figma",
+                        onClick: () => selectExperience("figma"),
+                        title: "Figma audit",
+                        text: "Audit a Figma design link and generate an editable review report",
                       })
                     )
                   ),
@@ -3726,7 +4529,7 @@
                       e(
                         "div",
                         { className: "launch-selected-label" },
-                        experienceType === "mobile" ? "Mobile app audit" : "Website audit"
+                        experienceType === "mobile" ? "Mobile app audit" : experienceType === "figma" ? "Figma audit" : "Website audit"
                       )
                     ),
                     experienceType === "website" &&
@@ -3785,6 +4588,11 @@
                     url,
                     setUrl,
                   }),
+                launchStep === "input" && isFigmaAudit &&
+                  e(FigmaFields, {
+                    figmaUrl,
+                    setFigmaUrl,
+                  }),
                 launchStep === "input" && isScreenshotAudit &&
                   e(ScreenshotFields, {
                     experienceType,
@@ -3830,7 +4638,9 @@
                           : "Start Website Screenshot Audit"
                         : isMobileLiveAudit
                           ? "Start Mobile Extraction"
-                          : "Start Website Audit",
+                          : isFigmaAudit
+                            ? "Start Figma Audit"
+                            : "Start Website Audit",
                     e(Icon, { name: "arrow" })
                   ),
                 launchStep === "input" && job && e(StatusStrip, { job, isStopping, onOpen: () => setIsModalOpen(true), onStop: handleStopAudit })
@@ -3841,11 +4651,21 @@
         );
       }
 
-      function Hero({ onLaunch }) {
+      function Hero({ onLaunch, theme, orbBackgroundColor }) {
         return e(
           "section",
           { className: "hero", "aria-labelledby": "hero-title" },
-          e(ParticleField),
+          e(
+            "div",
+            { className: "hero-orb", "aria-hidden": "true" },
+            e(Orb, {
+              backgroundColor: orbBackgroundColor,
+              forceHoverState: false,
+              hoverIntensity: theme === "light" ? 0.28 : 0.34,
+              hue: theme === "light" ? 8 : 0,
+              rotateOnHover: true,
+            })
+          ),
           e(
             "div",
             { className: "hero-content" },
@@ -3979,9 +4799,29 @@
               "div",
               { className: "segmented" },
               e("button", { type: "button", className: mode === "detailed" ? "active" : "", onClick: () => setMode("detailed") }, "Detailed audit"),
-              e("button", { type: "button", className: mode === "gtm" ? "active" : "", onClick: () => setMode("gtm") }, e(Icon, { name: "check" }), "GTM audit")
+              e("button", { type: "button", className: mode === "gtm" ? "active" : "", onClick: () => setMode("gtm") }, e(Icon, { name: "check" }), "Website audit")
             )
           )
+        );
+      }
+
+      function FigmaFields({ figmaUrl, setFigmaUrl }) {
+        return e(
+          React.Fragment,
+          null,
+          e(
+            "div",
+            { className: "field" },
+            e("label", { htmlFor: "figma-url" }, "Figma URL"),
+            e("input", {
+              id: "figma-url",
+              value: figmaUrl,
+              placeholder: "https://www.figma.com/design/FILEKEY/Project",
+              onChange: (event) => setFigmaUrl(event.target.value),
+              autoComplete: "url",
+            })
+          ),
+          e("div", { className: "field-note" }, "The audit uses the Figma API token configured on the backend and generates an editable report.")
         );
       }
 
@@ -4136,6 +4976,7 @@
         if (!job) return "audit";
         const type = String(job.type || "").toLowerCase();
         const inputType = String(job.inputType || "").toLowerCase();
+        if (type === "figma") return "figma design";
         if (type === "mobile" && inputType === "screenshot") return "mobile screenshots";
         if (type === "mobile") return "mobile app";
         if (type === "website" && inputType === "screenshot") return "website screenshots";
@@ -4147,7 +4988,8 @@
         if (!job) return "Target website";
         if (job.url) {
           try {
-            return new URL(job.url).hostname.replace(/^www\./, "");
+            const parsed = new URL(job.url);
+            return job.type === "figma" ? "Figma design" : parsed.hostname.replace(/^www\./, "");
           } catch (_error) {
             return job.url;
           }
@@ -4156,6 +4998,12 @@
       }
 
       function currentCrawlTab(job) {
+        if (job?.type === "figma") {
+          return {
+            url: "",
+            title: job?.stage || "Preparing Figma audit",
+          };
+        }
         const fallbackUrl = job?.url || "";
         const fallbackTitle = job?.stage || "Preparing browser tab";
         const logs = Array.isArray(job?.logs) ? [...job.logs].reverse() : [];
@@ -4211,6 +5059,7 @@
       }
 
       function liveFrameUrl(job, currentTab) {
+        if (job?.type === "figma") return "";
         const candidate = currentTab?.url || job?.url || "";
         if (!candidate) return "";
         try {
@@ -4248,9 +5097,12 @@
       function scanStepsForJob(job, progress, status) {
         const isScreenshot = job?.inputType === "screenshot";
         const isMobile = job?.type === "mobile" && !isScreenshot;
+        const isFigma = job?.type === "figma";
         const labels = isMobile
           ? ["Connecting to device", "Exploring app", "Extracting evidence", "Analyzing mobile UX", "Publishing report"]
-          : isScreenshot
+          : isFigma
+            ? ["Fetching Figma file", "Detecting UX/UI issues", "Capturing evidence", "Building editable report", "Publishing result"]
+            : isScreenshot
             ? ["Loading screenshots", "Reading visual hierarchy", "Checking trust signals", "Writing report", "Publishing result"]
             : ["Crawling website", "Opening pages", "Extracting UI evidence", "Building audit report", "Publishing result"];
         const activeIndex = status === "completed" ? labels.length - 1 : Math.min(labels.length - 1, Math.floor((progress || 0) / 22));
@@ -4270,6 +5122,7 @@
 
       function ScanVisualizer({ job, progress, status }) {
         const target = scanTargetName(job);
+        const isFigma = job?.type === "figma";
         const currentTab = currentCrawlTab(job);
         const previewImageUrl = latestPreviewImageUrl(job);
         const frameUrl = liveFrameUrl(job, currentTab);
@@ -4290,7 +5143,7 @@
             e("span", { className: "scan-dot three" }),
             previewImageUrl
               ? e("img", { className: "scan-real-shot", src: previewImageUrl, alt: `Captured page preview for ${target}` })
-              : e("div", { className: "scan-empty-state" }, e("strong", null, "Waiting for first captured page"), e("span", null, "The real website screenshot will appear here as soon as Playwright saves it.")),
+              : e("div", { className: "scan-empty-state" }, e("strong", null, isFigma ? "Waiting for Figma evidence" : "Waiting for first captured page"), e("span", null, isFigma ? "The report will include Figma screenshots when available." : "The real website screenshot will appear here as soon as Playwright saves it.")),
             frameUrl && e("iframe", { className: "scan-live-frame", src: frameUrl, title: `Live website preview for ${target}`, sandbox: "allow-scripts allow-same-origin allow-forms allow-popups" }),
             e("span", { className: "sr-only" }, previewImageUrl ? `Analyzing captured page for ${target}` : `Opening live website preview for ${target}`)
           ),
@@ -4323,11 +5176,14 @@
         const progress = job?.progress || 0;
         const status = job?.status || (error ? "failed" : "queued");
         const isMobileLiveJob = job?.type === "mobile" && job?.inputType !== "screenshot";
+        const isFigmaJob = job?.type === "figma";
         const isLocalReport = Boolean(job?.resultUrl && String(job.resultUrl).startsWith("/artifacts/"));
         const isActiveJob = ["queued", "running"].includes(status);
         const completedEyebrow = isLocalReport ? "Local report ready" : "Deployment ready";
         const completedHeading = isLocalReport ? "Your report is ready locally." : "Your report is deployed.";
-        const completedMessage = isMobileLiveJob
+        const completedMessage = isFigmaJob
+          ? job?.error || job?.stage || "The Figma audit and editable report generation are complete."
+          : isMobileLiveJob
           ? job?.error || job?.stage || "The live mobile extraction, analysis, and report generation are complete."
           : isLocalReport
             ? job?.error || job?.stage || "The report was generated and served locally because Vercel deployment did not complete."
@@ -4340,6 +5196,8 @@
               ? "The audit was stopped."
               : status === "failed"
                 ? "The audit could not finish."
+                : isFigmaJob
+                  ? "Building the Figma audit report."
                 : isMobileLiveJob
                   ? "Running the Android extraction."
                   : "Building the audit report.";
@@ -4386,6 +5244,5 @@
 
       ReactDOM.createRoot(document.getElementById("root")).render(e(App));
     </script>
-    <script src="https://chaingpt-web.s3.us-east-2.amazonaws.com/assets/js/main-script-no-reviews.js" type="module" async></script>
   </body>
 </html>

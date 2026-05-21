@@ -1,4 +1,5 @@
 import asyncio
+import time
 from urllib.parse import urljoin
 
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
@@ -330,6 +331,8 @@ async def test_safe_clickables(*, context, page_info, classified_clickables, con
                 "openedNewTab": False,
                 "dialog": None,
                 "domChanged": False,
+                "clickDurationMs": None,
+                "settledDurationMs": None,
                 "screenshotPath": None,
                 "error": None,
             }
@@ -405,7 +408,9 @@ async def test_safe_clickables(*, context, page_info, classified_clickables, con
                     )
                 )
 
+                action_started = time.perf_counter()
                 await locator.click(timeout=config["interactionTesting"]["actionTimeoutMs"])
+                interaction_result["clickDurationMs"] = round((time.perf_counter() - action_started) * 1000)
 
                 try:
                     popup_page = await resolve_popup_task(popup_task)
@@ -423,6 +428,7 @@ async def test_safe_clickables(*, context, page_info, classified_clickables, con
 
                 await wait_shortly_after_action(test_page, config["interactionTesting"]["postClickDelayMs"])
                 await wait_for_page_ready(popup_page or test_page, config)
+                interaction_result["settledDurationMs"] = round((time.perf_counter() - action_started) * 1000)
 
                 after_url = test_page.url
                 after_state = await capture_page_state(test_page)

@@ -185,7 +185,7 @@ def _build_prompt(site_context: Dict[str, Any], screenshots: List[Dict[str, Any]
         ],
         "visual_trust_findings": [
             {
-                "axis_id": "trust_accessibility | visual_brand | market_alignment",
+                "axis_id": "trust_accessibility | ui_consistency | content_microcopy",
                 "title": "string",
                 "severity": "low | medium | high",
                 "confidence": 0.0,
@@ -237,7 +237,7 @@ You are a senior UX/UI strategist preparing a persuasive go-to-market audit.
 You will review representative website screenshots and return a compact, decision-oriented synthesis for a B2B sales context.
 
 Operating rules:
-- Focus on the seven axes below. Treat each axis as an evaluation contract, not as a vague theme.
+- Focus on the active UX/UI axes below. Treat each axis as an evaluation contract, not as a vague theme.
 - Score every axis from 0 to 100, where 100 is launch-ready and 0 is commercially risky. Use the score field inside `axes`.
 - Use these score anchors:
   - 85-100: strong launch-ready signal; only minor issues remain.
@@ -245,10 +245,10 @@ Operating rules:
   - 55-69: workable, but commercial UX friction is visible and should be fixed before scale.
   - 35-54: major friction or trust gaps likely to slow comprehension, trust, or conversion.
   - 0-34: severe commercial breakdown on visible evidence.
-- Calibrate severity from commercial GTM risk:
-  - high: likely to hurt comprehension, trust, buyer confidence, or conversion readiness.
-  - medium: meaningful visible friction that slows evaluation or adds doubt.
-  - low: secondary friction or polish issue that does not block understanding.
+- Calibrate severity from practical UX impact, not confidence:
+  - high: reserve for severe breakdowns such as broken/malfunctioning controls, actions that do not work, buttons leading to the wrong page, unreachable primary flows, unusable responsive layouts, inaccessible key actions, or performance problems that make the journey fail.
+  - medium: meaningful visible friction that slows evaluation, adds doubt, or makes a task less clear, but the user can still continue.
+  - low: secondary friction, wording, visual consistency, spacing, hierarchy, or polish issues that do not block understanding or task completion.
 - Choose one primary axis per issue. Do not clone the same issue across multiple axes unless the screenshots show clearly separate problems.
 - Stay grounded in what is visible in the screenshots and the provided site context.
 - Do not invent backend behavior, hidden states, accessibility support, or flows that are not visible.
@@ -256,9 +256,11 @@ Operating rules:
 - Prefer concise, specific observations over generic design language.
 - Cite exact visible text, CTA labels, section names, proof signals, or UI elements when relevant.
 - Every issue must explain:
-  1. what is visibly happening,
-  2. why it matters commercially,
-  3. what to change next.
+    1. what is visibly happening,
+    2. why it matters commercially,
+    3. what to change next.
+- For `trust_accessibility`, ground findings in WCAG 2.2-style evidence when visible: contrast, target size, keyboard/focus, link/button purpose, labels/instructions, name/role/value, and motion/flashing. Do not use generic trust wording when a concrete WCAG-oriented signal is available.
+- Make `why_it_matters` specific to the page, visible element, and criterion. Do not reuse the same generic sentence across findings.
 - Populate `visible_signals` with 1 to 4 short evidence bullets grounded in the screenshot, such as quoted CTA text, section names, component types, or visual problems.
 - Use `priority_issues` only for the highest-impact issues overall.
 - Return 3 to 8 `priority_issues` total. Prefer fewer precise, evidence-backed findings over many generic ones.

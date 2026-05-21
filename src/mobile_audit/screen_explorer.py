@@ -11,11 +11,11 @@ from .safe_actions import classify_tappables, is_defer_label, is_progression_lab
 
 @dataclass(slots=True)
 class ExplorerConfig:
-    max_screens: int = 12
-    max_actions_total: int = 24
-    max_actions_per_screen: int = 6
-    max_scrolls_per_path: int = 3
-    max_backtrack_steps: int = 2
+    max_screens: int = 80
+    max_actions_total: int = 192
+    max_actions_per_screen: int = 8
+    max_scrolls_per_path: int = 5
+    max_backtrack_steps: int = 4
 
 
 @dataclass(slots=True)
@@ -268,16 +268,28 @@ class BoundedScreenExplorer:
         screen_type = self._screen_type(screen)
         if screen_type in {
             "webview_screen",
+            "webview_page",
             "intro_landing",
             "auth_gate",
             "home_dashboard",
             "list_feed",
             "detail_screen",
+            "content_feed",
+            "scrollable_collection",
+            "menu_list",
             "form_screen",
+            "input_screen",
             "auth_screen",
             "onboarding_screen",
+            "opaque_visual_surface",
             "scrollable_content",
             "navigation_shell",
+            "home_feed",
+            "program_overview_screen",
+            "proof_interstitial",
+            "prediction_interstitial",
+            "coaching_interstitial",
+            "result_summary",
         }:
             return True
         meta = screen.get("meta", {})
@@ -464,27 +476,24 @@ class BoundedScreenExplorer:
         return False
 
     def _labels_for_screen_return(self, source_screen: dict[str, Any]) -> list[str]:
-        labels = {
-            self._candidate_label_key(tappable)
-            for tappable in source_screen.get("tappables", [])
-            if self._candidate_label_key(tappable)
-        }
-        visible_blob = " ".join(str(value or "").lower() for value in source_screen.get("visible_text", []))
-        title = str(source_screen.get("screen_title_guess") or "").lower()
-        if "accueil" in labels and (
-            "catalogue" in visible_blob
-            or "accès rapide" in visible_blob
-            or "acces rapide" in visible_blob
-            or "vous n" in title
-        ):
-            return ["accueil", "home"]
-        if "magasins" in labels and ("google map" in title or "recherche" in visible_blob):
-            return ["magasins"]
-        if "my mg" in labels and ("club mg" in visible_blob or "connectez" in visible_blob):
-            return ["my mg"]
-        if "jeux" in labels and ("jeu" in visible_blob or "jouer" in visible_blob):
-            return ["jeux"]
-        return []
+        context = self._screen_context(source_screen, {"phase": "initial"})
+        classified = classify_tappables(source_screen.get("tappables", []), context=context)
+        candidates: list[tuple[int, str]] = []
+        for candidate in classified:
+            if candidate.get("safe_action") != "safe":
+                continue
+            if str(candidate.get("action_category") or "") != "navigation":
+                continue
+            key = self._candidate_label_key(candidate)
+            if not key:
+                continue
+            candidates.append((int(candidate.get("selection_score") or 0), key))
+
+        ordered: list[str] = []
+        for _score, key in sorted(candidates, reverse=True):
+            if key not in ordered:
+                ordered.append(key)
+        return ordered[:8]
 
     def _tap_current_label(self, label_keys: list[str]) -> bool:
         if not label_keys:
@@ -522,24 +531,187 @@ class BoundedScreenExplorer:
         tappable_count = len(screen.get("tappables") or [])
         dense_navigation_surface = screen_type in {
             "home_dashboard",
+            "home_feed",
             "navigation_shell",
             "menu_list",
             "scrollable_collection",
             "content_feed",
+            "list_feed",
+            "program_overview_screen",
+            "opaque_visual_surface",
         } or tappable_count >= 10
         if not dense_navigation_surface:
             return self.config.max_actions_per_screen
-        return min(self.config.max_actions_total, max(self.config.max_actions_per_screen, 12))
+        return min(self.config.max_actions_total, max(self.config.max_actions_per_screen, 20))
+
+    def _bounds_area(self, bounds: list[int]) -> int:
+        if len(bounds) != 4:
+            return 0
+        return max(0, int(bounds[2]) - int(bounds[0])) * max(0, int(bounds[3]) - int(bounds[1]))
+
+    def _screen_bounds(self, screen: dict[str, Any]) -> list[int]:
+        bounds = list(screen.get("meta", {}).get("screen_bounds_union") or [0, 0, 0, 0])
+        if len(bounds) == 4 and self._bounds_area(bounds) > 0:
+            return [int(value) for value in bounds]
+        return [0, 0, 1080, 2280]
+
+    def _covers_most_of_screen(self, bounds: list[int], screen_bounds: list[int]) -> bool:
+        screen_area = self._bounds_area(screen_bounds)
+        return screen_area > 0 and self._bounds_area(bounds) >= int(screen_area * 0.75)
+
+    def _is_opaque_visual_surface(self, screen: dict[str, Any]) -> bool:
+        if self._screen_type(screen) == "opaque_visual_surface":
+            return True
+        meta = screen.get("meta", {})
+        if int(meta.get("visible_text_count") or len(screen.get("visible_text") or [])) > 1:
+            return False
+        if not (1 <= int(meta.get("clickable_count") or 0) <= 3):
+            return False
+        screen_bounds = self._screen_bounds(screen)
+        return any(
+            tappable.get("visible")
+            and tappable.get("enabled")
+            and tappable.get("is_generic_label")
+            and self._covers_most_of_screen(list(tappable.get("bounds") or []), screen_bounds)
+            for tappable in screen.get("tappables", [])
+        )
+
+    def _opaque_visual_probe_candidates(self, screen: dict[str, Any]) -> list[dict[str, Any]]:
+        left, top, right, bottom = self._screen_bounds(screen)
+        width = max(1, right - left)
+        height = max(1, bottom - top)
+        target_half_size = max(8, min(width, height) // 80)
+        probe_points = [
+            ("Visual option area 1", 0.50, 0.31),
+            ("Visual bottom progression area", 0.50, 0.89),
+            ("Visual option area 2", 0.50, 0.43),
+            ("Visual bottom progression area", 0.50, 0.89),
+            ("Visual option area 3", 0.50, 0.55),
+            ("Visual bottom progression area", 0.50, 0.89),
+            ("Visual option area 4", 0.50, 0.68),
+            ("Visual bottom progression area", 0.50, 0.89),
+            ("Visual option area 5", 0.50, 0.80),
+            ("Visual bottom progression area", 0.50, 0.89),
+            ("Visual middle-left area", 0.28, 0.55),
+            ("Visual middle-right area", 0.72, 0.55),
+        ]
+
+        candidates: list[dict[str, Any]] = []
+        for index, (label, x_fraction, y_fraction) in enumerate(probe_points, start=1):
+            x = left + int(width * x_fraction)
+            y = top + int(height * y_fraction)
+            candidates.append(
+                {
+                    "element_id": f"opaque_probe_{index:02d}",
+                    "class_name": "visual_probe",
+                    "resource_id": "",
+                    "text": label,
+                    "content_desc": label,
+                    "hint_text": "",
+                    "label": label,
+                    "bounds": [
+                        max(left, x - target_half_size),
+                        max(top, y - target_half_size),
+                        min(right, x + target_half_size),
+                        min(bottom, y + target_half_size),
+                    ],
+                    "clickable": True,
+                    "enabled": True,
+                    "visible": True,
+                    "focusable": False,
+                    "scrollable": False,
+                    "control_type": "action",
+                    "control_role": "opaque_visual_probe",
+                    "is_generic_label": False,
+                    "action_category": "opaque_visual_probe",
+                    "safe_action": "safe",
+                    "safe_reason": "bounded probe for a visual-only app surface with missing accessibility labels",
+                    "safety_score": 70,
+                    "exploration_score": 72,
+                    "selection_score": 142,
+                    "selection_reason": "samples likely option and progression zones when the native hierarchy exposes only an unlabeled full-screen view",
+                }
+            )
+        return candidates
 
     def _maybe_register_target(self, capture: dict[str, Any]) -> tuple[dict[str, Any], bool]:
         screen, is_new = self._register_capture(capture)
         return screen, is_new
+
+    def _explore_opaque_visual_surface(self, source_capture: dict[str, Any]) -> bool:
+        current_capture = source_capture
+        current_screen = current_capture["screen"]
+        print("[mobile] Exploring visual-only surface with bounded coordinate probes because no accessible labels were exposed.")
+
+        for candidate in self._opaque_visual_probe_candidates(current_screen):
+            if self._should_stop():
+                return False
+
+            signature = self._action_signature(current_screen, candidate, "tap")
+            if signature in self._tested_action_signatures:
+                continue
+            self._tested_action_signatures.add(signature)
+
+            try:
+                print(f"[mobile] Probing inaccessible visual target: {self._label(candidate)}.")
+                self._perform_candidate_action(candidate)
+                follow_up_capture = self.runner.capture_current_screen(screen_id="pending_screen")
+                target_screen, is_new = self._maybe_register_target(follow_up_capture)
+                result = self._detect_result(current_screen, follow_up_capture["screen"])
+                target_screen_id = (
+                    target_screen.get("screen_id") or ""
+                    if result in {"navigation", "modal_open", "content_shift"}
+                    else current_screen.get("screen_id") or ""
+                )
+                self._record_interaction(
+                    source_screen=current_screen,
+                    action_type="tap",
+                    result=result,
+                    notes=(
+                        f"Tapped bounded visual probe '{self._label(candidate)}' on an unlabeled app surface "
+                        f"and observed {result.replace('_', ' ')}."
+                    ),
+                    candidate=candidate,
+                    target_screen_id=target_screen_id,
+                    target_screen=follow_up_capture["screen"],
+                )
+
+                if result == "no_change":
+                    continue
+
+                if result == "content_shift":
+                    current_capture = follow_up_capture
+                    current_screen = current_capture["screen"]
+                    continue
+
+                if result in {"navigation", "modal_open"}:
+                    if self._is_active_ancestor(current_screen, follow_up_capture["screen"]):
+                        return False
+                    if is_new and not self._should_stop():
+                        self._explore_capture(follow_up_capture, scroll_depth=0)
+                    return False
+            except Exception as exc:
+                self._record_interaction(
+                    source_screen=current_screen,
+                    action_type="tap",
+                    result="error",
+                    notes=f"Visual-only probe failed for '{self._label(candidate)}': {exc}",
+                    candidate=candidate,
+                    target_screen_id="",
+                    target_screen=current_screen,
+                )
+                return False
+
+        return True
 
     def _explore_taps(self, source_capture: dict[str, Any], phase_context: dict[str, Any]) -> bool:
         source_screen = source_capture["screen"]
         source_screen_type = self._screen_type(source_screen)
         ranked = rank_safe_tappables(self._classify_screen_tappables(source_screen, context=phase_context))
         self._log_candidate_ranking(source_screen, ranked, "Safe exploration")
+
+        if not ranked and self._is_opaque_visual_surface(source_screen):
+            return self._explore_opaque_visual_surface(source_capture)
 
         executed_on_screen = 0
         max_actions_for_screen = self._max_actions_for_screen(source_screen)

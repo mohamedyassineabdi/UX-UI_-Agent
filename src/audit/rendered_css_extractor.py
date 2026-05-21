@@ -3139,6 +3139,9 @@ def build_rendered_ui_output(page_results: List[Dict[str, Any]]) -> Dict[str, An
                 "url": page_result.get("originalUrl"),
                 "finalUrl": page_result.get("finalUrl"),
                 "status": page_result.get("status"),
+                "screenshotPath": page_result.get("screenshotPath"),
+                "keyboardAccessibility": page_result.get("keyboardAccessibility"),
+                "safeInteractionResults": page_result.get("safeInteractionResults") or [],
                 "renderedUi": rendered_ui,
             }
         )

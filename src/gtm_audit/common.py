@@ -89,29 +89,29 @@ AXIS_DEFINITIONS = [
         "id": "trust_accessibility",
         "name": "Trust, Risk & Accessibility",
         "short_name": "Trust & Accessibility",
-        "description": "How credible, safe, legible, and inclusive the visible experience feels for real-world use.",
+        "description": "How reliably the experience satisfies visible and runtime WCAG 2.2 accessibility expectations plus trust-critical usability signals.",
         "focus": ["Content", "Labeling", "Forms", "Presentation"],
-        "core_question": "Does the visible UI look credible and inclusive enough for a buyer to trust it and use it without avoidable barriers?",
+        "core_question": "Can users perceive, operate, and understand the audited pages according to WCAG 2.2 expectations without avoidable barriers?",
         "look_for": [
-            "Proof, contact, policy, or reassurance cues reduce perceived risk where users might hesitate.",
-            "Text, controls, and focusable areas appear readable, distinguishable, and usable.",
-            "Forms and required inputs show labels or instructions instead of relying on memory or guesswork.",
-            "The visible experience avoids patterns that would feel unsafe, inaccessible, or careless.",
+            "WCAG 2.2 contrast issues: text, links, buttons, fields, and non-text UI components meet measurable contrast expectations.",
+            "WCAG 2.2 keyboard issues: links, buttons, menus, drawers, and forms can be reached and operated with keyboard focus.",
+            "WCAG 2.2 name/role/value and label issues: controls expose meaningful accessible names, roles, labels, and instructions.",
+            "WCAG 2.2 target-size and motion issues: targets are large enough, focus is visible, and flashing/motion does not create barriers.",
         ],
         "healthy_signals": [
-            "Contrast, spacing, and label clarity support fast reading and confident interaction.",
-            "Proof, client signals, policies, or contact information appear where they help reassure the user.",
-            "Critical controls look large enough, separate enough, and identifiable enough to activate safely.",
+            "Text and controls meet WCAG contrast thresholds on the captured pages.",
+            "Tab order reaches visible controls in a logical order and focus is visibly identifiable.",
+            "Links, buttons, and form fields have clear accessible names and work when activated.",
         ],
         "failure_modes": [
-            "Low-contrast text, weak focus cues, tiny targets, or unlabeled fields create visible access risk.",
-            "The experience asks for trust without visible proof, reassurance, or contact paths.",
-            "Important information is hidden in decorative or ambiguous visual treatment.",
-            "The interface shows credibility damage such as broken assets, suspicious imagery, or obviously careless rendering.",
+            "Low-contrast text or controls fail WCAG 2.2 readability/non-text contrast expectations.",
+            "Controls are unreachable by keyboard, have weak focus indicators, or fail when activated.",
+            "Links, buttons, and fields have missing/ambiguous accessible names, labels, or instructions.",
+            "Targets are too small, motion is distracting, or a drawer/modal creates a keyboard or operation barrier.",
         ],
         "out_of_scope": [
-            "Do not declare formal WCAG noncompliance unless the visible evidence clearly supports it.",
-            "When keyboard behavior or screen-reader support is not visible, lower confidence instead of inventing failures.",
+            "Do not claim screen-reader output beyond accessible-name, role, label, and DOM evidence captured by the audit.",
+            "Do not invent keyboard failures when the keyboard probe was not run; mark missing runtime coverage as a limitation.",
         ],
         "severity_ladder": {
             "high": "Visible issues would likely reduce trust, exclude some users, or make the product feel unsafe or careless.",
@@ -119,10 +119,10 @@ AXIS_DEFINITIONS = [
             "low": "Trust and accessibility cues are broadly present, with only secondary or localized weaknesses.",
         },
         "evidence_expectations": [
-            "Cite the exact control, text treatment, proof section, or reassurance element that is visible or missing.",
-            "Use cautious wording for synthetic-looking imagery or credibility issues and describe the visible signals.",
+            "Cite the WCAG 2.2 success criterion number, measured signal, affected page, and exact visible control or text sample.",
+            "Prefer runtime evidence from Playwright, contrast calculations, accessible names, target sizes, and keyboard tab probes.",
         ],
-        "default_fix": "Add or strengthen reassurance cues, improve visible legibility and control clarity, and remove avoidable trust-damaging signals.",
+        "default_fix": "Fix the cited WCAG 2.2 barrier, then retest the affected page with contrast checks, keyboard traversal, and control activation.",
     },
     {
         "id": "ui_consistency",
@@ -164,45 +164,6 @@ AXIS_DEFINITIONS = [
         "default_fix": "Normalize repeated controls, spacing, and emphasis so equivalent actions and components feel predictably related.",
     },
     {
-        "id": "visual_brand",
-        "name": "Visual Brand & Hierarchy",
-        "short_name": "Visual Brand",
-        "description": "How well the visible visual direction communicates brand quality, hierarchy, and differentiation on first impression.",
-        "focus": ["Visual hierarchy", "Presentation", "Content"],
-        "core_question": "Does the visual system make the product feel credible, memorable, and easy to scan at first glance?",
-        "look_for": [
-            "Hierarchy directs attention to the most important content, proof, and actions.",
-            "Imagery, color, and composition support the product promise instead of diluting it.",
-            "The interface balances restraint and distinctiveness rather than looking generic or chaotic.",
-            "Visual polish supports trust without overpowering legibility or actionability.",
-        ],
-        "healthy_signals": [
-            "The hero and major sections create a clear focal path from message to proof to action.",
-            "Color and imagery feel intentional, brand-appropriate, and commercially credible.",
-            "Visual hierarchy helps users distinguish primary information from supporting content.",
-        ],
-        "failure_modes": [
-            "Everything competes for attention, leaving the user without a clear focal point.",
-            "Generic, synthetic-looking, or mismatched visuals weaken authenticity or product differentiation.",
-            "Decorative treatment overwhelms content, proof, or action cues.",
-            "The interface feels visually flat or visually noisy, reducing memorability and confidence.",
-        ],
-        "out_of_scope": [
-            "Do not critique brand taste in the abstract; focus on hierarchy, credibility, and commercial clarity.",
-            "Do not double-count pure legibility issues here when trust/accessibility is the more accurate primary axis.",
-        ],
-        "severity_ladder": {
-            "high": "Visible hierarchy or imagery choices materially weaken comprehension, credibility, or brand confidence.",
-            "medium": "The experience looks serviceable, but the visual direction undersells the offer or creates friction.",
-            "low": "The visual system is broadly effective, with only secondary hierarchy or polish opportunities.",
-        },
-        "evidence_expectations": [
-            "Name the visible focal area, image treatment, or competing element that drives the conclusion.",
-            "Explain how the visual treatment changes first-impression trust, hierarchy, or differentiation.",
-        ],
-        "default_fix": "Strengthen the focal path, reduce visual noise, and use imagery and contrast to reinforce a more credible brand story.",
-    },
-    {
         "id": "content_microcopy",
         "name": "Content, Labels & Microcopy",
         "short_name": "Content & Microcopy",
@@ -240,45 +201,6 @@ AXIS_DEFINITIONS = [
             "Explain what a first-time visitor would still not understand after reading the visible copy.",
         ],
         "default_fix": "Rewrite the visible message and labels in user language, clarify the value proposition, and make CTA outcomes explicit.",
-    },
-    {
-        "id": "market_alignment",
-        "name": "Market Alignment & Offer Clarity",
-        "short_name": "Market Alignment",
-        "description": "How well the visible offer, audience cues, proof points, and CTA strategy support a coherent go-to-market story.",
-        "focus": ["Content", "Navigation", "Interaction", "Visual hierarchy"],
-        "core_question": "Would a target buyer quickly understand who this is for, why it is credible, and what commercial step to take next?",
-        "look_for": [
-            "The page signals a specific audience, use case, or business context instead of a generic promise.",
-            "Proof, outcomes, or credibility cues support the value proposition before or near the CTA.",
-            "The CTA strategy fits the maturity of the offer, such as demo, contact, trial, pricing, or deeper evaluation.",
-            "The journey helps the visitor move from interest to evaluation without hunting for commercial next steps.",
-        ],
-        "healthy_signals": [
-            "Audience cues, proof points, and CTA strategy reinforce the same commercial narrative.",
-            "The offer is concrete enough that a buyer could explain it back after one pass.",
-            "The visible journey gives an appropriate evaluation path for the product's sales motion.",
-        ],
-        "failure_modes": [
-            "The product sounds relevant in general but not for a clearly identifiable buyer or use case.",
-            "Proof, pricing, contact, or next-step strategy is missing or disconnected from the promise.",
-            "The CTA asks for commitment too early, too late, or without enough supporting evidence.",
-            "The journey looks polished, but the commercial story remains generic or under-supported.",
-        ],
-        "out_of_scope": [
-            "Do not demand pricing or trial information if the visible sales motion clearly points to a different next step.",
-            "Do not invent market positioning beyond what the page actually signals.",
-        ],
-        "severity_ladder": {
-            "high": "A target buyer would struggle to decide whether the offer is for them or what commercial step to take next.",
-            "medium": "The offer is directionally clear, but visible proof or audience specificity is not strong enough yet.",
-            "low": "The GTM story is broadly credible, with only secondary gaps in proof, specificity, or CTA sequencing.",
-        },
-        "evidence_expectations": [
-            "Reference the visible audience cue, proof point, or CTA strategy supporting the conclusion.",
-            "Tie the finding to buyer understanding, trust, and decision readiness rather than abstract marketing quality.",
-        ],
-        "default_fix": "Make the target audience, commercial proof, and next-step strategy more explicit and more tightly connected on the page.",
     },
 ]
 
@@ -341,19 +263,6 @@ AXIS_KEYWORDS = {
         "layout consistency",
         "repeated",
     ],
-    "visual_brand": [
-        "visual hierarchy",
-        "brand",
-        "imagery",
-        "hero",
-        "focal point",
-        "distinctive",
-        "polish",
-        "visual style",
-        "color palette",
-        "oversaturated",
-        "visual metaphor",
-    ],
     "content_microcopy": [
         "copy",
         "microcopy",
@@ -368,20 +277,6 @@ AXIS_KEYWORDS = {
         "value proposition",
         "cta label",
     ],
-    "market_alignment": [
-        "audience",
-        "value proposition",
-        "proof point",
-        "case study",
-        "testimonial",
-        "demo",
-        "pricing",
-        "offer",
-        "conversion",
-        "social proof",
-        "target buyer",
-        "market",
-    ],
 }
 
 AXIS_IMPACT = {
@@ -389,9 +284,7 @@ AXIS_IMPACT = {
     "flow_architecture": "Weak architecture slows comprehension and makes the offer feel less mature and less navigable.",
     "trust_accessibility": "Visible trust and accessibility gaps increase perceived risk and narrow the reachable audience.",
     "ui_consistency": "Inconsistent UI signals reduce perceived product maturity and make repeat use less efficient.",
-    "visual_brand": "A weak visual narrative lowers memorability, credibility, and differentiation on first impression.",
     "content_microcopy": "Unclear messaging makes the value proposition, controls, and next steps harder to understand and repeat.",
-    "market_alignment": "Weak GTM alignment makes it harder for prospects to see why the offer is relevant and what to do next.",
 }
 
 AXIS_USER_IMPACT = {
@@ -399,10 +292,115 @@ AXIS_USER_IMPACT = {
     "flow_architecture": "people struggle to understand where they are, what comes next, or how the experience is organized",
     "trust_accessibility": "parts of the experience may not feel safe, inclusive, or reliable enough",
     "ui_consistency": "recurring patterns do not behave or look consistently, which makes the product feel less mature",
-    "visual_brand": "the interface does not project enough confidence, clarity, or brand distinctiveness at first glance",
     "content_microcopy": "the value proposition and interaction cues are harder to understand than they should be",
-    "market_alignment": "prospects may not immediately understand why this product is relevant for their context or what step to take next",
 }
+
+
+# Criteria v2: Market Alignment is removed, and Visual Brand is folded into
+# UI Consistency so every audit stays focused on directly observable UX/UI
+# evidence.
+_ACTIVE_AXIS_IDS = {
+    "task_execution",
+    "flow_architecture",
+    "trust_accessibility",
+    "ui_consistency",
+    "content_microcopy",
+}
+AXIS_DEFINITIONS = [axis for axis in AXIS_DEFINITIONS if axis["id"] in _ACTIVE_AXIS_IDS]
+for axis in AXIS_DEFINITIONS:
+    if axis["id"] == "task_execution":
+        axis["name"] = "Performance and Task Execution"
+        axis["short_name"] = "Performance & Task"
+        axis["description"] = (
+            "How quickly and clearly the interface loads, responds, and helps a first-time visitor "
+            "complete the primary task without friction."
+        )
+        axis["look_for"] = [
+            "Core Web Vitals evidence when a live URL is available: LCP, INP, and CLS.",
+            "Lighthouse-style opportunities such as render blocking resources, heavy images, unused code, and slow server response.",
+            "A primary CTA or next step is visible, specific, and not buried by competing actions.",
+            "Forms, key controls, and step transitions explain what happens next and provide feedback.",
+        ]
+        axis["evidence_expectations"] = [
+            "Quote the visible CTA label, form label, state message, or step name when possible.",
+            "Use measured performance data when available; otherwise mark performance comments as visual or heuristic.",
+        ]
+    elif axis["id"] == "trust_accessibility":
+        axis["name"] = "Trust & Accessibility"
+        axis["short_name"] = "Trust & Accessibility"
+        axis["look_for"] = [
+            "WCAG 2.2 contrast and non-text contrast risks detected from rendered foreground/background measurements.",
+            "WCAG 2.2 keyboard, focus order, and focus-visible risks detected from runtime tab traversal when available.",
+            "WCAG 2.2 name/role/value, link-purpose, target-size, label, and instruction risks detected from controls and forms.",
+            "Links and buttons that fail activation, produce no visible result, or are exposed while off-screen/hidden.",
+        ]
+    elif axis["id"] == "ui_consistency":
+        axis["name"] = "Visual Brand & UI Consistency"
+        axis["short_name"] = "Visual & UI Consistency"
+        axis["description"] = (
+            "How consistently components, hierarchy, visual brand treatments, and recurring interaction "
+            "patterns are applied across the visible experience."
+        )
+        axis["look_for"] = [
+            "Repeated controls use stable labels, placement, shape, spacing, and emphasis.",
+            "The audit compares component families, such as buttons, cards, nav items, and form fields, and flags unexplained outliers.",
+            "Hierarchy directs attention to the most important content, proof, and actions.",
+            "Color, typography, imagery, and composition feel like one product system rather than disconnected screens.",
+        ]
+
+AXIS_KEYWORDS["task_execution"] = list(
+    dict.fromkeys(
+        [
+            *AXIS_KEYWORDS.get("task_execution", []),
+            "largest contentful paint",
+            "lcp",
+            "interaction to next paint",
+            "inp",
+            "cumulative layout shift",
+            "cls",
+            "core web vitals",
+            "lighthouse",
+            "page speed",
+            "render blocking",
+            "server response",
+            "unused javascript",
+            "image optimization",
+        ]
+    )
+)
+AXIS_KEYWORDS["ui_consistency"] = list(
+    dict.fromkeys(
+        [
+            *AXIS_KEYWORDS.get("ui_consistency", []),
+            "visual hierarchy",
+            "brand",
+            "imagery",
+            "hero",
+            "focal point",
+            "distinctive",
+            "polish",
+            "color palette",
+            "composition",
+        ]
+    )
+)
+AXIS_KEYWORDS = {axis_id: values for axis_id, values in AXIS_KEYWORDS.items() if axis_id in _ACTIVE_AXIS_IDS}
+AXIS_IMPACT["task_execution"] = (
+    "Slow loading, weak responsiveness, or unclear task flow increases abandonment and weakens the product story."
+)
+AXIS_IMPACT["trust_accessibility"] = (
+    "Visible trust and WCAG 2.2 accessibility gaps increase perceived risk and narrow the reachable audience."
+)
+AXIS_IMPACT["ui_consistency"] = (
+    "Inconsistent components, hierarchy, or brand treatments reduce perceived product maturity and make repeat use less efficient."
+)
+AXIS_IMPACT = {axis_id: value for axis_id, value in AXIS_IMPACT.items() if axis_id in _ACTIVE_AXIS_IDS}
+AXIS_USER_IMPACT["task_execution"] = "the page feels slow, unresponsive, or harder to complete than it should"
+AXIS_USER_IMPACT["trust_accessibility"] = "parts of the experience may not meet visible WCAG 2.2 expectations or feel reliable enough"
+AXIS_USER_IMPACT["ui_consistency"] = (
+    "recurring patterns, hierarchy, or brand treatments do not look consistent, which makes the product feel less mature"
+)
+AXIS_USER_IMPACT = {axis_id: value for axis_id, value in AXIS_USER_IMPACT.items() if axis_id in _ACTIVE_AXIS_IDS}
 
 
 def clean_text(value: Any) -> str:
@@ -522,4 +520,3 @@ def axis_prompt_contract(axis: Dict[str, Any]) -> Dict[str, Any]:
         "severity_ladder": dict(axis.get("severity_ladder") or {}),
         "evidence_expectations": list(axis.get("evidence_expectations") or []),
     }
-

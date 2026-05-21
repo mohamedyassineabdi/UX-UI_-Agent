@@ -33,12 +33,20 @@ PROGRESSION_TEXT_VALUES = {
     "terminer",
     "mode invite",
     "sans compte",
+    "continue without account",
+    "use without account",
+    "browse",
+    "lets go",
+    "got it",
 }
 
 
 def _has_folded_phrase(value: Any, phrases: set[str]) -> bool:
-    folded = f" {_fold(value)} "
-    return any(f" {phrase} " in folded for phrase in phrases)
+    folded = _fold(value)
+    if folded in phrases:
+        return True
+    parts = [_fold(part) for part in str(value or "").split("|")]
+    return any(part in phrases for part in parts)
 
 
 def _resource_tail(resource_id: str) -> str:
@@ -81,6 +89,12 @@ def _count_scrollable(elements: list[dict[str, Any]]) -> int:
     return sum(1 for element in elements if element.get("visible") and element.get("scrollable"))
 
 
+def _bounds_area(bounds: list[int]) -> int:
+    if len(bounds) != 4:
+        return 0
+    return max(0, int(bounds[2]) - int(bounds[0])) * max(0, int(bounds[3]) - int(bounds[1]))
+
+
 def _has_visible_text_token(visible_text: list[str], *tokens: str) -> bool:
     text_blob = " | ".join(_norm(value) for value in visible_text if _norm(value))
     return any(token.lower() in text_blob for token in tokens)
@@ -95,7 +109,7 @@ def _looks_like_intro_landing(visible_text: list[str], meta: dict[str, Any]) -> 
         return False
     text_blob = _text_blob(visible_text)
     folded_blob = _fold(text_blob)
-    has_entry_cta = any(token in folded_blob for token in PROGRESSION_TEXT_VALUES)
+    has_entry_cta = any(_has_folded_phrase(value, PROGRESSION_TEXT_VALUES) for value in visible_text)
     has_market_proof = any(token in text_blob for token in ("users", "million", "countries", "worldwide", "covered"))
     has_intro_copy = any(
         token in folded_blob
@@ -174,6 +188,34 @@ def _looks_like_coaching_interstitial(visible_text: list[str], meta: dict[str, A
         )
     )
     return has_progression and has_coaching_content
+
+
+def _looks_like_opaque_visual_surface(elements: list[dict[str, Any]], visible_text: list[str], meta: dict[str, Any]) -> bool:
+    if meta.get("has_modal") or meta.get("has_webview"):
+        return False
+
+    visible_text_count = int(meta.get("visible_text_count") or len(visible_text))
+    clickable_count = int(meta.get("clickable_count") or 0)
+    if visible_text_count > 1 or clickable_count < 1 or clickable_count > 3:
+        return False
+
+    screen_bounds = list(meta.get("screen_bounds_union") or [0, 0, 0, 0])
+    screen_area = _bounds_area(screen_bounds)
+    if screen_area <= 0:
+        return False
+
+    has_visual_framework_root = any(
+        token in _norm(element.get("class_name"))
+        for element in elements
+        for token in ("composeview", "flutterview", "reactrootview", "surfaceview")
+    )
+    has_fullscreen_click_target = any(
+        element.get("visible")
+        and element.get("clickable")
+        and _bounds_area(list(element.get("bounds") or [])) >= int(screen_area * 0.75)
+        for element in elements
+    )
+    return has_visual_framework_root and has_fullscreen_click_target
 
 
 def _looks_like_result_summary(visible_text: list[str], meta: dict[str, Any], activity_name: str) -> bool:
@@ -336,9 +378,27 @@ def _looks_like_mobile_home_dashboard(visible_text: list[str], meta: dict[str, A
             "magasins",
             "jeux",
             "plus",
+            "for you",
+            "featured",
+            "recent",
+            "recommended",
+            "popular",
+            "categories",
+            "profile",
+            "notifications",
+            "messages",
+            "settings",
         )
     )
-    return clickable_count >= 5 and (has_bottom_nav or has_home_tab) and has_dashboard_sections
+    return clickable_count >= 5 and (has_bottom_nav or has_home_tab) and (has_dashboard_sections or int(meta.get("visible_text_count") or 0) >= 6)
+
+
+def _looks_like_navigation_shell(visible_text: list[str], meta: dict[str, Any]) -> bool:
+    if meta.get("has_modal") or meta.get("has_webview"):
+        return False
+    clickable_count = int(meta.get("clickable_count") or 0)
+    visible_text_count = int(meta.get("visible_text_count") or len(visible_text))
+    return bool(meta.get("has_bottom_nav")) and clickable_count >= 3 and visible_text_count >= 2
 
 
 def _looks_like_auth_gate(visible_text: list[str], meta: dict[str, Any]) -> bool:
@@ -370,7 +430,6 @@ def classify_screen(
     screen_title_guess: str,
 ) -> dict[str, Any]:
     labels = _labels(elements)
-    package_norm = _norm(package_name)
     title_norm = _norm(screen_title_guess)
 
     has_recycler = _has_class(elements, "recyclerview")
@@ -464,6 +523,13 @@ def classify_screen(
         content_density = "low"
         navigation_complexity = "low"
 
+    elif _looks_like_opaque_visual_surface(elements, visible_text, meta):
+        screen_type = "opaque_visual_surface"
+        ui_patterns = ["visual_only_controls", "missing_action_semantics"]
+        interaction_model = "tap"
+        content_density = "medium"
+        navigation_complexity = "medium"
+
     elif _looks_like_blocked_no_actions(visible_text, meta):
         screen_type = "blocked_no_actions"
         ui_patterns = ["readable_content", "missing_action_semantics"]
@@ -506,13 +572,20 @@ def classify_screen(
         content_density = "medium"
         navigation_complexity = "low"
 
-    elif package_norm == "com.android.chrome" and has_recycler and has_search_box and has_shortcuts:
+    elif has_recycler and has_search_box and has_shortcuts:
         screen_type = "home_feed"
         ui_patterns = ["top_bar", "search_bar", "shortcut_grid", "feed"]
         if has_discover:
             ui_patterns.append("discover_feed")
         interaction_model = "scroll + tap"
         content_density = "high"
+        navigation_complexity = "medium"
+
+    elif _looks_like_navigation_shell(visible_text, meta):
+        screen_type = "navigation_shell"
+        ui_patterns = ["bottom_navigation", "content_surface"]
+        interaction_model = "scroll + tap"
+        content_density = "medium"
         navigation_complexity = "medium"
 
     elif has_listview:

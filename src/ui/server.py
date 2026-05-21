@@ -30,8 +30,10 @@ DETAILED_REPORT_DIR = GENERATED_DIR / "audit-report"
 GTM_REPORT_DIR = GENERATED_DIR / "gtm-report"
 DETAILED_VERCEL_DIR = GENERATED_DIR / "vercel-audit-report"
 GTM_VERCEL_DIR = GENERATED_DIR / "vercel-gtm-report"
+HISTORY_STATIC_DIR = GENERATED_DIR / "vercel-audit-history"
 SCREENSHOT_AUDIT_DIR = GENERATED_DIR / "screenshot-audits"
 MOBILE_AUDIT_DIR = GENERATED_DIR / "mobile-audits"
+FIGMA_AUDIT_DIR = GENERATED_DIR / "figma-audits"
 
 URL_RE = re.compile(r"https://[^\s]+")
 STAGE_RE = re.compile(r"\[(?P<current>\d+)/(?P<total>\d+)\]\s*(?P<label>.+)")
@@ -197,6 +199,27 @@ def _new_mobile_job(
     }
 
 
+def _new_figma_job(figma_url: str) -> dict[str, Any]:
+    return {
+        "id": uuid.uuid4().hex[:12],
+        "type": "figma",
+        "surfaceType": "figma",
+        "inputType": "url",
+        "url": figma_url,
+        "mode": "figma",
+        "status": "queued",
+        "stage": "Queued",
+        "progress": 0,
+        "logs": [],
+        "resultUrl": "",
+        "outputDir": "",
+        "error": "",
+        "cancelRequested": False,
+        "createdAt": _now(),
+        "updatedAt": _now(),
+    }
+
+
 def _snapshot_job(job: dict[str, Any]) -> dict[str, Any]:
     safe = dict(job)
     safe["logs"] = list(job.get("logs", []))[-200:]
@@ -298,6 +321,28 @@ def _derive_mobile_failure_error(job_id: str, exit_code: int) -> str:
     )
 
 
+def _derive_website_pipeline_failure_error(job_id: str, exit_code: int) -> str:
+    with JOBS_LOCK:
+        job = JOBS.get(job_id) or {}
+        logs = [str(line or "") for line in job.get("logs", [])]
+
+    combined = "\n".join(logs)
+    if "unable to verify the first certificate" in combined.lower():
+        return (
+            "Audit content was generated, but Vercel deployment failed because the Vercel CLI "
+            "could not verify the TLS certificate. Restart the server with the latest code; the "
+            "pipeline now keeps the local packaged report instead of failing the audit."
+        )
+    if "Crawler failed for this website" in combined:
+        return "Website crawl failed. Check that the URL is reachable and not blocking automated browsers."
+    if "Pipeline failed:" in combined:
+        tail = [line for line in logs[-20:] if line.strip()]
+        detail = tail[-1] if tail else ""
+        if detail:
+            return f"Audit pipeline failed with exit code {exit_code}: {detail}"
+    return f"Audit pipeline failed with exit code {exit_code}."
+
+
 def _terminate_process(process: subprocess.Popen[str]) -> None:
     if process.poll() is not None:
         return
@@ -363,6 +408,20 @@ def _validate_url(value: str) -> str:
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise ValueError("Enter a valid website URL, for example https://example.com.")
     return url
+
+
+def _validate_figma_url(value: str) -> str:
+    figma_url = value.strip()
+    if not figma_url:
+        raise ValueError("Figma URL is required.")
+    if not re.match(r"^https?://", figma_url, flags=re.IGNORECASE):
+        figma_url = f"https://{figma_url}"
+    parsed = urlparse(figma_url)
+    if parsed.scheme not in {"http", "https"} or (parsed.hostname or "").lower() not in {"figma.com", "www.figma.com"}:
+        raise ValueError("Enter a valid Figma URL, for example https://www.figma.com/design/FILEKEY/Project.")
+    if not re.search(r"/(file|design|proto|board)/[A-Za-z0-9]+", parsed.path):
+        raise ValueError("Enter a Figma file, design, proto, or board URL.")
+    return figma_url
 
 
 def _validate_required_text(value: str, field_label: str) -> str:
@@ -667,8 +726,68 @@ def _inside(path: Path, parent: Path) -> bool:
 
 
 def _packaged_report_url(static_dir: Path) -> str:
+    audit_indexes = sorted(
+        (static_dir / "audits").glob("*/index.html"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    if audit_indexes:
+        return _artifact_url_for_path(audit_indexes[0])
     index_path = static_dir / "index.html"
     return _artifact_url_for_path(index_path) if index_path.exists() else ""
+
+
+def _candidate_audit_static_roots() -> list[Path]:
+    roots = [
+        HISTORY_STATIC_DIR,
+        GTM_VERCEL_DIR,
+        DETAILED_VERCEL_DIR,
+        GENERATED_DIR / "vercel-audit-report",
+    ]
+    for parent, pattern in (
+        (FIGMA_AUDIT_DIR, "*/vercel-figma-report"),
+        (SCREENSHOT_AUDIT_DIR, "*/vercel-gtm-report"),
+        (MOBILE_AUDIT_DIR, "*/vercel-gtm-report"),
+    ):
+        if parent.exists():
+            roots.extend(parent.glob(pattern))
+    return roots
+
+
+def _local_audit_static_path(request_path: str) -> Path | None:
+    rel = unquote(request_path.lstrip("/")).replace("\\", "/").strip("/")
+    parts = [part for part in rel.split("/") if part]
+    if len(parts) < 2 or parts[0] != "audits":
+        return None
+    if len(parts) == 2:
+        rel = f"audits/{parts[1]}/index.html"
+
+    for root in _candidate_audit_static_roots():
+        target = (root / rel).resolve()
+        try:
+            target.relative_to(root.resolve())
+        except ValueError:
+            continue
+        if target.exists() and target.is_file():
+            return target
+    return None
+
+
+def _figma_run_status_error(output_dir: Path) -> str:
+    status_path = output_dir / "data" / "run_status.json"
+    try:
+        payload = json.loads(status_path.read_text(encoding="utf-8"))
+    except Exception:
+        return ""
+    error = str(payload.get("error") or "").strip()
+    if error:
+        return error
+    stages = payload.get("stages")
+    if isinstance(stages, list):
+        for stage in reversed(stages):
+            if isinstance(stage, dict) and stage.get("error"):
+                return str(stage.get("error") or "").strip()
+    return ""
 
 
 def _update_job_progress_from_output(job_id: str, line: str) -> None:
@@ -684,6 +803,11 @@ def _update_job_progress_from_output(job_id: str, line: str) -> None:
         ("[4/5] Exporting workbook", "Building audit report", 72),
         ("[4/5] Workbook export skipped", "Building audit report", 72),
         ("[5/5] Generating", "Building audit report", 82),
+        ("[1/5] Running Figma audit pipeline", "Fetching Figma design", 8),
+        ("[2/5] Capturing real Figma screenshots", "Capturing Figma evidence", 42),
+        ("[3/5] Refreshing Figma evidence", "Validating Figma evidence", 58),
+        ("[4/5] Generating editable Figma audit report", "Building editable Figma report", 74),
+        ("[5/5] Figma audit report ready", "Publishing result", 88),
         ("Deploying report", "Publishing result", 90),
     ]
     for marker, stage, progress in markers:
@@ -774,7 +898,7 @@ def _run_audit_job(job_id: str) -> None:
         _set_job(
             job_id,
             status="failed",
-            error=f"Audit pipeline failed with exit code {pipeline_code}.",
+            error=_derive_website_pipeline_failure_error(job_id, pipeline_code),
         )
         return
 
@@ -962,6 +1086,128 @@ def _run_screenshot_audit_job(job_id: str) -> None:
         return
 
     _set_job(job_id, status="completed", stage="Completed", progress=100, resultUrl=result_url)
+
+
+def _run_figma_audit_job(job_id: str) -> None:
+    with JOBS_LOCK:
+        job = JOBS[job_id]
+        figma_url = str(job.get("url") or "").strip()
+
+    if _env_flag("FIGMA_AUDITS_DISABLED", default=False):
+        _set_job(
+            job_id,
+            status="failed",
+            error="Figma audits are disabled for this deployment. Unset FIGMA_AUDITS_DISABLED to enable them.",
+        )
+        return
+
+    output_dir = FIGMA_AUDIT_DIR / job_id
+    report_dir = output_dir / "figma-report"
+    vercel_dir = output_dir / "vercel-figma-report"
+
+    _set_job(job_id, status="running", stage="Starting Figma audit", progress=2, outputDir=str(output_dir))
+    audit_code = _run_command(
+        job_id,
+        [
+            sys.executable,
+            "-m",
+            "src.figma_audit_runner",
+            figma_url,
+            "--job-id",
+            job_id,
+            "--output-root",
+            str(FIGMA_AUDIT_DIR),
+        ],
+        stage="Running Figma audit pipeline",
+        progress=5,
+    )
+    if audit_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
+        return
+    if audit_code != 0:
+        run_error = _figma_run_status_error(output_dir)
+        _set_job(
+            job_id,
+            status="failed",
+            outputDir=str(output_dir),
+            error=(
+                run_error
+                or (
+                    f"Figma audit failed with exit code {audit_code}. "
+                    "Check that FIGMA_TOKEN or FIGMA_TOKENS is configured and has access to the file."
+                )
+            ),
+        )
+        return
+
+    deploy_code = _run_command(
+        job_id,
+        [
+            sys.executable,
+            "-m",
+            "src.gtm_audit.vercel_static_deploy",
+            "--report-dir",
+            str(report_dir),
+            "--output-dir",
+            str(vercel_dir),
+            "--audit-slug",
+            job_id,
+            "--deploy",
+        ],
+        stage="Deploying editable Figma report to Vercel",
+        progress=90,
+    )
+    if deploy_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
+        return
+    with JOBS_LOCK:
+        result_url = JOBS[job_id].get("resultUrl", "")
+    if result_url.rstrip("/") == figma_url.rstrip("/") or "figma.com" in result_url.lower():
+        result_url = ""
+    if deploy_code != 0:
+        local_report_url = _packaged_report_url(vercel_dir)
+        if local_report_url:
+            _set_job(
+                job_id,
+                status="completed",
+                stage="Completed with local report",
+                progress=100,
+                outputDir=str(output_dir),
+                resultUrl=local_report_url,
+                error="Vercel deployment failed, so the packaged editable Figma report is being served locally by this app.",
+            )
+            return
+        _set_job(
+            job_id,
+            status="failed",
+            outputDir=str(output_dir),
+            error=(
+                "Figma report deployment failed. Run `vercel login` and `vercel link --yes` "
+                "if authentication or project linking is missing."
+            ),
+        )
+        return
+    if not result_url:
+        local_report_url = _packaged_report_url(vercel_dir)
+        if local_report_url:
+            _set_job(
+                job_id,
+                status="completed",
+                stage="Completed with local report",
+                progress=100,
+                outputDir=str(output_dir),
+                resultUrl=local_report_url,
+            )
+            return
+        _set_job(job_id, status="failed", outputDir=str(output_dir), error="Figma report deployment completed but no deployment URL was detected.")
+        return
+
+    _set_job(
+        job_id,
+        status="completed",
+        stage="Completed",
+        progress=100,
+        outputDir=str(output_dir),
+        resultUrl=result_url,
+    )
 
 
 def _run_mobile_audit_job(job_id: str) -> None:
@@ -1261,6 +1507,13 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
                 return
             self._send_file(target)
             return
+        if parsed.path.startswith("/audits/"):
+            target = _local_audit_static_path(parsed.path)
+            if not target:
+                self.send_error(HTTPStatus.NOT_FOUND, "Audit report not found")
+                return
+            self._send_file(target)
+            return
         if parsed.path.startswith("/artifacts/"):
             rel = unquote(parsed.path.removeprefix("/artifacts/")).replace("\\", "/").lstrip("/")
             target = (ROOT_DIR / rel).resolve()
@@ -1352,6 +1605,11 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
                     job = _new_job(url, mode)
                     JOBS[job["id"]] = job
                     worker = threading.Thread(target=_run_audit_job, args=(job["id"],), daemon=True)
+                elif audit_type == "figma":
+                    figma_url = _validate_figma_url(str(data.get("figmaUrl") or data.get("url") or ""))
+                    job = _new_figma_job(figma_url)
+                    JOBS[job["id"]] = job
+                    worker = threading.Thread(target=_run_figma_audit_job, args=(job["id"],), daemon=True)
                 elif audit_type == "mobile":
                     app_label = str(data.get("appLabel") or "Android App Audit").strip() or "Android App Audit"
                     app_package = str(data.get("appPackage") or "").strip()
@@ -1392,7 +1650,7 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
                     JOBS[job["id"]] = job
                     worker = threading.Thread(target=_run_mobile_audit_job, args=(job["id"],), daemon=True)
                 else:
-                    raise ValueError("Use multipart upload for screenshot audits. Supported JSON audit types are website and mobile.")
+                    raise ValueError("Use multipart upload for screenshot audits. Supported JSON audit types are website, mobile, and figma.")
             worker.start()
             self._send_json(_snapshot_job(job), HTTPStatus.ACCEPTED)
         except ValueError as exc:

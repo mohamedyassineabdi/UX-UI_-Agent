@@ -270,7 +270,7 @@ def parse_input_to_pages(raw_input: Any, config: Dict[str, Any]) -> List[Dict[st
     raise ValueError("Input JSON must be either an array of pages or the partner navigation object.")
 
 
-def summarize_run(page_results: List[Dict[str, Any]]) -> Dict[str, int]:
+def summarize_run(page_results: List[Dict[str, Any]]) -> Dict[str, Any]:
     aggregate = {
         "totalClickablesDetected": 0,
         "safeClickables": 0,
@@ -289,7 +289,10 @@ def summarize_run(page_results: List[Dict[str, Any]]) -> Dict[str, int]:
         "errorInteractions": 0,
         "notFoundInteractions": 0,
         "interactionScreenshotsCreated": 0,
+        "averageInteractionSettleMs": 0,
+        "p95InteractionSettleMs": 0,
     }
+    settle_times: List[float] = []
 
     for page_result in page_results:
         clickable_summary = page_result.get("clickableSummary") or {}
@@ -312,6 +315,18 @@ def summarize_run(page_results: List[Dict[str, Any]]) -> Dict[str, int]:
         aggregate["errorInteractions"] += interaction_summary.get("errors", 0)
         aggregate["notFoundInteractions"] += interaction_summary.get("notFound", 0)
         aggregate["interactionScreenshotsCreated"] += interaction_summary.get("interactionScreenshotsCreated", 0)
+        for interaction in page_result.get("safeInteractionResults") or []:
+            if not isinstance(interaction, dict):
+                continue
+            value = interaction.get("settledDurationMs")
+            if isinstance(value, (int, float)) and value >= 0:
+                settle_times.append(float(value))
+
+    if settle_times:
+        ordered = sorted(settle_times)
+        p95_index = min(len(ordered) - 1, max(0, int(round(len(ordered) * 0.95)) - 1))
+        aggregate["averageInteractionSettleMs"] = round(sum(ordered) / len(ordered))
+        aggregate["p95InteractionSettleMs"] = round(ordered[p95_index])
 
     return aggregate
 
@@ -472,6 +487,8 @@ def build_html_output(page_results: List[Dict[str, Any]]) -> Dict[str, Any]:
 
         page_meta = dict(html_extraction.get("pageMeta") or {})
         page_meta_data = dict((page_meta.get("data") or {}))
+        if page_result.get("keyboardAccessibility"):
+            page_meta_data["keyboardAccessibility"] = page_result.get("keyboardAccessibility")
         responsive_profiles = page_result.get("responsiveProfiles") or []
         if responsive_profiles:
             page_meta_data["responsiveProfiles"] = responsive_profiles

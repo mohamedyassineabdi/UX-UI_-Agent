@@ -463,7 +463,7 @@ def build_payload(
         "visual_review_goal": (
             "Evaluate uploaded mobile app screens against the GTM UX/UI axes with mobile-first interaction, hierarchy, and trust expectations."
             if normalized_surface == "mobile_app"
-            else "Evaluate uploaded website screenshots against the same seven GTM UX/UI audit axes used by the website audit mode."
+            else "Evaluate uploaded website screenshots against the active GTM UX/UI audit axes used by the website audit mode."
         ),
     }
     vision = run_gtm_vision_review(site_context=site_context, screenshots=screenshots)
@@ -505,9 +505,9 @@ def build_payload(
             "topLevelNavigation": "N/A",
             "auditAxes": len(AXIS_DEFINITIONS),
             "approach": (
-                "User-uploaded mobile app screens reviewed by the multimodal GTM synthesis layer with mobile-first context and the shared seven UX/UI audit axes."
+                "User-uploaded mobile app screens reviewed by the multimodal GTM synthesis layer with mobile-first context and the shared active UX/UI audit axes."
                 if normalized_surface == "mobile_app"
-                else "User-uploaded website screenshots reviewed by the multimodal GTM synthesis layer against the same seven UX/UI audit axes."
+                else "User-uploaded website screenshots reviewed by the multimodal GTM synthesis layer against the active UX/UI audit axes."
             ),
         },
         "methodology": [
@@ -524,7 +524,7 @@ def build_payload(
                 "description": (
                     "A multimodal model reviews visible mobile UI evidence with touch-first and in-app flow assumptions."
                     if normalized_surface == "mobile_app"
-                    else "A multimodal model reviews visible website UI evidence against seven GTM UX/UI axes."
+                    else "A multimodal model reviews visible website UI evidence against the active GTM UX/UI axes."
                 ),
             },
             {"step": "LLM Synthesis", "description": "A text model refines the visual review into sharper GTM priorities when available, without inventing new visual evidence."},

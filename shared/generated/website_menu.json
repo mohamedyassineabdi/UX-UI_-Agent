@@ -1,25 +1,70 @@
 {
-  "homepage": "https://www.poulinagroupholding.com/",
-  "language": "fr-FR",
+  "homepage": "https://weefizz.com/index.html",
+  "language": "fr",
   "auth": {
     "signin": null,
     "signup": null
   },
-  "search": {
-    "name": "Rechercher...",
-    "url": null,
-    "type": "input"
-  },
+  "search": null,
   "navigation": [
     {
-      "name": "Actualités",
-      "url": "https://www.poulinagroupholding.com/actualites/",
+      "name": "Accueil",
+      "url": "https://weefizz.com/index.html",
+      "type": "menu",
+      "children": [
+        {
+          "name": "General",
+          "type": "section",
+          "children": [
+            {
+              "name": "Accueil",
+              "type": "link",
+              "url": "https://weefizz.com/index.html",
+              "children": []
+            },
+            {
+              "name": "Contact",
+              "type": "link",
+              "url": "https://weefizz.com/contact.html",
+              "children": []
+            },
+            {
+              "name": "Demander une démo",
+              "type": "link",
+              "url": "https://calendar.app.google/RfDGqcEcm7hdHTky5",
+              "children": []
+            },
+            {
+              "name": "Technologie",
+              "type": "link",
+              "url": "https://weefizz.com/technologie.html",
+              "children": []
+            },
+            {
+              "name": "WeeFizz Fashion",
+              "type": "link",
+              "url": "https://weefizz.com/fashion.html",
+              "children": []
+            },
+            {
+              "name": "WeeFizz PRO",
+              "type": "link",
+              "url": "https://weefizz.com/pro.html",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Contact",
+      "url": "https://weefizz.com/contact.html",
       "type": "link",
       "children": []
     },
     {
-      "name": "Carrière",
-      "url": "https://www.poulinagroupholding.com/carriere/",
+      "name": "Technologie",
+      "url": "https://weefizz.com/technologie.html",
       "type": "menu",
       "children": [
         {
@@ -27,15 +72,39 @@
           "type": "section",
           "children": [
             {
-              "name": "Poulina Académie",
+              "name": "Accueil",
               "type": "link",
-              "url": "https://www.poulinagroupholding.com/poulina-academie/",
+              "url": "https://weefizz.com/index.html",
               "children": []
             },
             {
-              "name": "Poulina Onboarding",
+              "name": "Contact",
               "type": "link",
-              "url": "https://www.poulinagroupholding.com/poulina-onboarding/",
+              "url": "https://weefizz.com/contact.html",
+              "children": []
+            },
+            {
+              "name": "Demander une démo",
+              "type": "link",
+              "url": "https://calendar.app.google/RfDGqcEcm7hdHTky5",
+              "children": []
+            },
+            {
+              "name": "Technologie",
+              "type": "link",
+              "url": "https://weefizz.com/technologie.html",
+              "children": []
+            },
+            {
+              "name": "WeeFizz Fashion",
+              "type": "link",
+              "url": "https://weefizz.com/fashion.html",
+              "children": []
+            },
+            {
+              "name": "WeeFizz PRO",
+              "type": "link",
+              "url": "https://weefizz.com/pro.html",
               "children": []
             }
           ]
@@ -43,51 +112,14 @@
       ]
     },
     {
-      "name": "Engagements",
-      "url": null,
-      "type": "menu",
-      "children": [
-        {
-          "name": "General",
-          "type": "section",
-          "children": [
-            {
-              "name": "Développement durable",
-              "type": "link",
-              "url": "https://www.poulinagroupholding.com/developpement-durable/",
-              "children": []
-            },
-            {
-              "name": "Fondation Poulina pour le savoir",
-              "type": "link",
-              "url": "https://www.poulinagroupholding.com/fondation-pgh/",
-              "children": []
-            },
-            {
-              "name": "Gouvernance éthique",
-              "type": "link",
-              "url": "https://www.poulinagroupholding.com/gouvernance-ethique/",
-              "children": []
-            },
-            {
-              "name": "Responsabilité sociale",
-              "type": "link",
-              "url": "https://www.poulinagroupholding.com/responsabilite-sociale/",
-              "children": []
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Investisseurs",
-      "url": "https://www.poulinagroupholding.com/investisseurs/",
+      "name": "WeeFizz accueil",
+      "url": "https://weefizz.com/index.html",
       "type": "link",
       "children": []
     },
     {
-      "name": "Le Groupe",
-      "url": null,
+      "name": "WeeFizz Fashion",
+      "url": "https://weefizz.com/fashion.html",
       "type": "menu",
       "children": [
         {
@@ -95,15 +127,39 @@
           "type": "section",
           "children": [
             {
-              "name": "A propos",
+              "name": "Accueil",
               "type": "link",
-              "url": "https://www.poulinagroupholding.com/a-propos/",
+              "url": "https://weefizz.com/index.html",
               "children": []
             },
             {
-              "name": "Notre Stratégie de Développement",
+              "name": "Contact",
               "type": "link",
-              "url": "https://www.poulinagroupholding.com/notre-strategie-de-developpement/",
+              "url": "https://weefizz.com/contact.html",
+              "children": []
+            },
+            {
+              "name": "Demander une démo",
+              "type": "link",
+              "url": "https://calendar.app.google/RfDGqcEcm7hdHTky5",
+              "children": []
+            },
+            {
+              "name": "Technologie",
+              "type": "link",
+              "url": "https://weefizz.com/technologie.html",
+              "children": []
+            },
+            {
+              "name": "WeeFizz Fashion",
+              "type": "link",
+              "url": "https://weefizz.com/fashion.html",
+              "children": []
+            },
+            {
+              "name": "WeeFizz PRO",
+              "type": "link",
+              "url": "https://weefizz.com/pro.html",
               "children": []
             }
           ]
@@ -111,8 +167,8 @@
       ]
     },
     {
-      "name": "Produits et services",
-      "url": "https://www.poulinagroupholding.com/produits-et-services/",
+      "name": "WeeFizz PRO",
+      "url": "https://weefizz.com/pro.html",
       "type": "menu",
       "children": [
         {
@@ -120,86 +176,62 @@
           "type": "section",
           "children": [
             {
-              "name": "Alimentation et Boissons",
+              "name": "Accueil",
               "type": "link",
-              "url": "https://www.poulinagroupholding.com/service/alimentation-et-boissons/",
+              "url": "https://weefizz.com/index.html",
               "children": []
             },
             {
-              "name": "Autres activités",
+              "name": "Contact",
               "type": "link",
-              "url": "https://www.poulinagroupholding.com/service/autres-activites/",
+              "url": "https://weefizz.com/contact.html",
               "children": []
             },
             {
-              "name": "Aviculture",
+              "name": "Demander une démo",
               "type": "link",
-              "url": "https://www.poulinagroupholding.com/service/aviculture/",
+              "url": "https://calendar.app.google/RfDGqcEcm7hdHTky5",
               "children": []
             },
             {
-              "name": "Bois",
+              "name": "Technologie",
               "type": "link",
-              "url": "https://www.poulinagroupholding.com/service/bois/",
+              "url": "https://weefizz.com/technologie.html",
               "children": []
             },
             {
-              "name": "Electroménagers",
+              "name": "WeeFizz Fashion",
               "type": "link",
-              "url": "https://www.poulinagroupholding.com/service/electromenagers/",
+              "url": "https://weefizz.com/fashion.html",
               "children": []
             },
             {
-              "name": "Emballage",
+              "name": "WeeFizz PRO",
               "type": "link",
-              "url": "https://www.poulinagroupholding.com/service/emballage/",
-              "children": []
-            },
-            {
-              "name": "Matériaux de Construction",
-              "type": "link",
-              "url": "https://www.poulinagroupholding.com/service/materiaux-de-construction/",
-              "children": []
-            },
-            {
-              "name": "Nutrition Animale",
-              "type": "link",
-              "url": "https://www.poulinagroupholding.com/service/nutrition-animale/",
-              "children": []
-            },
-            {
-              "name": "Photovoltaïque",
-              "type": "link",
-              "url": "https://www.poulinagroupholding.com/service/photovoltaique/",
-              "children": []
-            },
-            {
-              "name": "Services IT",
-              "type": "link",
-              "url": "https://www.poulinagroupholding.com/service/services-it/",
-              "children": []
-            },
-            {
-              "name": "Transformation d’acier",
-              "type": "link",
-              "url": "https://www.poulinagroupholding.com/service/transformation-dacier/",
+              "url": "https://weefizz.com/pro.html",
               "children": []
             }
           ]
         }
       ]
+    },
+    {
+      "name": "✕",
+      "url": null,
+      "type": "menu",
+      "children": []
     }
   ],
   "extra": {
     "desktop": {
-      "forms_detected": 2,
-      "total_internal_links": 152,
-      "external_links": 2,
-      "title": "Poulina Group Holding",
-      "page_size_kb": 208.72,
-      "images_found": 29,
+      "forms_detected": 0,
+      "total_internal_links": 28,
+      "external_links": 4,
+      "title": "WeeFizz — La data morphologique entre l'humain et le vêtement",
+      "page_size_kb": 95.21,
+      "images_found": 20,
       "mode": "desktop",
-      "page_language": "fr-FR",
+      "page_language": "fr",
       "ai_recovery": {
         "used": false,
         "reason": "not_needed",
@@ -210,30 +242,30 @@
       }
     },
     "mobile": {
-      "forms_detected": 2,
-      "total_internal_links": 152,
-      "external_links": 2,
-      "title": "Poulina Group Holding",
-      "page_size_kb": 204.11,
-      "images_found": 17,
+      "forms_detected": 0,
+      "total_internal_links": 28,
+      "external_links": 4,
+      "title": "WeeFizz — La data morphologique entre l'humain et le vêtement",
+      "page_size_kb": 93.16,
+      "images_found": 20,
       "mode": "mobile",
-      "page_language": "fr-FR",
+      "page_language": "fr",
       "ai_recovery": {
-        "used": false,
-        "reason": "not_needed",
+        "used": true,
+        "reason": "ai_failed:too_few_menu_items",
         "clicked_candidate": null,
         "ai_response": null,
         "improved": false,
-        "error": null
+        "error": "Ollama request failed: Client error '400 Bad Request' for url 'http://127.0.0.1:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400"
       }
     },
-    "menu_count": 6,
+    "menu_count": 7,
     "navbar_score": 11.0,
     "source_container": "merged(desktop+mobile)",
-    "sitemap_found": "https://www.poulinagroupholding.com/wp-sitemap.xml",
-    "robots_txt": "https://www.poulinagroupholding.com/robots.txt",
-    "crawl_time_ms": 87640
+    "sitemap_found": "https://weefizz.com/sitemap.xml",
+    "robots_txt": "https://weefizz.com/robots.txt",
+    "crawl_time_ms": 66574
   },
   "requested_language": "en-US",
-  "language_warning": "Requested English, but detected page language was fr-FR."
+  "language_warning": "Requested English, but detected page language was fr."
 }

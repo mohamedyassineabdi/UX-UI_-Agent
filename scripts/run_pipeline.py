@@ -119,7 +119,7 @@ def parse_args() -> argparse.Namespace:
         "--mode",
         choices=("detailed", "gtm"),
         default="detailed",
-        help="Audit mode. 'detailed' runs the existing sheet-based audit. 'gtm' runs the 7-axis go-to-market audit.",
+        help="Audit mode. 'detailed' runs the existing sheet-based audit. 'gtm' runs the go-to-market audit.",
     )
     parser.add_argument(
         "--workbook-template",
@@ -343,7 +343,7 @@ def main() -> None:
         run_command(report_args, cwd=ROOT_DIR)
         ensure_file_exists(report_output_dir / "index.html")
     else:
-        print("\n[4/5] Generating GTM 7-axis audit...\n")
+        print("\n[4/5] Generating GTM audit...\n")
         gtm_args = [
             sys.executable,
             "-m",
@@ -399,11 +399,22 @@ def main() -> None:
                 deploy_args.append("--preview")
             elif args.vercel_prod:
                 deploy_args.append("--prod")
-        deploy_output = run_command_capture(deploy_args, cwd=ROOT_DIR)
+        try:
+            deploy_output = run_command_capture(deploy_args, cwd=ROOT_DIR)
+        except RuntimeError as error:
+            if not deploy_vercel:
+                raise
+            deploy_output = ""
+            print(
+                "\nVercel deployment failed, but the audit report was generated and packaged locally.",
+                file=sys.stderr,
+            )
+            print(str(error), file=sys.stderr)
+
         deployment_urls = re.findall(r"https://[^\s]+", deploy_output)
         if deployment_urls:
             print(f"Final Vercel link: {deployment_urls[-1]}")
-        elif not deploy_vercel:
+        if not deployment_urls:
             print(f"Vercel static package: {vercel_output_dir / 'index.html'}")
 
     print("\nPipeline completed successfully.")

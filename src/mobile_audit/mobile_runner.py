@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import io
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -29,6 +31,45 @@ class MobileRunner:
     def __init__(self, driver: WebDriver, config: MobileRunnerConfig):
         self.driver = driver
         self.config = config
+
+    def _visual_screen_signature(self, screenshot_png: bytes) -> str:
+        if not screenshot_png:
+            return ""
+        try:
+            from PIL import Image
+
+            with Image.open(io.BytesIO(screenshot_png)) as image:
+                width, height = image.size
+                top = int(height * 0.10)
+                bottom = int(height * 0.92)
+                cropped = image.convert("L").crop((0, top, width, max(top + 1, bottom)))
+                sampled = cropped.resize((32, 64))
+                return hashlib.sha1(sampled.tobytes()).hexdigest()[:16]
+        except Exception:
+            return hashlib.sha1(screenshot_png).hexdigest()[:16]
+
+    def _needs_visual_fingerprint(self, parsed: dict[str, Any], tappables: list[dict[str, Any]]) -> bool:
+        semantic_type = str(parsed.get("semantic", {}).get("screen_type") or "")
+        if semantic_type == "opaque_visual_surface":
+            return True
+        meta = parsed.get("meta", {})
+        visible_text_count = int(meta.get("visible_text_count") or 0)
+        clickable_count = int(meta.get("clickable_count") or 0)
+        has_fullscreen_generic_target = any(
+            tappable.get("visible")
+            and tappable.get("enabled")
+            and tappable.get("is_generic_label")
+            and self._covers_most_of_screen(tappable.get("bounds") or [], meta.get("screen_bounds_union") or [])
+            for tappable in tappables
+        )
+        return visible_text_count <= 1 and 1 <= clickable_count <= 3 and has_fullscreen_generic_target
+
+    def _covers_most_of_screen(self, bounds: list[int], screen_bounds: list[int]) -> bool:
+        if len(bounds) != 4 or len(screen_bounds) != 4:
+            return False
+        target_area = max(0, int(bounds[2]) - int(bounds[0])) * max(0, int(bounds[3]) - int(bounds[1]))
+        screen_area = max(0, int(screen_bounds[2]) - int(screen_bounds[0])) * max(0, int(screen_bounds[3]) - int(screen_bounds[1]))
+        return screen_area > 0 and target_area >= int(screen_area * 0.75)
 
     def wait_for_stabilization(self) -> str:
         time.sleep(max(0, self.config.settle_delay_ms) / 1000.0)
@@ -60,17 +101,26 @@ class MobileRunner:
             activity_name=activity_name,
         )
         tappables = build_tappables(parsed["elements"])
+        needs_visual_fingerprint = self._needs_visual_fingerprint(parsed, tappables)
+        if needs_visual_fingerprint and not screenshot_png:
+            screenshot_png = self.driver.get_screenshot_as_png()
+
+        screen_fingerprint = build_screen_fingerprint(
+            package_name,
+            activity_name,
+            parsed["visible_text"],
+            parsed["elements"],
+        )
+        visual_signature = self._visual_screen_signature(screenshot_png) if needs_visual_fingerprint else ""
+        if visual_signature:
+            screen_fingerprint = f"{screen_fingerprint}:{visual_signature}"
+            parsed["meta"]["uses_visual_fingerprint"] = True
 
         screen_record = {
             "screen_id": screen_id,
             "package_name": package_name,
             "activity_name": activity_name,
-            "screen_fingerprint": build_screen_fingerprint(
-                package_name,
-                activity_name,
-                parsed["visible_text"],
-                parsed["elements"],
-            ),
+            "screen_fingerprint": screen_fingerprint,
             "screen_title_guess": parsed["screen_title_guess"],
             "screenshot_path": f"screenshots/{screen_id}.png",
             "hierarchy_path": f"hierarchies/{screen_id}.xml",
@@ -104,14 +154,35 @@ class MobileRunner:
     def can_scroll(self, screen: dict[str, Any]) -> bool:
         if any(bool(element.get("scrollable")) for element in screen.get("elements", [])):
             return True
+        meta = screen.get("meta", {})
         semantic_type = self._screen_type(screen)
-        return semantic_type in {
+        if semantic_type in {
             "list_feed",
             "detail_screen",
             "scrollable_content",
             "webview_screen",
+            "webview_page",
+            "intro_landing",
+            "auth_gate",
             "home_dashboard",
-        }
+            "home_feed",
+            "navigation_shell",
+            "scrollable_collection",
+            "content_feed",
+            "menu_list",
+            "form_screen",
+            "auth_screen",
+            "onboarding_screen",
+            "opaque_visual_surface",
+            "program_overview_screen",
+            "proof_interstitial",
+            "prediction_interstitial",
+            "coaching_interstitial",
+            "result_summary",
+            "blocked_no_actions",
+        }:
+            return True
+        return bool(meta.get("is_page_like")) or int(meta.get("visible_text_count") or 0) >= 10
 
     def scroll_forward(self, screen: dict[str, Any]) -> bool:
         bounds = self._largest_scrollable_bounds(screen)

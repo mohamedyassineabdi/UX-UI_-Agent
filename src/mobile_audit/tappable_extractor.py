@@ -144,7 +144,26 @@ def _control_type(element: dict[str, Any]) -> str:
 
 
 def _is_generic_label(value: str) -> bool:
-    return _text(value).lower() in {"", "view", "button", "imagebutton", "action", "layout", "framelayout", "linearlayout"}
+    return _text(value).lower() in {
+        "",
+        "view",
+        "viewgroup",
+        "button",
+        "imagebutton",
+        "action",
+        "layout",
+        "framelayout",
+        "linearlayout",
+        "constraintlayout",
+        "coordinatorlayout",
+        "composeview",
+        "scrollview",
+        "recyclerview",
+        "content",
+        "android id content",
+        "action bar root",
+        "root",
+    }
 
 
 def _is_system_back_like(element: dict[str, Any], label: str) -> bool:
@@ -174,37 +193,56 @@ def _control_role(element: dict[str, Any], label: str) -> str:
     return "action"
 
 
-def _is_day_card_label(text: str) -> bool:
-    return bool(re.fullmatch(r"Day\s+\d+", _text(text), flags=re.IGNORECASE))
+def _looks_like_synthetic_text_target(text: str) -> bool:
+    value = _text(text)
+    if not value:
+        return False
+    if _is_generic_label(value):
+        return False
+    if len(value) < 2 or len(value) > 90:
+        return False
+    if re.fullmatch(r"[\W_]+", value):
+        return False
+    return True
 
 
-def _synthetic_day_card_tappables(elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _synthetic_text_tappables(elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
     synthetic: list[dict[str, Any]] = []
     seen_bounds: set[tuple[int, int, int, int]] = set()
+    seen_labels: set[str] = set()
 
     for element in elements:
         if not element.get("visible") or not element.get("enabled"):
             continue
-        text = _text(element.get("text"))
-        if not _is_day_card_label(text):
+        label = (
+            _text(element.get("text"))
+            or _text(element.get("content_desc"))
+            or _text(element.get("hint_text"))
+            or _text(element.get("title_hint"))
+        )
+        if not _looks_like_synthetic_text_target(label):
             continue
 
         bounds = tuple(int(value) for value in (element.get("bounds") or [0, 0, 0, 0]))
         if len(bounds) != 4 or bounds in seen_bounds:
             continue
-        if _bounds_area(list(bounds)) <= 0:
+        if _bounds_area(list(bounds)) < 44 * 44:
+            continue
+        label_key = re.sub(r"\s+", " ", label.lower()).strip()
+        if label_key in seen_labels:
             continue
 
         seen_bounds.add(bounds)
+        seen_labels.add(label_key)
         synthetic.append(
             {
                 "element_id": element.get("element_id"),
                 "class_name": element.get("class_name"),
                 "resource_id": element.get("resource_id"),
-                "text": text,
+                "text": label,
                 "content_desc": _text(element.get("content_desc")),
                 "hint_text": _text(element.get("hint_text")),
-                "label": text,
+                "label": label,
                 "bounds": list(bounds),
                 "clickable": False,
                 "enabled": True,
@@ -212,10 +250,12 @@ def _synthetic_day_card_tappables(elements: list[dict[str, Any]]) -> list[dict[s
                 "focusable": False,
                 "scrollable": False,
                 "control_type": "action",
-                "control_role": "synthetic_card",
+                "control_role": "synthetic_text_target",
                 "is_generic_label": False,
             }
         )
+        if len(synthetic) >= 12:
+            break
 
     return synthetic
 
@@ -284,7 +324,19 @@ def build_tappables(elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
             }
         )
 
-    if not tappables:
-        tappables.extend(_synthetic_day_card_tappables(elements))
+    if len(tappables) < 3:
+        occupied_bounds.update(
+            tuple(int(value) for value in item.get("bounds", []))
+            for item in tappables
+            if len(item.get("bounds", [])) == 4
+        )
+        for synthetic in _synthetic_text_tappables(elements):
+            bounds = tuple(int(value) for value in synthetic.get("bounds", []))
+            if bounds in occupied_bounds:
+                continue
+            tappables.append(synthetic)
+            occupied_bounds.add(bounds)
+            if len(tappables) >= 8:
+                break
 
     return tappables

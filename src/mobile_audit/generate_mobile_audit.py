@@ -815,7 +815,7 @@ def build_payload(output_dir: Path, app_label: str = "Android App Audit") -> dic
             "Prefer mobile-specific recommendations: shorter first-run paths, clearer primary actions, accessible touch targets, content descriptions, stable back/navigation behavior, and complete result/paywall context.",
             "When VLM evidence and extraction evidence disagree, keep the finding lower-confidence and explain the missing context instead of overstating.",
         ],
-        "visual_review_goal": "Evaluate the live Android app journey against the seven GTM UX/UI axes plus mobile-specific touch, navigation, accessibility, activation, onboarding, result, and paywall expectations.",
+        "visual_review_goal": "Evaluate the live Android app journey against the active GTM UX/UI axes plus mobile-specific touch, navigation, accessibility, activation, onboarding, result, and paywall expectations.",
     }
 
     base_result = _base_vision_result(deterministic_issues, screens)
@@ -868,7 +868,7 @@ def build_payload(output_dir: Path, app_label: str = "Android App Audit") -> dic
             {"step": "Scan", "description": "Appium launches the Android app and performs bounded safe navigation across in-app screens."},
             {"step": "Extract", "description": "The pipeline captures screenshots, XML hierarchies, screen semantics, tappables, and interaction outcomes."},
             {"step": "Analyze", "description": "Deterministic mobile checks evaluate touch targets, content descriptions, onboarding length, action availability, and navigation evidence before optional VLM/LLM synthesis."},
-            {"step": "Report", "description": "The shared seven-axis GTM report translates mobile evidence into prioritized UX/UI recommendations."},
+            {"step": "Report", "description": "The shared active-axis GTM report translates mobile evidence into prioritized UX/UI recommendations."},
         ],
         "mobileMethodologySources": MOBILE_SOURCES,
         "profile": site_context,

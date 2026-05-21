@@ -1,0 +1,329 @@
+{
+  "metadata": {
+    "source_file": "figma_audit/resources/ux_ui_criteria_validated.json",
+    "generated_on": "2026-05-20",
+    "purpose": "Validated UX/UI criteria set for meaningful Figma, website, and mobile audit reports.",
+    "status": "criteria_refactor_performance_wcag22_pattern_detection_llm_copy_review",
+    "principles": [
+      "Findings must be specific to the audited evidence, not generic report filler.",
+      "Each finding must point to a visible element, measurable signal, or explicit limitation.",
+      "Static Figma review may estimate visual and structural risks, but must not claim full runtime conformance.",
+      "Website performance should use field-aligned user-centric metrics when runtime data is available.",
+      "Avoid double-counting; put each problem under the axis that best explains the user impact."
+    ],
+    "reference_sources": [
+      {
+        "id": "wcag22",
+        "name": "W3C Web Content Accessibility Guidelines (WCAG) 2.2",
+        "url": "https://www.w3.org/TR/WCAG22/",
+        "used_for": "Contrast, target size, labels, focus, predictable interaction, consistent identification, input assistance, and conformance limitations."
+      },
+      {
+        "id": "web_vitals",
+        "name": "Google web.dev: Web Vitals",
+        "url": "https://web.dev/articles/vitals",
+        "used_for": "Core Web Vitals KPIs: LCP, INP, CLS and 75th percentile interpretation."
+      },
+      {
+        "id": "lighthouse_scoring",
+        "name": "Chrome Developers: Lighthouse performance scoring",
+        "url": "https://developer.chrome.com/docs/lighthouse/performance/performance-scoring",
+        "used_for": "Lab performance scoring and metric weighting context."
+      },
+      {
+        "id": "nng_heuristics",
+        "name": "Nielsen Norman Group: 10 Usability Heuristics for User Interface Design",
+        "url": "https://www.nngroup.com/articles/ten-usability-heuristics/",
+        "used_for": "System status, user control, consistency, error prevention, recognition, and minimalist design."
+      }
+    ]
+  },
+  "criteria": [
+    {
+      "id": "task_execution",
+      "order": 1,
+      "name": "Performance and Task Execution",
+      "short_name": "Performance & Task",
+      "focus": ["performance", "task completion", "forms", "feedback", "primary action"],
+      "validated_definition": "How quickly and confidently a user can perceive the page or screen, identify the main task, interact with it, and complete or recover from it without avoidable friction.",
+      "core_question": "Can the target user perceive the interface fast enough, identify the primary action, and complete the visible task with confidence?",
+      "business_impact": "Slow loading, delayed interaction, unstable layout, unclear task paths, and weak feedback increase abandonment and reduce conversion readiness.",
+      "user_impact": "Users wait longer, hesitate, lose context, mis-tap, or abandon because the interface is slow, unstable, or unclear.",
+      "default_fix": "For websites, measure Core Web Vitals and optimize LCP, INP, and CLS. For all surfaces, clarify the primary action, reduce competing actions, expose feedback states, and remove task blockers.",
+      "validated_logic": {
+        "healthy_signals": [
+          "Runtime web audits use Core Web Vitals when available: LCP for loading, INP for interaction responsiveness, and CLS for visual stability.",
+          "A single primary CTA or next step is visible, specific, and visually prioritized.",
+          "Forms expose labels, required state, format hints, validation, and confirmation where relevant.",
+          "Loading, success, error, disabled, and empty states are visible or clearly planned in the UI set.",
+          "Destructive or high-commitment actions include confirmation, cancellation, or recovery affordances."
+        ],
+        "failure_modes": [
+          "Website evidence shows slow LCP, poor INP, high CLS, heavy blocking scripts, or unstable late-loading UI.",
+          "The primary CTA is vague, hidden, visually weak, or competing with too many equivalent actions.",
+          "A visible task or form has no clear completion action, feedback, validation, or recovery path.",
+          "A step transition or action consequence is unclear from the visible UI.",
+          "The UI relies on memory instead of keeping needed context visible."
+        ],
+        "do_not_flag_when": [
+          "Figma-only evidence cannot measure real runtime speed; label performance statements as design/runtime recommendations.",
+          "Backend behavior is unknown and no visible UI evidence suggests confusion or risk.",
+          "A static component-library example does not show a complete task, but also does not show a visible task blocker.",
+          "Multiple CTAs represent genuinely different user intents and the hierarchy is clear."
+        ]
+      },
+      "evidence_expectations": [
+        "For websites, cite LCP, INP, CLS, Lighthouse metrics, network weight, blocking resources, or runtime evidence when available.",
+        "For Figma/mobile static review, quote visible CTA labels, form labels, helper text, validation messages, confirmation messages, or step names.",
+        "Explain the likely effect on completion speed, confidence, error risk, or abandonment."
+      ],
+      "figma_detection_support": {
+        "can_estimate": [
+          "CTA count and visual prominence",
+          "presence of labels near input-like components",
+          "button/control naming",
+          "visible loading/error/success state frames",
+          "destructive action labels with nearby cancellation, undo, or confirmation cues",
+          "multi-field form screens that lack a visible completion action"
+        ],
+        "needs_human_review": [
+          "real Core Web Vitals and Lighthouse scores",
+          "whether feedback timing works in implementation",
+          "whether the CTA matches the business goal",
+          "whether a state is reachable in the actual product"
+        ]
+      },
+      "severity_ladder": {
+        "high": "The main task is slow, unstable, hard to spot, hard to trust, or visibly risky to complete.",
+        "medium": "The task is usable, but speed, ambiguity, or weak feedback would slow or discourage completion.",
+        "low": "The task is understandable, with localized speed, clarity, or polish issues."
+      },
+      "primary_references": ["web_vitals", "lighthouse_scoring", "nng_heuristics", "wcag22"],
+      "keywords": ["performance", "lcp", "inp", "cls", "lighthouse", "cta", "primary action", "submit", "continue", "form", "input", "error", "confirmation", "loading", "feedback", "workflow"]
+    },
+    {
+      "id": "flow_architecture",
+      "order": 2,
+      "name": "Flow Logic & Information Architecture",
+      "short_name": "Flow & Architecture",
+      "focus": ["navigation", "wayfinding", "page structure", "information scent"],
+      "validated_definition": "How clearly the visible journey communicates where users are, what each area contains, what belongs together, and where to go next.",
+      "core_question": "Can a user understand location, structure, grouping, and next destinations without repeatedly re-orienting?",
+      "business_impact": "Weak architecture slows comprehension and makes the offer or product feel less mature, less navigable, and harder to evaluate.",
+      "user_impact": "Users struggle to locate information, understand page relationships, or predict where a navigation choice will lead.",
+      "default_fix": "Clarify navigation labels, strengthen grouping and section order, and organize content around the user's next likely question.",
+      "validated_logic": {
+        "healthy_signals": [
+          "Navigation labels are specific, familiar, and differentiated.",
+          "The page or screen structure moves from overview to detail in a coherent order.",
+          "Headings, sections, and visual grouping make relationships clear.",
+          "Repeated navigation appears in predictable positions and order."
+        ],
+        "failure_modes": [
+          "Navigation labels are generic, overlapping, duplicated, or unclear.",
+          "Section order follows internal logic instead of user decision flow.",
+          "Different screens use inconsistent structure, forcing re-orientation.",
+          "Related content is fragmented, or unrelated content appears grouped."
+        ],
+        "do_not_flag_when": [
+          "Only one screen is visible and no journey-level claim can be supported.",
+          "Navigation labels are specific and differentiated.",
+          "A missing page or hidden navigation item cannot be observed from the supplied evidence."
+        ]
+      },
+      "evidence_expectations": [
+        "Reference visible navigation labels, headings, section titles, breadcrumbs, tabs, or grouping patterns.",
+        "Explain how the visible order supports or interrupts the likely user path."
+      ],
+      "figma_detection_support": {
+        "can_estimate": ["visible navigation label specificity and duplication", "heading hierarchy", "section ordering", "repeated layout structures", "breadcrumb/tab/sidebar-like patterns"],
+        "needs_human_review": ["whether labels match user mental models", "whether hidden interactions change the navigation model"]
+      },
+      "severity_ladder": {
+        "high": "Users would struggle to understand where to go, what page they are on, or how the offer is organized.",
+        "medium": "The structure is usable, but wayfinding or grouping creates avoidable orientation cost.",
+        "low": "The journey is understandable, with minor scan, grouping, or label efficiency issues."
+      },
+      "primary_references": ["nng_heuristics", "wcag22"],
+      "keywords": ["navigation", "menu", "breadcrumb", "wayfinding", "information architecture", "section order", "grouping", "orientation", "findability", "layout"]
+    },
+    {
+      "id": "trust_accessibility",
+      "order": 3,
+      "name": "Trust & WCAG 2.2 Accessibility",
+      "short_name": "Trust & WCAG 2.2",
+      "focus": ["wcag 2.2", "accessibility", "legibility", "forms", "credibility", "risk reduction"],
+      "validated_definition": "How credible, safe, readable, operable, and inclusive the visible experience appears, using WCAG 2.2 success criteria where static or runtime evidence can support them.",
+      "core_question": "Does the visible UI provide enough trust cues and WCAG-aligned accessibility support to avoid obvious credibility or usability barriers?",
+      "business_impact": "Visible trust and accessibility gaps increase perceived risk, reduce conversion confidence, and narrow the reachable audience.",
+      "user_impact": "Some users may not feel safe, included, or able to read and operate the experience comfortably.",
+      "default_fix": "Improve WCAG-aligned contrast, non-text contrast, target size, labels, instructions, focus states, consistent identification, error support, proof, privacy, security, and help cues.",
+      "validated_logic": {
+        "healthy_signals": [
+          "Text contrast follows WCAG 2.2 SC 1.4.3 thresholds where solid color data or runtime pixels are available.",
+          "Pointer targets follow WCAG 2.2 SC 2.5.8 minimum target size/spacing, with 44x44 treated as a stronger mobile usability target.",
+          "Controls expose visible labels or understandable names, aligning with SC 2.5.3 and SC 4.1.2 when implementation evidence exists.",
+          "Inputs provide labels or instructions, aligning with SC 3.3.2.",
+          "Repeated controls are identified consistently, aligning with SC 3.2.4.",
+          "Risky or sensitive moments show proof, privacy, security, contact, support, or policy reassurance."
+        ],
+        "failure_modes": [
+          "Low-contrast text, faint controls, tiny targets, or crowded controls create visible access risk.",
+          "Inputs rely on placeholders only or lack clear labels, instructions, required cues, or error guidance.",
+          "Important state is conveyed by color alone or hidden in decorative treatment.",
+          "The design asks for sensitive action or trust without visible proof, privacy, security, contact, or reassurance.",
+          "Broken assets, careless rendering, or suspicious visuals undermine credibility."
+        ],
+        "do_not_flag_when": [
+          "Keyboard order, screen-reader names, ARIA, focus behavior, and status messages cannot be observed from static Figma alone.",
+          "A formal WCAG pass/fail claim would require implemented code, browser testing, or assistive technology testing.",
+          "Proof or policy content may exist outside the provided frames and no visible trust-risk moment is present."
+        ]
+      },
+      "evidence_expectations": [
+        "Cite exact text, controls, images, trust elements, labels, or proof sections.",
+        "Use measured contrast, target size, label, focus, or form evidence when possible.",
+        "Separate formal WCAG compliance from static risk estimates."
+      ],
+      "figma_detection_support": {
+        "can_estimate": ["text/background contrast from solid colors", "small text sizes", "control bounding boxes and spacing", "presence of visible form labels", "proof/contact/privacy/security keywords", "broken or missing image placeholders"],
+        "needs_human_review": ["screen-reader accessibility", "keyboard focus order and focus visibility in code", "semantic HTML and ARIA behavior", "actual credibility of claims", "whether imagery is authentic or appropriate"]
+      },
+      "severity_ladder": {
+        "high": "Visible issues would likely reduce trust, exclude users, or make the product feel unsafe or careless.",
+        "medium": "The UI is mostly usable, but meaningful WCAG-aligned barriers or reassurance gaps remain.",
+        "low": "Trust and accessibility cues are broadly present, with localized weakness or uncertainty."
+      },
+      "primary_references": ["wcag22", "nng_heuristics"],
+      "keywords": ["wcag", "contrast", "focus", "target size", "label", "name role value", "instructions", "required", "privacy", "security", "trust", "proof", "contact", "accessibility"]
+    },
+    {
+      "id": "ui_consistency",
+      "order": 4,
+      "name": "Visual Brand & UI Consistency",
+      "short_name": "Visual & UI Consistency",
+      "focus": ["component consistency", "pattern detection", "design system", "visual hierarchy", "brand credibility", "interaction predictability"],
+      "validated_definition": "How reliably repeated components, labels, layouts, states, visual hierarchy, and brand treatments communicate the same meaning across the visible experience.",
+      "core_question": "Do repeated patterns and the visual system feel coherent, predictable, credible, and easy to scan?",
+      "business_impact": "Inconsistent components or weak visual direction reduce perceived product maturity, trust, memorability, and repeated-use efficiency.",
+      "user_impact": "Users may hesitate because equivalent controls or patterns appear to mean different things, or because the visual hierarchy does not guide attention.",
+      "default_fix": "Detect repeated button/card/form/navigation patterns, normalize outliers, preserve intentional states, and align visual hierarchy, imagery, spacing, color, radius, typography, and brand expression.",
+      "validated_logic": {
+        "healthy_signals": [
+          "Equivalent actions use consistent labels, placement, styling, and hierarchy.",
+          "Component families share stable size, spacing, shape, typography, radius, color, and state treatment.",
+          "Differences communicate meaningful state, priority, role, or context.",
+          "Hierarchy directs attention from primary message to proof to action.",
+          "Imagery and color support the offer and audience rather than feeling generic or decorative."
+        ],
+        "failure_modes": [
+          "Equivalent actions look unrelated or switch labels, tone, emphasis, or placement without reason.",
+          "Spacing, typography, radius, color, or card treatments vary enough to weaken predictability.",
+          "Interactive and non-interactive elements look too similar, or repeated controls change affordance.",
+          "Everything competes for attention and no focal path is clear.",
+          "Decorative treatment overwhelms content, proof, navigation, or action cues."
+        ],
+        "do_not_flag_when": [
+          "A difference clearly communicates state, priority, destructive intent, disabled status, or context.",
+          "Brand-led variation does not harm recognition, predictability, or task completion.",
+          "Only one example of a component exists, making consistency impossible to assess."
+        ]
+      },
+      "evidence_expectations": [
+        "Compare at least two visible examples when claiming inconsistency.",
+        "Name the component family, pattern, state, repeated action, focal area, or visual treatment that changes.",
+        "Explain whether the difference harms predictability, hierarchy, brand trust, or simply represents meaningful variation."
+      ],
+      "figma_detection_support": {
+        "can_estimate": ["repeated component names", "duplicate structures with different style values", "spacing and radius variants", "CTA label variants", "button/card/form family differences", "text size hierarchy", "dominant visual areas", "image placeholder usage", "color distribution"],
+        "needs_human_review": ["whether variation is intentional", "whether platform conventions apply", "whether interaction behavior matches visual treatment", "brand appropriateness", "image authenticity"]
+      },
+      "severity_ladder": {
+        "high": "Visible inconsistency or hierarchy weakness makes the product feel unreliable, immature, or hard to understand.",
+        "medium": "Most patterns work, but recurring inconsistency or weak visual direction would slow trust-building or repeated use.",
+        "low": "The interface is coherent overall, with localized pattern, hierarchy, brand, or polish opportunities."
+      },
+      "primary_references": ["nng_heuristics", "wcag22"],
+      "keywords": ["consistency", "design system", "pattern", "button", "card", "predictable", "spacing", "component", "visual hierarchy", "brand", "imagery", "focal point", "color palette", "composition"]
+    },
+    {
+      "id": "content_microcopy",
+      "order": 5,
+      "name": "Content, Labels & Microcopy",
+      "short_name": "Content & Microcopy",
+      "focus": ["message clarity", "headings", "labels", "CTA copy", "plain language", "LLM semantic review"],
+      "validated_definition": "How clearly visible words explain what the product is, who it helps, why it matters, what each control means, and what happens next.",
+      "core_question": "Do the visible words use user language and make the message and actions immediately understandable?",
+      "business_impact": "Unclear copy makes the value proposition, controls, and next steps harder to understand, remember, and repeat.",
+      "user_impact": "Users must infer meaning from vague, clever, internal, inconsistent, or placeholder language.",
+      "default_fix": "Use the LLM review layer to judge meaning from surrounding visible context, then rewrite headings, labels, helper text, and CTAs in concrete user language.",
+      "validated_logic": {
+        "healthy_signals": [
+          "Headlines explain what the product is, who it is for, and why it matters.",
+          "CTA labels use concrete outcome-oriented language or are clarified by nearby context.",
+          "Labels and helper text reduce ambiguity around controls, formats, and consequences.",
+          "Terminology matches user mental models and avoids unexplained internal jargon.",
+          "LLM semantic review supports the finding before the report presents it as meaningful."
+        ],
+        "failure_modes": [
+          "Headlines are generic, clever, placeholder, or company-centered rather than user-centered.",
+          "Buttons or labels force users to guess what a control does or what happens next.",
+          "Copy is dense, repetitive, vague, or jargon-heavy enough to weaken scanning.",
+          "The same concept is named multiple ways without purpose.",
+          "Value claims are broad but not supported by concrete meaning in nearby text."
+        ],
+        "do_not_flag_when": [
+          "Nearby context makes a short label or heading clear.",
+          "Specialist terminology is appropriate for the target audience and explained where needed.",
+          "The LLM review rejects or softens the detector's semantic claim."
+        ]
+      },
+      "evidence_expectations": [
+        "Quote the actual heading, label, CTA, helper text, or sentence that supports the finding.",
+        "Explain what a first-time visitor would still not understand.",
+        "When LLM review is configured, use it to support, soften, or reject semantic copy findings."
+      ],
+      "figma_detection_support": {
+        "can_estimate": ["generic CTA labels", "placeholder text", "duplicate label variants", "long text blocks", "jargon markers", "missing text near inputs"],
+        "needs_human_review": ["audience-specific language fit", "value proposition strength", "tone appropriateness", "commercial claim credibility"]
+      },
+      "severity_ladder": {
+        "high": "Visible wording makes the product, action, or value proposition hard to understand.",
+        "medium": "The copy is understandable, but vague, generic, or inconsistent enough to slow decision-making.",
+        "low": "The wording is mostly clear, with localized wording or tone improvements."
+      },
+      "primary_references": ["nng_heuristics", "wcag22"],
+      "keywords": ["copy", "microcopy", "heading", "headline", "label", "button text", "terminology", "jargon", "plain language", "value proposition", "cta label", "semantic review"]
+    }
+  ],
+  "cross_axis_rules": {
+    "deduplication_priority": [
+      {
+        "when": "The issue is about runtime speed, Core Web Vitals, interaction delay, layout instability, completing a visible task, knowing consequences, or getting feedback.",
+        "use_axis": "task_execution"
+      },
+      {
+        "when": "The issue is about formal or visible access barriers such as contrast, labels, target size, focus visibility, predictable operation, consistent identification, or trust/reassurance.",
+        "use_axis": "trust_accessibility"
+      },
+      {
+        "when": "The issue is about unclear words, labels, value explanation, CTA wording, or semantic meaning.",
+        "use_axis": "content_microcopy"
+      },
+      {
+        "when": "The issue is about navigation, grouping, structure, or orientation.",
+        "use_axis": "flow_architecture"
+      },
+      {
+        "when": "The issue is about repeated component/pattern inconsistency, visual hierarchy, brand treatment, imagery, or visual attention.",
+        "use_axis": "ui_consistency"
+      }
+    ],
+    "confidence_levels": {
+      "high": "Direct visible or measured evidence supports the finding, and the criterion can be assessed with low ambiguity.",
+      "medium": "Visible or measured evidence supports the finding, but business context, hidden states, or implementation behavior may change the conclusion.",
+      "low": "The finding is a useful hypothesis but requires product context, analytics, user research, runtime evidence, or implemented behavior to confirm."
+    },
+    "formal_accessibility_note": "WCAG 2.2 conformance requires implemented UI testing, including keyboard behavior, semantic structure, accessible names, browser behavior, and assistive technology support. Static Figma inspection can estimate visible risks only."
+  }
+}

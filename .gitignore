@@ -74,14 +74,8 @@ desktop.ini
 # =========================
 output/
 shared/output/
-shared/generated/mobile-audits/
-shared/generated/screenshot-audits/
-shared/generated/*.json
-shared/generated/*.ndjson
-shared/generated/*.csv
-shared/generated/*.xlsx
-shared/generated/*.pptx
-shared/generated/*.pdf
+shared/generated/
+!shared/generated/.gitkeep
 
 # Screenshots / captures / temporary exports
 **/screenshots/
@@ -95,8 +89,18 @@ shared/generated/*.pdf
 *.jpg
 *.jpeg
 *.webp
+*.gif
+*.mp4
+*.mov
+*.webm
 !docs/screenshots/
 !docs/screenshots/*.png
+
+# Archives / imported bundles
+*.zip
+*.7z
+*.tar
+*.tar.gz
 
 # =========================
 # Local databases / caches
@@ -114,7 +118,5 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 package-lock.json
-.vercel
-
-.vercel
+.vercel/
 .env*.local
