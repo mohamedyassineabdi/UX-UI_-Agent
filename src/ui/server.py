@@ -226,6 +226,39 @@ def _snapshot_job(job: dict[str, Any]) -> dict[str, Any]:
     return safe
 
 
+def _request_base_url(handler: BaseHTTPRequestHandler) -> str:
+    host = (handler.headers.get("Host") or "").strip()
+    if not host:
+        server_name = getattr(handler.server, "server_name", "127.0.0.1")
+        server_port = getattr(handler.server, "server_port", 8787)
+        host = f"{server_name}:{server_port}"
+    proto = (handler.headers.get("X-Forwarded-Proto") or "").split(",", 1)[0].strip()
+    if not proto:
+        proto = "https" if str(handler.headers.get("X-Forwarded-Ssl") or "").lower() == "on" else "http"
+    return f"{proto}://{host}"
+
+
+def _snapshot_for_request(job: dict[str, Any], handler: BaseHTTPRequestHandler) -> dict[str, Any]:
+    payload = _snapshot_job(job)
+    job_id = str(payload.get("id") or "").strip()
+    result_url = str(payload.get("resultUrl") or "")
+    if (
+        job_id
+        and payload.get("status") == "completed"
+        and str(payload.get("stage") or "") == "Ready for local review"
+        and not result_url.startswith("/audits/")
+    ):
+        local_path = f"/audits/{quote(job_id, safe='')}/"
+        if _local_audit_static_path(local_path):
+            payload["resultUrl"] = local_path
+    result_url = str(payload.get("resultUrl") or "")
+    if result_url.startswith("/"):
+        base_url = _request_base_url(handler)
+        separator = "&" if "?" in result_url else "?"
+        payload["localResultUrl"] = f"{base_url}{result_url}{separator}apiBaseUrl={quote(base_url, safe=':/')}"
+    return payload
+
+
 def _append_log(job_id: str, line: str) -> None:
     clean_line = line.rstrip()
     if not clean_line:
@@ -243,9 +276,6 @@ def _append_log(job_id: str, line: str) -> None:
             label = match.group("label").strip().strip(".")
             job["stage"] = label
             job["progress"] = max(job.get("progress", 0), round((current - 1) / max(total, 1) * 85))
-        urls = URL_RE.findall(clean_line)
-        if urls:
-            job["resultUrl"] = urls[-1].rstrip(".,)")
         screenshot_match = SCREENSHOT_LOG_RE.search(clean_line)
         if screenshot_match:
             job["previewImagePath"] = screenshot_match.group("path").strip()
@@ -732,9 +762,64 @@ def _packaged_report_url(static_dir: Path) -> str:
         reverse=True,
     )
     if audit_indexes:
-        return _artifact_url_for_path(audit_indexes[0])
+        return f"/audits/{quote(audit_indexes[0].parent.name, safe='')}/"
     index_path = static_dir / "index.html"
     return _artifact_url_for_path(index_path) if index_path.exists() else ""
+
+
+def _static_root_for_audit_index(index_path: Path) -> Path | None:
+    resolved = index_path.resolve()
+    candidates = sorted(_candidate_audit_static_roots(), key=lambda path: len(str(path.resolve())), reverse=True)
+    for root in candidates:
+        try:
+            resolved.relative_to(root.resolve())
+            return root
+        except ValueError:
+            continue
+    return None
+
+
+def _local_report_path_from_request_path(request_path: str) -> Path | None:
+    if request_path.startswith("/audits/"):
+        return _local_audit_static_path(request_path)
+    if request_path.startswith("/artifacts/"):
+        rel = unquote(request_path.removeprefix("/artifacts/")).replace("\\", "/").lstrip("/")
+        target = (ROOT_DIR / rel).resolve()
+        if target.exists() and target.is_file() and _inside(target, GENERATED_DIR.resolve()):
+            return target
+    return None
+
+
+def _package_local_report(report_dir: Path, vercel_dir: Path, job_id: str) -> str:
+    from src.gtm_audit.vercel_static_deploy import package_report_for_vercel
+
+    package_report_for_vercel(report_dir, vercel_dir, audit_slug=job_id)
+    return _packaged_report_url(vercel_dir)
+
+
+def _deploy_edited_report(request_path: str, html_content: str) -> str:
+    if not html_content.lstrip().lower().startswith("<!doctype html"):
+        raise ValueError("Edited report HTML must include a doctype.")
+    if len(html_content.encode("utf-8")) > 25_000_000:
+        raise ValueError("Edited report is too large to deploy through the local server.")
+
+    index_path = _local_report_path_from_request_path(request_path)
+    if not index_path:
+        raise ValueError("Could not resolve the local audit report path.")
+    index_path = index_path.resolve()
+    if index_path.name.lower() != "index.html":
+        raise ValueError("Only audit index.html files can be deployed.")
+    static_root = _static_root_for_audit_index(index_path)
+    if not static_root:
+        raise ValueError("Could not resolve the static report directory for deployment.")
+
+    index_path.write_text(html_content, encoding="utf-8")
+
+    from src.gtm_audit.vercel_static_deploy import deploy_to_vercel
+
+    rel_parent = index_path.parent.resolve().relative_to(static_root.resolve()).as_posix()
+    public_path = rel_parent if rel_parent != "." else ""
+    return deploy_to_vercel(static_root, production=True, public_path=public_path, prefer_alias=bool(public_path))
 
 
 def _candidate_audit_static_roots() -> list[Path]:
@@ -807,8 +892,8 @@ def _update_job_progress_from_output(job_id: str, line: str) -> None:
         ("[2/5] Capturing real Figma screenshots", "Capturing Figma evidence", 42),
         ("[3/5] Refreshing Figma evidence", "Validating Figma evidence", 58),
         ("[4/5] Generating editable Figma audit report", "Building editable Figma report", 74),
-        ("[5/5] Figma audit report ready", "Publishing result", 88),
-        ("Deploying report", "Publishing result", 90),
+        ("[5/5] Figma audit report ready", "Preparing local report", 88),
+        ("Deploying report", "Preparing local report", 90),
     ]
     for marker, stage, progress in markers:
         if marker in text:
@@ -890,7 +975,7 @@ def _run_audit_job(job_id: str) -> None:
         pipeline_command,
         stage="Running audit pipeline",
         progress=5,
-        env_overrides={"GTM_AUTO_DEPLOY": "0"},
+        env_overrides={"GTM_AUTO_DEPLOY": "0", "GTM_DISABLE_VERCEL_DEPLOY": "1"},
     )
     if pipeline_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
         return
@@ -906,57 +991,19 @@ def _run_audit_job(job_id: str) -> None:
         return
 
     report_dir, vercel_dir = _report_paths_for_mode(mode)
-    deploy_command = [
-        sys.executable,
-        "-m",
-        "src.gtm_audit.vercel_static_deploy",
-        "--report-dir",
-        str(report_dir),
-        "--output-dir",
-        str(vercel_dir),
-        "--audit-slug",
+    try:
+        local_report_url = _package_local_report(report_dir, vercel_dir, job_id)
+    except Exception as exc:
+        _set_job(job_id, status="failed", error=f"Local editable report packaging failed: {exc}")
+        return
+    _set_job(
         job_id,
-        "--deploy",
-    ]
-    deploy_code = _run_command(job_id, deploy_command, stage="Deploying report to Vercel", progress=90)
-    if deploy_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
-        return
-    with JOBS_LOCK:
-        result_url = JOBS[job_id].get("resultUrl", "")
-    if deploy_code != 0:
-        local_report_url = _packaged_report_url(vercel_dir)
-        if local_report_url:
-            _set_job(
-                job_id,
-                status="completed",
-                stage="Completed with local report",
-                progress=100,
-                resultUrl=local_report_url,
-                error="Vercel deployment failed, so the packaged report is being served locally by this app.",
-            )
-            return
-        _set_job(
-            job_id,
-            status="failed",
-            error=(
-                "Vercel deployment failed. Run `vercel login` and `vercel link --yes` "
-                "if authentication or project linking is missing."
-            ),
-        )
-        return
-    if not result_url:
-        local_report_url = _packaged_report_url(vercel_dir)
-        if local_report_url:
-            _set_job(job_id, status="completed", stage="Completed with local report", progress=100, resultUrl=local_report_url)
-            return
-        _set_job(
-            job_id,
-            status="failed",
-            error="Vercel deployment completed but no deployment URL was detected in the CLI output.",
-        )
-        return
-
-    _set_job(job_id, status="completed", stage="Completed", progress=100, resultUrl=result_url)
+        status="completed",
+        stage="Ready for local review",
+        progress=100,
+        resultUrl=local_report_url,
+        error="",
+    )
 
 
 def _run_screenshot_audit_job(job_id: str) -> None:
@@ -1031,61 +1078,19 @@ def _run_screenshot_audit_job(job_id: str) -> None:
         _set_job(job_id, status="failed", error=f"Report generation failed with exit code {report_code}.")
         return
 
-    deploy_code = _run_command(
+    try:
+        local_report_url = _package_local_report(report_dir, vercel_dir, job_id)
+    except Exception as exc:
+        _set_job(job_id, status="failed", error=f"Local editable report packaging failed: {exc}")
+        return
+    _set_job(
         job_id,
-        [
-            sys.executable,
-            "-m",
-            "src.gtm_audit.vercel_static_deploy",
-            "--report-dir",
-            str(report_dir),
-            "--output-dir",
-            str(vercel_dir),
-            "--audit-slug",
-            job_id,
-            "--deploy",
-        ],
-        stage=f"Deploying {surface_label} report to Vercel",
-        progress=90,
+        status="completed",
+        stage="Ready for local review",
+        progress=100,
+        resultUrl=local_report_url,
+        error="",
     )
-    if deploy_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
-        return
-    with JOBS_LOCK:
-        result_url = JOBS[job_id].get("resultUrl", "")
-    if deploy_code != 0:
-        local_report_url = _packaged_report_url(vercel_dir)
-        if local_report_url:
-            _set_job(
-                job_id,
-                status="completed",
-                stage="Completed with local report",
-                progress=100,
-                resultUrl=local_report_url,
-                error="Vercel deployment failed, so the packaged report is being served locally by this app.",
-            )
-            return
-        _set_job(
-            job_id,
-            status="failed",
-            error=(
-                "Vercel deployment failed. Run `vercel login` and `vercel link --yes` "
-                "if authentication or project linking is missing."
-            ),
-        )
-        return
-    if not result_url:
-        local_report_url = _packaged_report_url(vercel_dir)
-        if local_report_url:
-            _set_job(job_id, status="completed", stage="Completed with local report", progress=100, resultUrl=local_report_url)
-            return
-        _set_job(
-            job_id,
-            status="failed",
-            error="Vercel deployment completed but no deployment URL was detected in the CLI output.",
-        )
-        return
-
-    _set_job(job_id, status="completed", stage="Completed", progress=100, resultUrl=result_url)
 
 
 def _run_figma_audit_job(job_id: str) -> None:
@@ -1139,74 +1144,19 @@ def _run_figma_audit_job(job_id: str) -> None:
         )
         return
 
-    deploy_code = _run_command(
-        job_id,
-        [
-            sys.executable,
-            "-m",
-            "src.gtm_audit.vercel_static_deploy",
-            "--report-dir",
-            str(report_dir),
-            "--output-dir",
-            str(vercel_dir),
-            "--audit-slug",
-            job_id,
-            "--deploy",
-        ],
-        stage="Deploying editable Figma report to Vercel",
-        progress=90,
-    )
-    if deploy_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
+    try:
+        local_report_url = _package_local_report(report_dir, vercel_dir, job_id)
+    except Exception as exc:
+        _set_job(job_id, status="failed", outputDir=str(output_dir), error=f"Local editable Figma report packaging failed: {exc}")
         return
-    with JOBS_LOCK:
-        result_url = JOBS[job_id].get("resultUrl", "")
-    if result_url.rstrip("/") == figma_url.rstrip("/") or "figma.com" in result_url.lower():
-        result_url = ""
-    if deploy_code != 0:
-        local_report_url = _packaged_report_url(vercel_dir)
-        if local_report_url:
-            _set_job(
-                job_id,
-                status="completed",
-                stage="Completed with local report",
-                progress=100,
-                outputDir=str(output_dir),
-                resultUrl=local_report_url,
-                error="Vercel deployment failed, so the packaged editable Figma report is being served locally by this app.",
-            )
-            return
-        _set_job(
-            job_id,
-            status="failed",
-            outputDir=str(output_dir),
-            error=(
-                "Figma report deployment failed. Run `vercel login` and `vercel link --yes` "
-                "if authentication or project linking is missing."
-            ),
-        )
-        return
-    if not result_url:
-        local_report_url = _packaged_report_url(vercel_dir)
-        if local_report_url:
-            _set_job(
-                job_id,
-                status="completed",
-                stage="Completed with local report",
-                progress=100,
-                outputDir=str(output_dir),
-                resultUrl=local_report_url,
-            )
-            return
-        _set_job(job_id, status="failed", outputDir=str(output_dir), error="Figma report deployment completed but no deployment URL was detected.")
-        return
-
     _set_job(
         job_id,
         status="completed",
-        stage="Completed",
+        stage="Ready for local review",
         progress=100,
         outputDir=str(output_dir),
-        resultUrl=result_url,
+        resultUrl=local_report_url,
+        error="",
     )
 
 
@@ -1331,72 +1281,19 @@ def _run_mobile_audit_job(job_id: str) -> None:
             _set_job(job_id, status="failed", outputDir=str(output_dir), error=f"Mobile report generation failed with exit code {report_code}.")
             return
 
-    deploy_code = _run_command(
-        job_id,
-        [
-            sys.executable,
-            "-m",
-            "src.gtm_audit.vercel_static_deploy",
-            "--report-dir",
-            str(report_dir),
-            "--output-dir",
-            str(vercel_dir),
-            "--audit-slug",
-            job_id,
-            "--deploy",
-        ],
-        stage="Deploying live mobile audit report to Vercel",
-        progress=90,
-    )
-    if deploy_code == CANCELLED_RETURN_CODE or _finish_if_cancelled(job_id):
+    try:
+        local_report_url = _package_local_report(report_dir, vercel_dir, job_id)
+    except Exception as exc:
+        _set_job(job_id, status="failed", outputDir=str(output_dir), error=f"Local editable mobile report packaging failed: {exc}")
         return
-    with JOBS_LOCK:
-        result_url = JOBS[job_id].get("resultUrl", "")
-    if deploy_code != 0:
-        local_report_url = _packaged_report_url(vercel_dir)
-        if local_report_url:
-            _set_job(
-                job_id,
-                status="completed",
-                stage="Completed with local report",
-                progress=100,
-                outputDir=str(output_dir),
-                resultUrl=local_report_url,
-                error="Vercel deployment failed, so the packaged mobile report is being served locally by this app.",
-            )
-            return
-        _set_job(
-            job_id,
-            status="failed",
-            outputDir=str(output_dir),
-            error=(
-                "Mobile report deployment failed. Run `vercel login` and `vercel link --yes` "
-                "if authentication or project linking is missing."
-            ),
-        )
-        return
-    if not result_url:
-        local_report_url = _packaged_report_url(vercel_dir)
-        if local_report_url:
-            _set_job(
-                job_id,
-                status="completed",
-                stage="Completed with local report",
-                progress=100,
-                outputDir=str(output_dir),
-                resultUrl=local_report_url,
-            )
-            return
-        _set_job(job_id, status="failed", outputDir=str(output_dir), error="Mobile report deployment completed but no deployment URL was detected.")
-        return
-
     _set_job(
         job_id,
         status="completed",
-        stage="Completed",
+        stage="Ready for local review",
         progress=100,
         outputDir=str(output_dir),
-        resultUrl=result_url,
+        resultUrl=local_report_url,
+        error="",
     )
 
 
@@ -1491,7 +1388,7 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
             job_id = unquote(parsed.path.rsplit("/", 1)[-1])
             with JOBS_LOCK:
                 job = JOBS.get(job_id)
-                payload = _snapshot_job(job) if job else None
+                payload = _snapshot_for_request(job, self) if job else None
             if not payload:
                 self._send_json({"error": "Audit job not found."}, HTTPStatus.NOT_FOUND)
                 return
@@ -1551,7 +1448,25 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
             self._send_json(payload)
             return
 
+        if parsed.path == "/api/reports/deploy" or parsed.path.endswith("/api/reports/deploy") or parsed.path.endswith("/reports/deploy"):
+            try:
+                data = self._read_json_body()
+                request_path = str(data.get("path") or "")
+                html_content = str(data.get("html") or "")
+                url = _deploy_edited_report(request_path, html_content)
+                if not url:
+                    raise ValueError("Vercel deployment completed but no public URL was returned.")
+                self._send_json({"url": url})
+            except ValueError as exc:
+                self._send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            except Exception as exc:
+                self._send_json({"error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+            return
+
         if parsed.path != "/api/audits":
+            if parsed.path.startswith("/api/"):
+                self._send_json({"error": "API endpoint not found."}, HTTPStatus.NOT_FOUND)
+                return
             self.send_error(HTTPStatus.NOT_FOUND, "Not found")
             return
         try:
@@ -1584,7 +1499,7 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
                     JOBS[job["id"]] = job
                 worker = threading.Thread(target=_run_screenshot_audit_job, args=(job["id"],), daemon=True)
                 worker.start()
-                self._send_json(_snapshot_job(job), HTTPStatus.ACCEPTED)
+                self._send_json(_snapshot_for_request(job, self), HTTPStatus.ACCEPTED)
                 return
 
             data = self._read_json_body()
@@ -1652,7 +1567,7 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
                 else:
                     raise ValueError("Use multipart upload for screenshot audits. Supported JSON audit types are website, mobile, and figma.")
             worker.start()
-            self._send_json(_snapshot_job(job), HTTPStatus.ACCEPTED)
+            self._send_json(_snapshot_for_request(job, self), HTTPStatus.ACCEPTED)
         except ValueError as exc:
             self._send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
 

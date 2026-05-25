@@ -4095,9 +4095,9 @@
         }, [figmaUrl, isFigmaAudit, isMobileLiveAudit, isScreenshotAudit, isSubmitting, isWebsiteUrlAudit, screenshotFiles.length, url]);
 
         const completionText = useMemo(() => {
-          if (isFigmaAudit) return "Open the generated editable Figma audit report and review the scoring, text, and screenshots.";
-          if (isMobileLiveAudit) return "Open the generated mobile audit report and review the extracted artifacts.";
-          return "Open the deployed report with evidence, confidence, status, and supporting detail.";
+          if (isFigmaAudit) return "Open the generated editable Figma audit report, review the scoring, text, and screenshots, then deploy it when ready.";
+          if (isMobileLiveAudit) return "Open the generated editable mobile audit report, review the extracted artifacts, then deploy it when ready.";
+          return "Open the generated editable audit report, review the evidence, scores, and copy, then deploy it when ready.";
         }, [isFigmaAudit, isMobileLiveAudit]);
 
         useEffect(() => {
@@ -5040,6 +5040,16 @@
         return "";
       }
 
+      function reportUrlFromJob(job) {
+        const value = String(job?.localResultUrl || job?.resultUrl || "").trim();
+        if (!value) return "";
+        const fallbackLocalPath = job?.id ? `/audits/${encodeURIComponent(job.id)}/` : "";
+        if (/^https?:\/\/[^/]*(?:vercel\.app|vercel\.com)\//i.test(value) && fallbackLocalPath) {
+          return buildApiUrl(fallbackLocalPath);
+        }
+        return value.startsWith("/") ? buildApiUrl(value) : value;
+      }
+
       function latestPreviewImageUrl(job) {
         const fromJob = artifactUrlFromPath(job?.previewImagePath);
         if (fromJob) return fromJob;
@@ -5099,12 +5109,12 @@
         const isMobile = job?.type === "mobile" && !isScreenshot;
         const isFigma = job?.type === "figma";
         const labels = isMobile
-          ? ["Connecting to device", "Exploring app", "Extracting evidence", "Analyzing mobile UX", "Publishing report"]
+          ? ["Connecting to device", "Exploring app", "Extracting evidence", "Analyzing mobile UX", "Preparing local report"]
           : isFigma
-            ? ["Fetching Figma file", "Detecting UX/UI issues", "Capturing evidence", "Building editable report", "Publishing result"]
+            ? ["Fetching Figma file", "Detecting UX/UI issues", "Capturing evidence", "Building editable report", "Preparing local report"]
             : isScreenshot
-            ? ["Loading screenshots", "Reading visual hierarchy", "Checking trust signals", "Writing report", "Publishing result"]
-            : ["Crawling website", "Opening pages", "Extracting UI evidence", "Building audit report", "Publishing result"];
+            ? ["Loading screenshots", "Reading visual hierarchy", "Checking trust signals", "Writing report", "Preparing local report"]
+            : ["Crawling website", "Opening pages", "Extracting UI evidence", "Building audit report", "Preparing local report"];
         const activeIndex = status === "completed" ? labels.length - 1 : Math.min(labels.length - 1, Math.floor((progress || 0) / 22));
         return labels.map((label, index) => ({ label, active: index === activeIndex, complete: index < activeIndex || status === "completed" }));
       }
@@ -5175,19 +5185,24 @@
       function ProgressModal({ job, error, isStopping, onClose, onStop }) {
         const progress = job?.progress || 0;
         const status = job?.status || (error ? "failed" : "queued");
+        const reportUrl = reportUrlFromJob(job);
         const isMobileLiveJob = job?.type === "mobile" && job?.inputType !== "screenshot";
         const isFigmaJob = job?.type === "figma";
-        const isLocalReport = Boolean(job?.resultUrl && String(job.resultUrl).startsWith("/artifacts/"));
+        const isLocalReport = Boolean(
+          job?.stage === "Ready for local review" ||
+            (job?.resultUrl &&
+              (String(job.resultUrl).startsWith("/artifacts/") || String(job.resultUrl).startsWith("/audits/")))
+        );
         const isActiveJob = ["queued", "running"].includes(status);
-        const completedEyebrow = isLocalReport ? "Local report ready" : "Deployment ready";
-        const completedHeading = isLocalReport ? "Your report is ready locally." : "Your report is deployed.";
-        const completedMessage = isFigmaJob
-          ? job?.error || job?.stage || "The Figma audit and editable report generation are complete."
-          : isMobileLiveJob
-          ? job?.error || job?.stage || "The live mobile extraction, analysis, and report generation are complete."
-          : isLocalReport
-            ? job?.error || job?.stage || "The report was generated and served locally because Vercel deployment did not complete."
-            : job?.stage || "Deployment completed.";
+        const completedEyebrow = isLocalReport ? "Local report ready" : "Audit ready";
+        const completedHeading = isLocalReport ? "Your editable report is ready locally." : "Your report is ready.";
+        const completedMessage = isLocalReport
+          ? job?.error || job?.stage || "Review the report locally, apply any text, score, or screenshot changes, then deploy it from the button at the bottom of the report."
+          : isFigmaJob
+            ? job?.error || job?.stage || "The Figma audit and editable report generation are complete."
+            : isMobileLiveJob
+              ? job?.error || job?.stage || "The live mobile extraction, analysis, and report generation are complete."
+              : job?.stage || "Audit completed.";
         const eyebrow = status === "completed" ? completedEyebrow : status === "cancelled" ? "Stopped" : status === "failed" ? "Action needed" : "Audit running";
         const heading =
           status === "completed"
@@ -5230,7 +5245,7 @@
               e(
                 "div",
                 { className: "success-actions" },
-                job.resultUrl && e("a", { className: "primary", href: job.resultUrl, target: "_blank", rel: "noreferrer" }, "Open Audit Report", e(Icon, { name: "arrow" })),
+                reportUrl && e("a", { className: "primary", href: reportUrl, target: "_blank", rel: "noreferrer" }, "Open Local Editable Report", e(Icon, { name: "arrow" })),
                 e("button", { className: "ghost", type: "button", onClick: onClose }, "Close")
               ),
             status === "completed" &&

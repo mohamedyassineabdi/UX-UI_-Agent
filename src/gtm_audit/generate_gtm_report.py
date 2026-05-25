@@ -52,6 +52,18 @@ def clean_text(value: Any) -> str:
     return " ".join(str(value or "").split()).strip()
 
 
+def html_attrs(attrs: Dict[str, Any]) -> str:
+    parts = []
+    for key, value in attrs.items():
+        if value is None or value is False:
+            continue
+        if value is True:
+            parts.append(html.escape(str(key), quote=True))
+        else:
+            parts.append(f'{html.escape(str(key), quote=True)}="{html.escape(str(value), quote=True)}"')
+    return f" {' '.join(parts)}" if parts else ""
+
+
 def load_json(path: Path) -> Dict[str, Any]:
     with path.open("r", encoding="utf-8") as file:
         return json.load(file)
@@ -128,7 +140,7 @@ def severity_label(value: Any) -> str:
     return "Medium Issue"
 
 
-def render_score_ring(score_ten: float, *, label: str, accent: str = "", size: int = 138) -> str:
+def render_score_ring(score_ten: float, *, label: str, accent: str = "", size: int = 138, attrs: Optional[Dict[str, Any]] = None) -> str:
     normalized = max(0.0, min(10.0, float(score_ten)))
     accent = clean_text(accent) or score_accent(normalized)
     stroke = max(8.0, size * 0.075)
@@ -138,13 +150,13 @@ def render_score_ring(score_ten: float, *, label: str, accent: str = "", size: i
     offset = circumference - progress
     center = size / 2
     return f"""
-    <div class="score-ring" style="--ring-size:{size}px; --ring-stroke:{accent}; --ring-width:{stroke:.1f}px;">
+    <div class="score-ring"{html_attrs({"data-score": f"{normalized:.1f}", **(attrs or {})})} style="--ring-size:{size}px; --ring-stroke:{accent}; --ring-width:{stroke:.1f}px;">
       <svg viewBox="0 0 {size} {size}" aria-hidden="true">
         <circle cx="{center}" cy="{center}" r="{radius}" class="ring-track"></circle>
         <circle cx="{center}" cy="{center}" r="{radius}" class="ring-progress" style="stroke-dasharray:{circumference:.2f};stroke-dashoffset:{offset:.2f};"></circle>
       </svg>
       <div class="score-ring-copy">
-        <strong>{normalized:.1f}</strong>
+        <strong data-score-text>{normalized:.1f}</strong>
         {f'<span>{html.escape(label)}</span>' if clean_text(label) else ''}
       </div>
     </div>
@@ -229,41 +241,253 @@ def _issue_key(item: Dict[str, Any]) -> tuple[str, str, str]:
     )
 
 
+def _safe_dom_id(*parts: Any) -> str:
+    raw = "-".join(clean_text(part) for part in parts if clean_text(part))
+    return re.sub(r"[^a-zA-Z0-9_-]+", "-", raw).strip("-").lower()[:96] or "item"
+
+
 def render_issue_card(item: Dict[str, Any], index: int, output_dir: Path) -> str:
+    issue_id = f"issue-{index:02d}-{_safe_dom_id(item.get('axisId') or item.get('axis_id'), item.get('pageName') or item.get('page_name'), item.get('title'))}"
     axis_id = clean_text(item.get("axisId") or item.get("axis_id"))
     axis_name = axis_label(axis_id, item.get("axisName") or item.get("axis") or "Issue")
     page_name = clean_text(item.get("pageName") or item.get("page_name")) or "Audited page"
-    page_url = clean_text(item.get("pageUrl") or item.get("page_url"))
     tone = severity_tone(item.get("severity"))
     shot = clean_text(item.get("spotlightImage")) or href_from_repo(item.get("screenshotPath", ""), output_dir)
     return f"""
-    <article class="issue-card tone-{tone}">
+    <article class="issue-card tone-{tone}" data-issue-id="{html.escape(issue_id)}">
       <div class="issue-media">
         <span class="issue-number">{index:02d}</span>
         <div class="issue-evidence-frame">
           <div class="desktop-screen">
             <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
             <div class="desktop-screen-body">
-              {f'<img class="issue-thumb" src="{shot}" alt="{html.escape(clean_text(item.get("title")) or "Issue evidence")}">' if shot else '<div class="story-visual-empty">No evidence image available</div>'}
+              {f'<img class="issue-thumb" src="{shot}" alt="{html.escape(clean_text(item.get("title")) or "Issue evidence")}" data-editable-image="{html.escape(issue_id)}">' if shot else '<div class="story-visual-empty">No evidence image available</div>'}
             </div>
           </div>
         </div>
+        <input class="hidden-file-input" type="file" accept="image/*" data-screenshot-input data-issue-id="{html.escape(issue_id)}" data-local-edit-control>
       </div>
       <div class="issue-copy">
         <div class="issue-card-top">
           <span class="issue-axis">{html.escape(axis_name)}</span>
           <span class="severity-dot severity-{tone}">{html.escape(severity_label(item.get("severity")))}</span>
         </div>
-        <h3>{html.escape(display_copy(item.get("title")) or "Untitled issue")}</h3>
-        <p>{html.escape(display_copy(item.get("explanation")) or display_copy(item.get("evidence")))}</p>
-        {f'<p class="issue-why"><strong>Why it matters:</strong> {html.escape(display_copy(item.get("whyItMatters")))}</p>' if clean_text(item.get("whyItMatters")) else ''}
-        {f'<p class="issue-fix"><strong>Recommended move:</strong> {html.escape(display_copy(item.get("recommendation")))}</p>' if clean_text(item.get("recommendation")) else ''}
+        <div class="issue-title-row">
+          <h3 data-editable-field="title">{html.escape(display_copy(item.get("title")) or "Untitled issue")}</h3>
+          <div class="issue-title-actions" data-local-edit-control>
+            <button class="mini-edit-button" type="button" data-edit-action="copy" data-issue-id="{html.escape(issue_id)}" aria-pressed="false">Edit text</button>
+            <button class="mini-edit-button" type="button" data-edit-action="image" data-issue-id="{html.escape(issue_id)}">Edit screenshot</button>
+          </div>
+        </div>
+        <p data-editable-field="explanation">{html.escape(display_copy(item.get("explanation")) or display_copy(item.get("evidence")))}</p>
+        {f'<p class="issue-why"><strong>Why it matters:</strong> <span data-editable-field="whyItMatters">{html.escape(display_copy(item.get("whyItMatters")))}</span></p>' if clean_text(item.get("whyItMatters")) else ''}
+        {f'<p class="issue-fix"><strong>Recommended move:</strong> <span data-editable-field="recommendation">{html.escape(display_copy(item.get("recommendation")))}</span></p>' if clean_text(item.get("recommendation")) else ''}
         <div class="issue-meta">
           <span>{html.escape(page_name)}</span>
-          {f'<a href="{html.escape(page_url)}" target="_blank" rel="noreferrer">Open page</a>' if page_url.startswith(("http://", "https://")) else ''}
         </div>
       </div>
     </article>
+    """
+
+
+def render_local_publish_panel() -> str:
+    return """
+    <section class="local-publish-panel" data-local-publish-panel>
+      <div>
+        <p class="eyebrow">Finalize</p>
+        <h2>Review, edit, then deploy the final audit</h2>
+        <p>Adjust text, screenshots, and scores locally. When the report is ready, deploy this edited version to Vercel.</p>
+      </div>
+      <div class="local-publish-actions">
+        <button class="publish-button" type="button" data-deploy-edited-report>Deploy final audit to Vercel</button>
+        <span class="publish-status" data-deploy-status>Local edits are not published until you deploy.</span>
+      </div>
+    </section>
+    """
+
+
+def render_local_edit_script() -> str:
+    return """
+  <script>
+  (() => {
+    const localHosts = new Set(["127.0.0.1", "localhost", "::1"]);
+    const panel = document.querySelector("[data-local-publish-panel]");
+    const isAuditPath = window.location.pathname.startsWith("/audits/");
+    const isKnownStaticDeployment = /(?:^|\\.)vercel\\.app$/i.test(window.location.hostname) || /(?:^|\\.)vercel\\.com$/i.test(window.location.hostname);
+    const isLocalEditable = !isKnownStaticDeployment && (isAuditPath || localHosts.has(window.location.hostname) || window.location.protocol === "file:");
+    const canDeployFromHere = isAuditPath && !isKnownStaticDeployment && /^https?:$/.test(window.location.protocol);
+    if (panel && !isLocalEditable) panel.hidden = true;
+    document.querySelectorAll("[data-local-edit-control]").forEach((control) => {
+      if (!isLocalEditable) control.hidden = true;
+    });
+    document.querySelectorAll("[data-axis-id] [data-editable-field]").forEach((field) => {
+      field.contentEditable = isLocalEditable ? "true" : "false";
+    });
+
+    function setEditing(issueId, enabled) {
+      document.querySelectorAll(`[data-issue-id="${CSS.escape(issueId)}"] [data-editable-field]`).forEach((field) => {
+        field.contentEditable = enabled ? "true" : "false";
+      });
+      document.querySelectorAll(`[data-edit-action="copy"][data-issue-id="${CSS.escape(issueId)}"]`).forEach((button) => {
+        button.setAttribute("aria-pressed", enabled ? "true" : "false");
+        button.textContent = enabled ? "Done editing" : "Edit text";
+      });
+    }
+
+    document.addEventListener("click", (event) => {
+      const action = event.target.closest("[data-edit-action]");
+      if (!action) return;
+      const issueId = action.dataset.issueId || "";
+      if (!issueId) return;
+      if (action.dataset.editAction === "copy") {
+        setEditing(issueId, action.getAttribute("aria-pressed") !== "true");
+      }
+      if (action.dataset.editAction === "image") {
+        const input = document.querySelector(`[data-screenshot-input][data-issue-id="${CSS.escape(issueId)}"]`);
+        if (input) input.click();
+      }
+    });
+
+    document.addEventListener("change", (event) => {
+      const input = event.target.closest("[data-screenshot-input]");
+      if (!input || !input.files || !input.files[0]) return;
+      const issueId = input.dataset.issueId || "";
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        document.querySelectorAll(`[data-editable-image="${CSS.escape(issueId)}"]`).forEach((image) => {
+          image.src = String(reader.result || "");
+        });
+      });
+      reader.readAsDataURL(input.files[0]);
+    });
+
+    document.addEventListener("input", (event) => {
+      const scoreInput = event.target.closest("[data-axis-score-input]");
+      if (!scoreInput) return;
+      const tile = scoreInput.closest("[data-axis-id]");
+      if (!tile) return;
+      const score = Math.max(0, Math.min(10, Number.parseFloat(scoreInput.value || "0") || 0));
+      const text = tile.querySelector("[data-axis-score-text]");
+      if (text) text.textContent = score.toFixed(1);
+      tile.style.setProperty("--score-color", score < 5 ? "#cf513f" : score >= 7.5 ? "#11886e" : "#caa23b");
+      updateOverallScore();
+    });
+
+    function scoreAccent(score) {
+      if (score < 5) return "#cf513f";
+      if (score >= 7.5) return "#11886e";
+      return "#caa23b";
+    }
+
+    function updateScoreRing(ring, score) {
+      if (!ring) return;
+      const normalized = Math.max(0, Math.min(10, Number(score) || 0));
+      ring.dataset.score = normalized.toFixed(1);
+      ring.style.setProperty("--ring-stroke", scoreAccent(normalized));
+      const text = ring.querySelector("[data-score-text]");
+      if (text) text.textContent = normalized.toFixed(1);
+      const progress = ring.querySelector(".ring-progress");
+      if (progress) {
+        const dashArray = Number.parseFloat(progress.style.strokeDasharray || progress.getAttribute("stroke-dasharray") || "0");
+        if (dashArray) progress.style.strokeDashoffset = String(dashArray * (1 - normalized / 10));
+      }
+    }
+
+    function updateOverallScore() {
+      const scores = Array.from(document.querySelectorAll("[data-axis-score-input]"))
+        .map((input) => Math.max(0, Math.min(10, Number.parseFloat(input.value || "0") || 0)));
+      if (!scores.length) return;
+      const average = scores.reduce((sum, value) => sum + value, 0) / scores.length;
+      document.querySelectorAll('[data-score-role="overall"]').forEach((ring) => updateScoreRing(ring, average));
+    }
+
+    updateOverallScore();
+
+    function cleanCloneForDeployment() {
+      const clone = document.documentElement.cloneNode(true);
+      clone.querySelectorAll("[contenteditable]").forEach((node) => node.removeAttribute("contenteditable"));
+      clone.querySelectorAll("[data-editable-field]").forEach((node) => node.removeAttribute("data-editable-field"));
+      clone.querySelectorAll("[data-editable-image]").forEach((node) => node.removeAttribute("data-editable-image"));
+      clone.querySelectorAll("[data-local-edit-control], [data-local-publish-panel]").forEach((node) => node.remove());
+      clone.querySelectorAll("[data-deploy-status]").forEach((node) => {
+        node.textContent = "Published version generated from reviewed local edits.";
+      });
+      return "<!doctype html>\\n" + clone.outerHTML;
+    }
+
+    async function readDeployPayload(response) {
+      const text = await response.text();
+      if (!text.trim()) return {};
+      try {
+        return JSON.parse(text);
+      } catch (_error) {
+        const preview = text.replace(/\\s+/g, " ").trim().slice(0, 180);
+        throw new Error(`Deployment endpoint did not return JSON (${response.status}). Open the /audits report from the local Python server, then retry. Response started with: ${preview}`);
+      }
+    }
+
+    async function postEditedReport(body) {
+      const params = new URLSearchParams(window.location.search);
+      const configuredApiBase = String(params.get("apiBaseUrl") || params.get("backend") || params.get("api") || "").replace(/\\/+$/, "");
+      const requestHeaders = {"Content-Type": "application/json"};
+      if (configuredApiBase.includes("ngrok")) requestHeaders["ngrok-skip-browser-warning"] = "true";
+      const endpoints = [
+        ...(configuredApiBase ? [`${configuredApiBase}/api/reports/deploy`] : []),
+        new URL("/api/reports/deploy", window.location.href).href,
+        new URL("api/reports/deploy", window.location.href).href,
+        new URL("../../api/reports/deploy", window.location.href).href
+      ];
+      let lastPayload = null;
+      let lastResponse = null;
+      let lastError = null;
+      for (const endpoint of Array.from(new Set(endpoints))) {
+        try {
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: requestHeaders,
+            body
+          });
+          const payload = await readDeployPayload(response);
+          if (response.ok) return payload;
+          lastPayload = payload;
+          lastResponse = response;
+          if (response.status !== 404) break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      if (lastPayload && lastPayload.error) throw new Error(lastPayload.error);
+      if (lastError instanceof Error) throw lastError;
+      throw new Error(lastResponse ? `Deployment endpoint failed with status ${lastResponse.status}.` : "Deployment endpoint could not be reached.");
+    }
+
+    const deployButton = document.querySelector("[data-deploy-edited-report]");
+    const status = document.querySelector("[data-deploy-status]");
+    if (deployButton) {
+      if (!canDeployFromHere) {
+        deployButton.disabled = true;
+        if (status && isLocalEditable) status.textContent = "Open this report from the local UI server to deploy it.";
+      }
+      deployButton.addEventListener("click", async () => {
+        if (!canDeployFromHere) return;
+        deployButton.disabled = true;
+        if (status) status.textContent = "Saving edited audit and deploying to Vercel...";
+        try {
+          const payload = await postEditedReport(JSON.stringify({
+              path: window.location.pathname,
+              html: cleanCloneForDeployment()
+            }));
+          if (status) {
+            status.innerHTML = `Deployed: <a href="${payload.url}" target="_blank" rel="noreferrer">${payload.url}</a>`;
+          }
+        } catch (error) {
+          if (status) status.textContent = error instanceof Error ? error.message : "Deployment failed.";
+          deployButton.disabled = false;
+        }
+      });
+    }
+  })();
+  </script>
     """
 
 
@@ -344,17 +568,22 @@ def render_issue_tabs(
 
 
 def render_axis_tile(axis: Dict[str, Any], index: int) -> str:
+    axis_id = _safe_dom_id("axis", axis.get("id") or axis.get("shortName") or index)
     score = round(float(axis.get("score", 0)) / 10, 1)
     tone = severity_tone(axis.get("severity")).title()
     return f"""
-    <article class="axis-tile tone-{severity_tone(axis.get("severity"))} score-{score_tone(score)}" style="--score-color:{score_accent(score)};">
+    <article class="axis-tile tone-{severity_tone(axis.get("severity"))} score-{score_tone(score)}" style="--score-color:{score_accent(score)};" data-axis-id="{html.escape(axis_id)}">
       <span class="floating-step">{index}</span>
       <h4>{html.escape(axis_label(axis.get("id"), axis.get("shortName") or axis.get("name")))}</h4>
-      <p>{html.escape(display_copy(axis.get("description")) or display_copy(axis.get("businessImpact")))}</p>
+      <p data-editable-field="axis-description">{html.escape(display_copy(axis.get("description")) or display_copy(axis.get("businessImpact")))}</p>
       <div class="axis-tile-meta">
-        <strong>{score:.1f}/10</strong>
+        <strong><span data-axis-score-text>{score:.1f}</span>/10</strong>
         <span>{tone} severity</span>
       </div>
+      <label class="axis-score-editor" data-local-edit-control>
+        <span>Score</span>
+        <input type="number" min="0" max="10" step="0.1" value="{score:.1f}" data-axis-score-input>
+      </label>
     </article>
     """
 
@@ -447,6 +676,53 @@ def _visual_region_from_item(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     return None
 
 
+SPECIFIC_REGION_TERMS = {
+    "button",
+    "cta",
+    "link",
+    "text",
+    "copy",
+    "label",
+    "heading",
+    "title",
+    "photo",
+    "image",
+    "picture",
+    "icon",
+    "logo",
+    "form",
+    "field",
+    "input",
+    "card",
+    "menu",
+    "nav",
+    "header",
+    "control",
+    "component",
+    "section",
+    "area",
+}
+
+GENERAL_REGION_TERMS = {
+    "full page",
+    "whole page",
+    "full screen",
+    "whole screen",
+    "full viewport",
+    "whole viewport",
+    "entire page",
+    "entire screen",
+    "viewport",
+    "website",
+    "overall",
+    "general",
+    "responsive",
+    "layout failure",
+    "performance",
+    "web vitals",
+}
+
+
 def _region_to_pixels(region: Optional[Dict[str, Any]], image_width: int, image_height: int) -> Tuple[float, float, float, float]:
     if not region:
         return image_width * 0.18, image_height * 0.16, image_width * 0.64, image_height * 0.58
@@ -469,6 +745,50 @@ def _region_to_pixels(region: Optional[Dict[str, Any]], image_width: int, image_
     x = max(0.0, min(x, image_width - width))
     y = max(0.0, min(y, image_height - height))
     return x, y, width, height
+
+
+def _region_text(item: Dict[str, Any], region: Dict[str, Any]) -> str:
+    parts = [
+        region.get("description"),
+        region.get("semanticType"),
+        region.get("uxRole"),
+        item.get("title"),
+        item.get("sourceSheet"),
+        item.get("axisName"),
+        item.get("evidence"),
+    ]
+    return clean_text(" ".join(clean_text(part) for part in parts if clean_text(part))).lower()
+
+
+def _is_precise_region(item: Dict[str, Any], region: Optional[Dict[str, Any]], image_width: int, image_height: int) -> bool:
+    if not region:
+        return False
+    if item.get("responsiveFailure"):
+        return False
+    bundle = item.get("evidenceBundle")
+    bundle_source = clean_text((bundle or {}).get("source") if isinstance(bundle, dict) else "").lower()
+    if bundle_source in {"playwright_performance_snapshot", "playwright_performance_kpi"}:
+        return False
+
+    x, y, width, height = _region_to_pixels(region, image_width, image_height)
+    if width <= 0 or height <= 0:
+        return False
+
+    area_ratio = (width * height) / max(float(image_width * image_height), 1.0)
+    width_ratio = width / max(float(image_width), 1.0)
+    height_ratio = height / max(float(image_height), 1.0)
+    is_full_view = x <= image_width * 0.03 and y <= image_height * 0.03 and width_ratio >= 0.92 and height_ratio >= 0.86
+    if is_full_view or area_ratio >= 0.68:
+        return False
+
+    text = _region_text(item, region)
+    has_general_signal = any(term in text for term in GENERAL_REGION_TERMS)
+    has_specific_signal = any(term in text for term in SPECIFIC_REGION_TERMS)
+    if has_general_signal and not has_specific_signal:
+        return False
+    if area_ratio > 0.42 and not has_specific_signal:
+        return False
+    return True
 
 
 def _clamp_highlight_bounds(bounds: Tuple[float, float, float, float], image_width: int, image_height: int, inset: int) -> Tuple[float, float, float, float]:
@@ -563,37 +883,39 @@ def build_screenshot_spotlight(item: Dict[str, Any], output_dir: Path, issue_ind
 
     source_width, source_height = image.width, image.height
     visual_region = _visual_region_from_item(item)
+    has_precise_region = _is_precise_region(item, visual_region, source_width, source_height)
     x, y, width, height = _region_to_pixels(visual_region, source_width, source_height)
     if is_mobile_visual:
-        draw = ImageDraw.Draw(image, "RGBA")
-        halo = max(18, int(max(width, height) * 0.08))
-        stroke_width = max(6, int(max(source_width, source_height) * 0.004))
-        soft_stroke_width = max(8, int(max(source_width, source_height) * 0.006))
-        inset = max(stroke_width, soft_stroke_width)
-        bounds = (
-            max(inset, x - halo),
-            max(inset, y - halo),
-            min(source_width - inset, x + width + halo),
-            min(source_height - inset, y + height + halo),
-        )
-        soft_bounds = (
-            max(inset, bounds[0] - 8),
-            max(inset, bounds[1] - 8),
-            min(source_width - inset, bounds[2] + 8),
-            min(source_height - inset, bounds[3] + 8),
-        )
-        draw.rounded_rectangle(
-            bounds,
-            radius=max(18, int(min(width, height) * 0.12)),
-            outline=(255, 52, 52, 245),
-            width=stroke_width,
-        )
-        draw.rounded_rectangle(
-            soft_bounds,
-            radius=max(22, int(min(width, height) * 0.14)),
-            outline=(255, 52, 52, 90),
-            width=soft_stroke_width,
-        )
+        if has_precise_region:
+            draw = ImageDraw.Draw(image, "RGBA")
+            halo = max(18, int(max(width, height) * 0.08))
+            stroke_width = max(6, int(max(source_width, source_height) * 0.004))
+            soft_stroke_width = max(8, int(max(source_width, source_height) * 0.006))
+            inset = max(stroke_width, soft_stroke_width)
+            bounds = (
+                max(inset, x - halo),
+                max(inset, y - halo),
+                min(source_width - inset, x + width + halo),
+                min(source_height - inset, y + height + halo),
+            )
+            soft_bounds = (
+                max(inset, bounds[0] - 8),
+                max(inset, bounds[1] - 8),
+                min(source_width - inset, bounds[2] + 8),
+                min(source_height - inset, bounds[3] + 8),
+            )
+            draw.rounded_rectangle(
+                bounds,
+                radius=max(18, int(min(width, height) * 0.12)),
+                outline=(255, 52, 52, 245),
+                width=stroke_width,
+            )
+            draw.rounded_rectangle(
+                soft_bounds,
+                radius=max(22, int(min(width, height) * 0.14)),
+                outline=(255, 52, 52, 90),
+                width=soft_stroke_width,
+            )
         evidence_dir = output_dir / "evidence"
         evidence_dir.mkdir(parents=True, exist_ok=True)
         output_path = evidence_dir / f"screenshot-issue-{issue_index:02d}.png"
@@ -611,21 +933,22 @@ def build_screenshot_spotlight(item: Dict[str, Any], output_dir: Path, issue_ind
         offset_y = int(round((target_height - scaled_height) / 2))
         scaled = image.resize((scaled_width, scaled_height), Image.Resampling.LANCZOS)
         canvas.paste(scaled, (offset_x, offset_y))
-        draw = ImageDraw.Draw(canvas, "RGBA")
-        scaled_bounds = (
-            offset_x + x * scale,
-            offset_y + y * scale,
-            offset_x + (x + width) * scale,
-            offset_y + (y + height) * scale,
-        )
-        halo = max(18, int(max(scaled_bounds[2] - scaled_bounds[0], scaled_bounds[3] - scaled_bounds[1]) * 0.08))
-        _draw_red_highlight(
-            draw,
-            (scaled_bounds[0] - halo, scaled_bounds[1] - halo, scaled_bounds[2] + halo, scaled_bounds[3] + halo),
-            target_width,
-            target_height,
-            broad=True,
-        )
+        if has_precise_region:
+            draw = ImageDraw.Draw(canvas, "RGBA")
+            scaled_bounds = (
+                offset_x + x * scale,
+                offset_y + y * scale,
+                offset_x + (x + width) * scale,
+                offset_y + (y + height) * scale,
+            )
+            halo = max(18, int(max(scaled_bounds[2] - scaled_bounds[0], scaled_bounds[3] - scaled_bounds[1]) * 0.08))
+            _draw_red_highlight(
+                draw,
+                (scaled_bounds[0] - halo, scaled_bounds[1] - halo, scaled_bounds[2] + halo, scaled_bounds[3] + halo),
+                target_width,
+                target_height,
+                broad=True,
+            )
         evidence_dir = output_dir / "evidence"
         evidence_dir.mkdir(parents=True, exist_ok=True)
         output_path = evidence_dir / f"screenshot-issue-{issue_index:02d}.png"
@@ -639,7 +962,7 @@ def build_screenshot_spotlight(item: Dict[str, Any], output_dir: Path, issue_ind
         y,
         width,
         height,
-        has_region=visual_region is not None,
+        has_region=has_precise_region,
     )
     crop_width = crop_right - crop_left
     crop_height = crop_bottom - crop_top
@@ -660,16 +983,16 @@ def build_screenshot_spotlight(item: Dict[str, Any], output_dir: Path, issue_ind
     width *= scale_x
     height *= scale_y
 
-    draw = ImageDraw.Draw(image, "RGBA")
-    halo = max(20, int(max(width, height) * 0.12))
-    highlight_bounds = (x - halo, y - halo, x + width + halo, y + height + halo)
-    broad_region = (
-        visual_region is None
-        or (width * height) / max(float(target_width * target_height), 1.0) > 0.34
-        or width / max(float(target_width), 1.0) > 0.72
-        or height / max(float(target_height), 1.0) > 0.62
-    )
-    _draw_red_highlight(draw, highlight_bounds, target_width, target_height, broad=broad_region)
+    if has_precise_region:
+        draw = ImageDraw.Draw(image, "RGBA")
+        halo = max(20, int(max(width, height) * 0.12))
+        highlight_bounds = (x - halo, y - halo, x + width + halo, y + height + halo)
+        broad_region = (
+            (width * height) / max(float(target_width * target_height), 1.0) > 0.34
+            or width / max(float(target_width), 1.0) > 0.72
+            or height / max(float(target_height), 1.0) > 0.62
+        )
+        _draw_red_highlight(draw, highlight_bounds, target_width, target_height, broad=broad_region)
 
     evidence_dir = output_dir / "evidence"
     evidence_dir.mkdir(parents=True, exist_ok=True)
@@ -892,7 +1215,7 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     strongest = axis_label(strongest_axis.get("id"), strongest_axis.get("shortName") or strongest_axis.get("name")) if strongest_axis else ""
     weakest = axis_label(weakest_axis.get("id"), weakest_axis.get("shortName") or weakest_axis.get("name")) if weakest_axis else ""
     overall_ten = round(float(summary.get("overallScore", 0)) / 10, 1)
-    hero_score = render_score_ring(overall_ten, label="Overall", size=170)
+    hero_score = render_score_ring(overall_ten, label="Overall", size=170, attrs={"data-score-role": "overall"})
     client_lockup = clean_text(site.get("display_name")) or clean_text(site.get("domain")) or "Client"
     scanned_pages_html = "".join(render_scanned_page(item, output_dir, is_mobile_visual=is_mobile_visual) for item in scanned_pages_data)
     scanned_pages_clone_html = scanned_pages_html.replace('<a class="scan-card', '<a tabindex="-1" class="scan-card')
@@ -1587,6 +1910,15 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       box-shadow: 0 18px 36px rgba(32,39,51,0.05);
       grid-column: span 2;
     }}
+    .axis-tile::before {{
+      content: "";
+      position: absolute;
+      left: -1px;
+      top: -1px;
+      bottom: -1px;
+      width: 4px;
+      background: var(--score-color, var(--gold));
+    }}
     .axis-tile:nth-child(4) {{
       grid-column: 2 / span 2;
     }}
@@ -1617,6 +1949,29 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     }}
     .axis-tile-meta strong {{
       color: var(--score-color, var(--ink));
+    }}
+    .axis-score-editor {{
+      display: grid;
+      gap: 5px;
+      width: 100%;
+      max-width: 150px;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.74rem;
+      font-weight: 750;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }}
+    .axis-score-editor input {{
+      width: 100%;
+      border: 1px solid rgba(32,39,51,0.14);
+      border-radius: 4px;
+      padding: 7px 8px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      letter-spacing: 0;
+      text-transform: none;
     }}
     .stories,
     .axis-stories {{
@@ -2004,6 +2359,38 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       line-height: 1.18;
       letter-spacing: 0;
     }}
+    .issue-title-row {{
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }}
+    .issue-title-actions {{
+      display: flex;
+      flex: 0 0 auto;
+      gap: 6px;
+      align-items: center;
+      padding-top: 2px;
+    }}
+    .mini-edit-button {{
+      border: 1px solid rgba(32,39,51,0.18);
+      border-radius: 3px;
+      padding: 5px 8px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+      white-space: nowrap;
+    }}
+    .mini-edit-button:hover,
+    .mini-edit-button[aria-pressed="true"] {{
+      background: var(--ink);
+      border-color: var(--ink);
+      color: #fff;
+    }}
     .issue-card p {{
       max-width: 62ch;
       font-size: 0.98rem;
@@ -2019,18 +2406,90 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     }}
     .issue-meta {{
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-start;
       align-items: center;
       gap: 10px;
       margin-top: 4px;
       color: var(--muted);
       font-size: 0.82rem;
     }}
-    .issue-meta a {{
+    .hidden-file-input {{
+      display: none;
+    }}
+    .edit-chip {{
+      width: max-content;
+      border: 1px solid rgba(32,39,51,0.16);
+      border-radius: 4px;
+      padding: 7px 10px;
+      background: rgba(255,255,255,0.74);
       color: var(--ink);
+      font: inherit;
+      font-size: 0.78rem;
       font-weight: 750;
+      cursor: pointer;
+    }}
+    .edit-chip:hover,
+    .edit-chip[aria-pressed="true"] {{
+      background: var(--ink);
+      border-color: var(--ink);
+      color: #fff;
+    }}
+    [data-editable-field][contenteditable="true"] {{
+      outline: 2px solid rgba(17,136,110,0.34);
+      border-radius: 4px;
+      background: rgba(17,136,110,0.08);
+      padding: 2px 4px;
+    }}
+    @media (max-width: 760px) {{
+      .issue-title-row {{
+        display: grid;
+      }}
+      .issue-title-actions {{
+        justify-content: flex-start;
+      }}
+    }}
+    .local-publish-panel {{
+      display: grid;
+      gap: 14px;
+      margin-top: 42px;
+      padding: 24px;
+      border: 1px solid rgba(198,161,55,0.24);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.76);
+      box-shadow: 0 18px 36px rgba(32,39,51,0.05);
+    }}
+    .local-publish-panel h2 {{
+      font-size: clamp(1.35rem, 2vw, 1.8rem);
+      line-height: 1.12;
+    }}
+    .local-publish-actions {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }}
+    .publish-button {{
+      border: 1px solid var(--ink);
+      border-radius: 4px;
+      padding: 12px 16px;
+      background: var(--ink);
+      color: #fff;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }}
+    .publish-button:disabled {{
+      cursor: wait;
+      opacity: 0.62;
+    }}
+    .publish-status {{
+      color: var(--muted);
+      font-size: 0.92rem;
+    }}
+    .publish-status a {{
+      color: var(--ink);
+      font-weight: 800;
       text-underline-offset: 3px;
-      white-space: nowrap;
     }}
     .tone-critical {{ border-left: 4px solid var(--red); }}
     .tone-high {{ border-left: 4px solid #d98e2f; }}
@@ -2361,11 +2820,14 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       </div>
     </section>
 
+    {render_local_publish_panel()}
+
     <footer class="footer">
       <span>Generated from the automated UX/UI audit pipeline.</span>
       <span>{html.escape(clean_text(site.get("domain")) or clean_text(site.get("url")) or "Site")}</span>
     </footer>
   </div>
+  {render_local_edit_script()}
 </body>
 </html>"""
 

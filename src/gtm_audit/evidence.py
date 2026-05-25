@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from os import getenv
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -28,6 +29,50 @@ HEADER_TYPES = ("navigation", "nav-link", "button", "link", "section")
 DEFAULT_SPOTLIGHT_REVIEW = "0"
 CONTEXT_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 _CONTEXT_SCREENSHOT_USAGE: Dict[str, int] = {}
+SPECIFIC_REGION_TERMS = {
+    "button",
+    "cta",
+    "link",
+    "text",
+    "copy",
+    "label",
+    "heading",
+    "title",
+    "photo",
+    "image",
+    "picture",
+    "icon",
+    "logo",
+    "form",
+    "field",
+    "input",
+    "card",
+    "menu",
+    "nav",
+    "header",
+    "control",
+    "component",
+    "section",
+    "area",
+}
+GENERAL_REGION_TERMS = {
+    "full page",
+    "whole page",
+    "full screen",
+    "whole screen",
+    "full viewport",
+    "whole viewport",
+    "entire page",
+    "entire screen",
+    "viewport",
+    "website",
+    "overall",
+    "general",
+    "responsive",
+    "layout failure",
+    "performance",
+    "web vitals",
+}
 
 
 def _combined_component_type(component: Dict[str, Any]) -> str:
@@ -244,8 +289,262 @@ def _evidence_bundle_component(item: Dict[str, Any]) -> Optional[Dict[str, Any]]
     }
 
 
+def _field_text(component: Dict[str, Any], key: str) -> str:
+    return normalize_match_text(component.get(key))
+
+
+def _symbol_normalized(value: Any) -> str:
+    text = clean_text(value)
+    return normalize_match_text(text.replace("✕", "x").replace("×", "x"))
+
+
+def _cited_example_terms(item: Dict[str, Any]) -> list[Dict[str, str]]:
+    texts = [
+        clean_text(item.get("title")),
+        clean_text(item.get("evidence")),
+        clean_text(item.get("explanation")),
+        clean_text(item.get("recommendation")),
+    ]
+    bundle = item.get("evidenceBundle")
+    if isinstance(bundle, dict):
+        raw = bundle.get("raw")
+        if isinstance(raw, dict):
+            samples = raw.get("samples")
+            if isinstance(samples, list):
+                for sample in samples:
+                    if isinstance(sample, dict):
+                        texts.append(json_safe_text(sample))
+                    else:
+                        texts.append(clean_text(sample))
+    haystack = "\n".join(text for text in texts if text)
+    if not haystack:
+        return []
+
+    terms: list[Dict[str, str]] = []
+    seen: set[tuple[str, str, str]] = set()
+
+    def add(kind: str, value: str, tag: str = "") -> None:
+        normalized = normalize_match_text(value)
+        if not normalized:
+            return
+        key = (kind, normalized, normalize_match_text(tag))
+        if key in seen:
+            return
+        seen.add(key)
+        terms.append({"kind": kind, "value": normalized, "tag": normalize_match_text(tag)})
+
+    for tag, element_id in re.findall(r"\b([a-zA-Z][\w-]*)#([A-Za-z0-9_-]+)\b", haystack):
+        add("id", element_id, tag)
+
+    for element_id in re.findall(r"\bid=[\"']([^\"']+)[\"']", haystack, flags=re.IGNORECASE):
+        add("id", element_id)
+
+    for element_id in re.findall(r"(?<![\w-])#([A-Za-z][\w-]+)\b", haystack):
+        add("id", element_id)
+
+    example_match = re.search(r"\bexamples?\s*(?:include|:)\s*([^.;\n]+)", haystack, flags=re.IGNORECASE)
+    if example_match:
+        for raw_token in re.split(r",|\band\b|\bet\b", example_match.group(1), flags=re.IGNORECASE):
+            token = clean_text(raw_token).strip(" '\"`")
+            token = re.sub(r":.*$", "", token).strip()
+            if not token:
+                continue
+            selector_match = re.match(r"([a-zA-Z][\w-]*)#([A-Za-z0-9_-]+)$", token)
+            if selector_match:
+                add("id", selector_match.group(2), selector_match.group(1))
+            elif len(token) <= 48:
+                add("label", token)
+
+    return terms[:8]
+
+
+def json_safe_text(value: Dict[str, Any]) -> str:
+    parts = []
+    for key in (
+        "clickableText",
+        "clickableAriaLabel",
+        "clickableTag",
+        "reason",
+        "error",
+        "id",
+        "name",
+        "label",
+        "placeholder",
+    ):
+        text = clean_text(value.get(key))
+        if text:
+            parts.append(text)
+    return " ".join(parts)
+
+
+def _component_visible_in_screenshot(component: Dict[str, Any], screenshot_path: str) -> bool:
+    rect_values = _component_rect_values(component)
+    size = _image_size(screenshot_path)
+    if not rect_values or not size:
+        return False
+    x, y, width, height = rect_values
+    image_width, image_height = size
+    return x < image_width and y < image_height and x + width > 0 and y + height > 0
+
+
+def _component_match_score(component: Dict[str, Any], term: Dict[str, str]) -> float:
+    kind = term.get("kind") or ""
+    value = term.get("value") or ""
+    tag = term.get("tag") or ""
+    if not value:
+        return 0.0
+
+    component_tag = _field_text(component, "tag")
+    if tag and component_tag != tag:
+        return 0.0
+
+    score = 0.0
+    if kind == "id" and _field_text(component, "id") == value:
+        score += 100.0
+    if kind == "id" and _field_text(component, "name") == value:
+        score += 82.0
+    if kind == "label":
+        if _symbol_normalized(component.get("text")) == value:
+            score += 92.0
+        if _symbol_normalized(component.get("label")) == value:
+            score += 86.0
+        if _field_text(component, "placeholder") == value:
+            score += 76.0
+        if _field_text(component, "id") == value or _field_text(component, "name") == value:
+            score += 70.0
+
+    searchable = " ".join(
+        _symbol_normalized(component.get(key))
+        for key in ("text", "label", "placeholder", "id", "name", "className", "semanticType", "_componentText")
+        if clean_text(component.get(key))
+    )
+    if value and value in searchable:
+        score += 24.0
+    return score
+
+
+def _component_from_cited_examples(
+    item: Dict[str, Any],
+    rendered_page: Optional[Dict[str, Any]],
+    screenshot_path: str,
+) -> Optional[Dict[str, Any]]:
+    if not rendered_page:
+        return None
+    terms = _cited_example_terms(item)
+    if not terms:
+        return None
+
+    ranked: list[tuple[float, Dict[str, Any], Dict[str, str]]] = []
+    for component in iter_page_components(rendered_page):
+        if component.get("visible") is False:
+            continue
+        if not _component_visible_in_screenshot(component, screenshot_path):
+            continue
+        best_score = 0.0
+        best_term: Dict[str, str] = {}
+        for term in terms:
+            score = _component_match_score(component, term)
+            if score > best_score:
+                best_score = score
+                best_term = term
+        if best_score >= 70:
+            ranked.append((best_score, component, best_term))
+
+    if not ranked:
+        return None
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    score, component, term = ranked[0]
+    return {
+        **component,
+        "semanticType": clean_text(component.get("semanticType") or term.get("tag") or "cited-example"),
+        "uxRole": clean_text(component.get("uxRole") or "cited evidence example"),
+        "_bucket": "cited-example",
+    }
+
+
+def _component_rect_values(component: Dict[str, Any]) -> Optional[tuple[float, float, float, float]]:
+    rect = component.get("rect") or {}
+    try:
+        x = float(rect.get("x"))
+        y = float(rect.get("y"))
+        width = float(rect.get("width"))
+        height = float(rect.get("height"))
+    except Exception:
+        return None
+    if width <= 0 or height <= 0:
+        return None
+    return x, y, width, height
+
+
+def _image_size(path: str) -> Optional[tuple[int, int]]:
+    absolute = absolute_from_repo(path)
+    if not absolute or not absolute.exists():
+        return None
+    try:
+        from PIL import Image
+
+        with Image.open(absolute) as image:
+            return image.size
+    except Exception:
+        return None
+
+
+def _component_precision_text(item: Dict[str, Any], component: Dict[str, Any]) -> str:
+    parts = [
+        component.get("semanticType"),
+        component.get("uxRole"),
+        component.get("_bucket"),
+        component.get("_componentText"),
+        component.get("text"),
+        component.get("label"),
+        item.get("title"),
+        item.get("sourceSheet"),
+        item.get("axisName"),
+        item.get("evidence"),
+    ]
+    return normalize_match_text(" ".join(clean_text(part) for part in parts if clean_text(part)))
+
+
+def _should_mark_component(item: Dict[str, Any], component: Optional[Dict[str, Any]], screenshot_path: str) -> bool:
+    if not component or item.get("responsiveFailure"):
+        return False
+    bundle = item.get("evidenceBundle")
+    bundle_source = clean_text((bundle or {}).get("source") if isinstance(bundle, dict) else "").lower()
+    if bundle_source in {"playwright_performance_snapshot", "playwright_performance_kpi"}:
+        return False
+
+    rect_values = _component_rect_values(component)
+    size = _image_size(screenshot_path)
+    if not rect_values or not size:
+        return False
+
+    x, y, width, height = rect_values
+    image_width, image_height = size
+    width = min(width, float(image_width))
+    height = min(height, float(image_height))
+    width_ratio = width / max(float(image_width), 1.0)
+    height_ratio = height / max(float(image_height), 1.0)
+    area_ratio = (width * height) / max(float(image_width * image_height), 1.0)
+    is_full_view = x <= image_width * 0.03 and y <= image_height * 0.03 and width_ratio >= 0.92 and height_ratio >= 0.86
+    if is_full_view or area_ratio >= 0.68:
+        return False
+
+    text = _component_precision_text(item, component)
+    has_general_signal = any(term in text for term in GENERAL_REGION_TERMS)
+    has_specific_signal = any(term in text for term in SPECIFIC_REGION_TERMS)
+    if has_general_signal and not has_specific_signal:
+        return False
+    if area_ratio > 0.42 and not has_specific_signal:
+        return False
+    return True
+
+
 def _spotlight_review_enabled() -> bool:
     return clean_text(getenv("GTM_VISION_VERIFY_SPOTLIGHTS", DEFAULT_SPOTLIGHT_REVIEW)).lower() not in {"0", "false", "no", "off"}
+
+
+def _heuristic_spotlights_enabled() -> bool:
+    return clean_text(getenv("GTM_HEURISTIC_SPOTLIGHTS", "0")).lower() not in {"0", "false", "no", "off"}
 
 
 def _component_preview_text(component: Dict[str, Any]) -> str:
@@ -719,16 +1018,19 @@ def build_gtm_spotlight(
             rendered_page = rendered_lookup[key]
             break
 
-    region_component = _component_from_visual_region(item, clean_text(item.get("screenshotPath")))
-    component = region_component or _pick_gtm_component(item, rendered_page)
+    bundle_target = ((item.get("evidenceBundle") or {}).get("target") or {}) if isinstance(item.get("evidenceBundle"), dict) else {}
+    screenshot_path = clean_text(bundle_target.get("screenshot_path")) or clean_text(item.get("screenshotPath"))
     bundle_component = _evidence_bundle_component(item)
-    if bundle_component:
-        component = bundle_component
+    region_component = _component_from_visual_region(item, screenshot_path)
+    cited_component = _component_from_cited_examples(item, rendered_page, screenshot_path)
+    component = bundle_component or region_component or cited_component
+    has_direct_region = bool(component)
 
     filename_stem = f"issue-{str(issue_index).zfill(2)}-{normalize_match_text(item.get('title') or 'issue')[:60].replace(' ', '-')}"
     filename = f"{filename_stem}.png"
     output_path = output_dir / "evidence" / filename
-    if not bundle_component and not region_component:
+    if not has_direct_region and rendered_page and _heuristic_spotlights_enabled():
+        component = _pick_gtm_component(item, rendered_page)
         candidate_components = _candidate_components(item, rendered_page, component)
         reviewed_component = _review_spotlight_candidates(
             item=item,
@@ -739,12 +1041,11 @@ def build_gtm_spotlight(
         )
         if reviewed_component:
             component = reviewed_component
+        has_direct_region = bool(component)
 
-    bundle_target = ((item.get("evidenceBundle") or {}).get("target") or {}) if isinstance(item.get("evidenceBundle"), dict) else {}
-    screenshot_path = clean_text(bundle_target.get("screenshot_path")) or clean_text(item.get("screenshotPath"))
     contain_tall_source = bool(item.get("responsiveFailure"))
-    has_direct_region = bool(bundle_component or region_component)
-    if not has_direct_region:
+    should_mark = _should_mark_component(item, component, screenshot_path)
+    if not has_direct_region or not should_mark:
         screenshot_path = _select_context_screenshot(item, screenshot_path, issue_index)
         if not _create_context_spotlight_image(screenshot_path, output_path, contain_tall_source=contain_tall_source):
             return ""

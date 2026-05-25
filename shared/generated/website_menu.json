@@ -228,7 +228,7 @@
       "total_internal_links": 28,
       "external_links": 4,
       "title": "WeeFizz — La data morphologique entre l'humain et le vêtement",
-      "page_size_kb": 95.21,
+      "page_size_kb": 95.24,
       "images_found": 20,
       "mode": "desktop",
       "page_language": "fr",
@@ -264,7 +264,7 @@
     "source_container": "merged(desktop+mobile)",
     "sitemap_found": "https://weefizz.com/sitemap.xml",
     "robots_txt": "https://weefizz.com/robots.txt",
-    "crawl_time_ms": 66574
+    "crawl_time_ms": 65322
   },
   "requested_language": "en-US",
   "language_warning": "Requested English, but detected page language was fr."

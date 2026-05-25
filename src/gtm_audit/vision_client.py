@@ -275,9 +275,10 @@ Operating rules:
 - Do not claim a person is AI-generated as a fact. Use careful wording such as "appears heavily AI-enhanced" or "may read as synthetic" and explain the visible signals.
 - Include page_name, page_url, or screenshot_index when you can identify where the issue appears.
 - Use zero-based `screenshot_index` matching the Screenshot metadata array order.
-- For every issue in `priority_issues`, `criteria_discoveries`, and `visual_trust_findings`, include `visual_region` when the affected area is visible.
-- `visual_region` must be an approximate bounding box around the visible area in normalized 0-1 screenshot coordinates: x, y, width, height.
-- If the issue affects most of the screen, use a broad visual_region covering the primary affected area rather than omitting it.
+- For every issue in `priority_issues`, `criteria_discoveries`, and `visual_trust_findings`, include `visual_region` only when the affected element or area is specific and visible.
+- `visual_region` must be an approximate bounding box around the exact visible target in normalized 0-1 screenshot coordinates: x, y, width, height.
+- Use `visual_region` for concrete targets such as a photo, button, CTA, text block, link, form field, menu item, card, section, or clearly bounded area.
+- If the issue is about the whole page, overall layout, performance, general trust, responsive behavior across the screen, or another broad website-level problem, omit `visual_region` instead of drawing a broad marker.
 - If a visual issue is high impact but outside the workbook logic, still return it with `outside_workbook: true`.
 - If uncertain, lower confidence instead of overstating.
 - Return STRICT JSON ONLY matching this schema:

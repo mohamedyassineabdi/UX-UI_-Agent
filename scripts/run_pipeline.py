@@ -381,7 +381,11 @@ def main() -> None:
         )
         ensure_file_exists(report_output_dir / "index.html")
 
-        deploy_vercel = args.deploy_vercel or os.getenv("GTM_AUTO_DEPLOY", "").strip().lower() in {"1", "true", "yes", "on"}
+        disable_vercel_deploy = os.getenv("GTM_DISABLE_VERCEL_DEPLOY", "").strip().lower() in {"1", "true", "yes", "on"}
+        deploy_vercel = (
+            not disable_vercel_deploy
+            and (args.deploy_vercel or os.getenv("GTM_AUTO_DEPLOY", "").strip().lower() in {"1", "true", "yes", "on"})
+        )
         print("\n[6/6] Packaging GTM report for Vercel...\n")
         deploy_args = [
             sys.executable,

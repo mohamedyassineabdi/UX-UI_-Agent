@@ -205,7 +205,7 @@ def _edit_button(
     return (
         '<button class="icon-button" type="button" '
         f'data-edit-action="{_html(action)}" data-issue-id="{_html(issue_id)}" '
-        f'aria-label="{_html(label)}" title="{_html(label)}">{_icon_svg(icon)}</button>'
+        f'aria-label="{_html(label)}" title="{_html(label)}" data-local-edit-control>{_icon_svg(icon)}</button>'
     )
 
 
@@ -244,7 +244,7 @@ def _issue_edit_toolbar(
                 icon="score",
             )
         )
-    return f'<div class="edit-toolbar" aria-label="Issue edit controls">{"".join(buttons)}</div>'
+    return f'<div class="edit-toolbar" aria-label="Issue edit controls" data-local-edit-control>{"".join(buttons)}</div>'
 
 
 def _clean_text(value: object) -> str:
@@ -2422,8 +2422,7 @@ def _image_frame(issue: dict[str, object], report_path: Path) -> str:
     )
     return f"""
     <figure class="story-visual-frame" data-issue-id="{_html(issue_id)}">
-      {_issue_edit_toolbar(issue_id, image=True, copy=False, score=False)}
-      <input class="hidden-file-input" type="file" accept="image/*" data-screenshot-input data-issue-id="{_html(issue_id)}">
+      <input class="hidden-file-input" type="file" accept="image/*" data-screenshot-input data-issue-id="{_html(issue_id)}" data-local-edit-control>
       <div class="desktop-screen">
         <div class="desktop-screen-bar"><span></span><span></span><span></span></div>
         <div class="desktop-screen-body">
@@ -3421,14 +3420,16 @@ def _priority_story(
       <div class="story-score-pane">
         {_score_ring(issue_score, size=128, label="risk", attrs={"data-score-role": "issue", "data-issue-id": issue_id, "data-criterion-id": criterion_id})}
         <span>{_html(_criterion_name(criterion_id, lookup))}</span>
-        <div class="score-editor" data-issue-id="{_html(issue_id)}" hidden>
+        <div class="score-editor" data-issue-id="{_html(issue_id)}" data-local-edit-control>
           <label>Issue score <input type="number" min="0" max="10" step="0.1" value="{issue_score:.1f}" data-score-input data-issue-id="{_html(issue_id)}"></label>
         </div>
       </div>
       <div class="story-copy">
-        {_issue_edit_toolbar(issue_id)}
         <p class="story-kicker">{_html(confidence)} confidence - {_html(evidence_label)}{heuristic_html}</p>
-        <h3 data-editable-field="title">{_html(_polished_value(polished_copy, issue, "title", _human_issue_title(issue)))}</h3>
+        <div class="story-title-row">
+          <h3 data-editable-field="title">{_html(_polished_value(polished_copy, issue, "title", _human_issue_title(issue)))}</h3>
+          {_issue_edit_toolbar(issue_id, image=True, copy=True, score=False)}
+        </div>
         <p><strong>What is wrong:</strong> <span data-editable-field="what_is_wrong">{_html(_polished_value(polished_copy, issue, "what_is_wrong", _issue_summary(issue)))}</span></p>
         <p><strong>Why it matters:</strong> <span data-editable-field="why_it_matters">{_html(_polished_value(polished_copy, issue, "why_it_matters", _why_it_matters(issue, criterion)))}</span></p>
         <p><strong>Recommended fix:</strong> <span data-editable-field="recommended_fix">{_html(_polished_value(polished_copy, issue, "recommended_fix", _recommendation(issue, criterion)))}</span></p>
@@ -3528,11 +3529,13 @@ def _axis_story(
       <div class="axis-story-media">{media}</div>
       <div class="axis-story-score">
         {_score_ring(score, size=154, attrs={"data-score-role": "criterion", "data-criterion-id": criterion_id})}
-        {f'<div class="score-editor" data-issue-id="{_html(lead_issue_id)}" hidden><label>Issue score <input type="number" min="0" max="10" step="0.1" value="{lead_issue_score:.1f}" data-score-input data-issue-id="{_html(lead_issue_id)}"></label></div>' if lead_issue_id else ""}
+        {f'<div class="score-editor" data-issue-id="{_html(lead_issue_id)}" data-local-edit-control><label>Issue score <input type="number" min="0" max="10" step="0.1" value="{lead_issue_score:.1f}" data-score-input data-issue-id="{_html(lead_issue_id)}"></label></div>' if lead_issue_id else ""}
       </div>
       <div class="axis-story-copy">
-        {_issue_edit_toolbar(lead_issue_id, image=True, copy=True, score=True) if lead_issue_id else ""}
-        <h3>{_html(title)}</h3>
+        <div class="story-title-row">
+          <h3>{_html(title)}</h3>
+          {_issue_edit_toolbar(lead_issue_id, image=True, copy=True, score=False) if lead_issue_id else ""}
+        </div>
         <p><strong>Commercial impact:</strong> {_html(impact)}</p>
         <p><strong>Lead issue:</strong> <span data-editable-field="title">{_html(lead)}</span></p>
         <p><strong>What is wrong:</strong> <span data-editable-field="what_is_wrong">{_html(observed)}</span></p>
@@ -3981,13 +3984,16 @@ def _style() -> str:
       justify-content: flex-end;
       min-height: 30px;
     }
-    .story-visual-frame > .edit-toolbar {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      z-index: 2;
-    }
     .story-visual-frame { position: relative; }
+    .story-title-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .story-title-row h3 {
+      flex: 1 1 auto;
+    }
     .icon-button {
       display: inline-grid;
       place-items: center;
@@ -3997,7 +4003,7 @@ def _style() -> str:
       color: #273242;
       background: rgba(255, 255, 255, 0.92);
       border: 1px solid rgba(32, 39, 51, 0.16);
-      border-radius: 999px;
+      border-radius: 4px;
       box-shadow: 0 8px 16px rgba(32, 39, 51, 0.10);
     }
     .icon-button:hover,
@@ -4079,6 +4085,49 @@ def _style() -> str:
       border-top: 1px solid var(--line);
       color: var(--muted);
       font-size: 0.86rem;
+    }
+    .local-publish-panel {
+      display: grid;
+      gap: 14px;
+      margin-top: 42px;
+      padding: 24px;
+      border: 1px solid rgba(198,161,55,0.24);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.76);
+      box-shadow: 0 18px 36px rgba(32,39,51,0.05);
+    }
+    .local-publish-panel h2 {
+      font-size: clamp(1.35rem, 2vw, 1.8rem);
+      line-height: 1.12;
+    }
+    .local-publish-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .publish-button {
+      border: 1px solid var(--ink);
+      border-radius: 4px;
+      padding: 12px 16px;
+      background: var(--ink);
+      color: #fff;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .publish-button:disabled {
+      cursor: wait;
+      opacity: 0.62;
+    }
+    .publish-status {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .publish-status a {
+      color: var(--ink);
+      font-weight: 800;
+      text-underline-offset: 3px;
     }
     @media (prefers-reduced-motion: reduce) {
       .scan-strip { animation: none; }
@@ -4191,11 +4240,9 @@ def _review_script(
         return score;
       });
       if (!criterionScores.length) return;
-      const visibleIssueCount = Number.parseInt(model.visibleIssueCount || issueScores.size, 10);
-      const issuePressure = Math.min(2.6, Math.max(0, visibleIssueCount) * 0.18);
       const average =
         criterionScores.reduce((total, score) => total + score, 0) / criterionScores.length;
-      const overall = clampScore(Math.max(0, Math.min(10, average - issuePressure)));
+      const overall = clampScore(average);
       document
         .querySelectorAll('[data-score-role="overall"][data-score-locked="true"]')
         .forEach((ring) => setRingScore(ring, overall));
@@ -4246,12 +4293,15 @@ def _review_script(
       const input = event.target.closest("[data-screenshot-input]");
       if (!input || !input.files || !input.files[0]) return;
       const issueId = input.dataset.issueId;
-      const nextSrc = URL.createObjectURL(input.files[0]);
-      document
-        .querySelectorAll(`[data-editable-image="${issueId}"]`)
-        .forEach((image) => {
-          image.src = nextSrc;
-        });
+      const reader = new FileReader();
+      reader.addEventListener("load", () => {
+        document
+          .querySelectorAll(`[data-editable-image="${issueId}"]`)
+          .forEach((image) => {
+            image.src = String(reader.result || "");
+          });
+      });
+      reader.readAsDataURL(input.files[0]);
     });
 
     document.addEventListener("input", (event) => {
@@ -4272,6 +4322,101 @@ def _review_script(
     });
 
     recalculateScores();
+
+    const localHosts = new Set(["127.0.0.1", "localhost", "::1"]);
+    const publishPanel = document.querySelector("[data-local-publish-panel]");
+    const isAuditPath = window.location.pathname.startsWith("/audits/");
+    const isKnownStaticDeployment = /(?:^|\\.)vercel\\.app$/i.test(window.location.hostname) || /(?:^|\\.)vercel\\.com$/i.test(window.location.hostname);
+    const isLocalEditable = !isKnownStaticDeployment && (isAuditPath || localHosts.has(window.location.hostname) || window.location.protocol === "file:");
+    const canDeployFromHere = isAuditPath && !isKnownStaticDeployment && /^https?:$/.test(window.location.protocol);
+    if (publishPanel && !isLocalEditable) publishPanel.hidden = true;
+    document.querySelectorAll("[data-local-edit-control]").forEach((control) => {
+      if (!isLocalEditable) control.hidden = true;
+    });
+
+    function cleanCloneForDeployment() {
+      const clone = document.documentElement.cloneNode(true);
+      clone.querySelectorAll("[contenteditable]").forEach((node) => node.removeAttribute("contenteditable"));
+      clone.querySelectorAll("[data-editable-field]").forEach((node) => node.removeAttribute("data-editable-field"));
+      clone.querySelectorAll("[data-editable-image]").forEach((node) => node.removeAttribute("data-editable-image"));
+      clone.querySelectorAll("[data-local-edit-control], [data-local-publish-panel]").forEach((node) => node.remove());
+      clone.querySelectorAll("[data-deploy-status]").forEach((node) => {
+        node.textContent = "Published version generated from reviewed local edits.";
+      });
+      return "<!doctype html>\\n" + clone.outerHTML;
+    }
+
+    async function readDeployPayload(response) {
+      const text = await response.text();
+      if (!text.trim()) return {};
+      try {
+        return JSON.parse(text);
+      } catch (_error) {
+        const preview = text.replace(/\\s+/g, " ").trim().slice(0, 180);
+        throw new Error(`Deployment endpoint did not return JSON (${response.status}). Open the /audits report from the local Python server, then retry. Response started with: ${preview}`);
+      }
+    }
+
+    async function postEditedReport(body) {
+      const params = new URLSearchParams(window.location.search);
+      const configuredApiBase = String(params.get("apiBaseUrl") || params.get("backend") || params.get("api") || "").replace(/\\/+$/, "");
+      const requestHeaders = {"Content-Type": "application/json"};
+      if (configuredApiBase.includes("ngrok")) requestHeaders["ngrok-skip-browser-warning"] = "true";
+      const endpoints = [
+        ...(configuredApiBase ? [`${configuredApiBase}/api/reports/deploy`] : []),
+        new URL("/api/reports/deploy", window.location.href).href,
+        new URL("api/reports/deploy", window.location.href).href,
+        new URL("../../api/reports/deploy", window.location.href).href
+      ];
+      let lastPayload = null;
+      let lastResponse = null;
+      let lastError = null;
+      for (const endpoint of Array.from(new Set(endpoints))) {
+        try {
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: requestHeaders,
+            body
+          });
+          const payload = await readDeployPayload(response);
+          if (response.ok) return payload;
+          lastPayload = payload;
+          lastResponse = response;
+          if (response.status !== 404) break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      if (lastPayload && lastPayload.error) throw new Error(lastPayload.error);
+      if (lastError instanceof Error) throw lastError;
+      throw new Error(lastResponse ? `Deployment endpoint failed with status ${lastResponse.status}.` : "Deployment endpoint could not be reached.");
+    }
+
+    const deployButton = document.querySelector("[data-deploy-edited-report]");
+    const deployStatus = document.querySelector("[data-deploy-status]");
+    if (deployButton) {
+      if (!canDeployFromHere) {
+        deployButton.disabled = true;
+        if (deployStatus && isLocalEditable) deployStatus.textContent = "Open this report from the local UI server to deploy it.";
+      }
+      deployButton.addEventListener("click", async () => {
+        if (!canDeployFromHere) return;
+        deployButton.disabled = true;
+        if (deployStatus) deployStatus.textContent = "Saving edited audit and deploying to Vercel...";
+        try {
+          const payload = await postEditedReport(JSON.stringify({
+              path: window.location.pathname,
+              html: cleanCloneForDeployment()
+            }));
+          if (deployStatus) {
+            deployStatus.innerHTML = `Deployed: <a href="${payload.url}" target="_blank" rel="noreferrer">${payload.url}</a>`;
+          }
+        } catch (error) {
+          if (deployStatus) deployStatus.textContent = error instanceof Error ? error.message : "Deployment failed.";
+          deployButton.disabled = false;
+        }
+      });
+    }
   })();
   </script>
 """.replace("__AUDIT_SCORE_MODEL__", payload)
@@ -4452,6 +4597,18 @@ def build_detection_review_report(
     {_priority_section(detection_result, grouped, output_path, lookup, polished_copy)}
     {_axis_stories_section(detection_result, grouped, output_path, lookup, polished_copy)}
     {_recommendations_section(detection_result, grouped, lookup, polished_copy)}
+
+    <section class="local-publish-panel" data-local-publish-panel>
+      <div>
+        <p class="eyebrow">Finalize</p>
+        <h2>Review, edit, then deploy the final audit</h2>
+        <p>Adjust text, screenshots, and scores locally. When the report is ready, deploy this edited version to Vercel.</p>
+      </div>
+      <div class="local-publish-actions">
+        <button class="publish-button" type="button" data-deploy-edited-report>Deploy final audit to Vercel</button>
+        <span class="publish-status" data-deploy-status>Local edits are not published until you deploy.</span>
+      </div>
+    </section>
 
     <footer class="footer">
       <span>Generated from the local Figma audit pipeline.</span>
