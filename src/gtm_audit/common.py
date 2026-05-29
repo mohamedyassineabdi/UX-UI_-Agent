@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import copy
+import json
+import os
 import re
 import unicodedata
+from pathlib import Path
 from statistics import mean as _mean
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -401,6 +405,248 @@ AXIS_USER_IMPACT["ui_consistency"] = (
     "recurring patterns, hierarchy, or brand treatments do not look consistent, which makes the product feel less mature"
 )
 AXIS_USER_IMPACT = {axis_id: value for axis_id, value in AXIS_USER_IMPACT.items() if axis_id in _ACTIVE_AXIS_IDS}
+
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+AUDIT_CRITERIA_CONFIG_PATH = Path(
+    os.getenv("AUDIT_CRITERIA_CONFIG_PATH") or ROOT_DIR / "shared" / "config" / "audit_axes.json"
+)
+EDITABLE_AXIS_FIELDS = {
+    "name",
+    "short_name",
+    "description",
+    "focus",
+    "core_question",
+    "look_for",
+    "healthy_signals",
+    "failure_modes",
+    "out_of_scope",
+    "severity_ladder",
+    "evidence_expectations",
+    "default_fix",
+}
+_DEFAULT_AXIS_DEFINITIONS = copy.deepcopy(AXIS_DEFINITIONS)
+_DEFAULT_AXIS_KEYWORDS = copy.deepcopy(AXIS_KEYWORDS)
+_DEFAULT_AXIS_IMPACT = copy.deepcopy(AXIS_IMPACT)
+_DEFAULT_AXIS_USER_IMPACT = copy.deepcopy(AXIS_USER_IMPACT)
+
+
+def _clean_string_list(values: Any) -> List[str]:
+    if not isinstance(values, list):
+        return []
+    out: List[str] = []
+    seen = set()
+    for value in values:
+        text = " ".join(str(value or "").split()).strip()
+        if not text:
+            continue
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(text)
+    return out
+
+
+def _clean_severity_ladder(value: Any, fallback: Dict[str, Any]) -> Dict[str, str]:
+    source = value if isinstance(value, dict) else fallback if isinstance(fallback, dict) else {}
+    return {
+        "high": " ".join(str(source.get("high") or "").split()).strip(),
+        "medium": " ".join(str(source.get("medium") or "").split()).strip(),
+        "low": " ".join(str(source.get("low") or "").split()).strip(),
+    }
+
+
+def _clean_criteria_text(value: Any) -> str:
+    return " ".join(str(value or "").split()).strip()
+
+
+def _normalize_custom_axis_id(value: Any, fallback: str) -> str:
+    raw = _clean_criteria_text(value) or fallback
+    normalized = unicodedata.normalize("NFKD", raw).encode("ascii", "ignore").decode("ascii")
+    normalized = re.sub(r"[^a-zA-Z0-9]+", "_", normalized).strip("_").lower()
+    return normalized or fallback
+
+
+def _unique_axis_id(axis_id: str, existing: Dict[str, Dict[str, Any]]) -> str:
+    if axis_id not in existing:
+        return axis_id
+    index = 2
+    while f"{axis_id}_{index}" in existing:
+        index += 1
+    return f"{axis_id}_{index}"
+
+
+def _blank_custom_axis(axis_id: str, order: int) -> Dict[str, Any]:
+    return {
+        "id": axis_id,
+        "name": f"Custom audit axis {order}",
+        "short_name": f"Custom axis {order}",
+        "description": "Custom UX/UI audit axis.",
+        "focus": [],
+        "core_question": "What should the audit decide for this custom axis?",
+        "look_for": [],
+        "healthy_signals": [],
+        "failure_modes": [],
+        "out_of_scope": [],
+        "severity_ladder": {
+            "high": "The issue creates a major user or business risk.",
+            "medium": "The issue creates meaningful friction but does not block the journey.",
+            "low": "The issue is localized or mostly polish-related.",
+        },
+        "evidence_expectations": [],
+        "default_fix": "Review the cited evidence and improve this custom axis before launch.",
+    }
+
+
+def _criteria_payload_from_parts(
+    axes: List[Dict[str, Any]],
+    keywords: Dict[str, List[str]],
+    impacts: Dict[str, str],
+    user_impacts: Dict[str, str],
+    *,
+    source: str,
+) -> Dict[str, Any]:
+    payload_axes = []
+    for axis in axes:
+        axis_id = str(axis.get("id") or "").strip()
+        item = copy.deepcopy(axis)
+        item["keywords"] = list(keywords.get(axis_id) or [])
+        item["business_impact"] = str(impacts.get(axis_id) or "").strip()
+        item["user_impact"] = str(user_impacts.get(axis_id) or "").strip()
+        payload_axes.append(item)
+    return {
+        "version": 1,
+        "source": source,
+        "configPath": str(AUDIT_CRITERIA_CONFIG_PATH),
+        "axes": payload_axes,
+    }
+
+
+def default_audit_criteria_payload() -> Dict[str, Any]:
+    return _criteria_payload_from_parts(
+        copy.deepcopy(_DEFAULT_AXIS_DEFINITIONS),
+        copy.deepcopy(_DEFAULT_AXIS_KEYWORDS),
+        copy.deepcopy(_DEFAULT_AXIS_IMPACT),
+        copy.deepcopy(_DEFAULT_AXIS_USER_IMPACT),
+        source="defaults",
+    )
+
+
+def _apply_criteria_payload(payload: Dict[str, Any]) -> None:
+    global AXIS_DEFINITIONS, AXIS_KEYWORDS, AXIS_IMPACT, AXIS_USER_IMPACT
+
+    axes_by_id = {axis["id"]: copy.deepcopy(axis) for axis in _DEFAULT_AXIS_DEFINITIONS}
+    default_axis_ids = set(axes_by_id)
+    keyword_map = copy.deepcopy(_DEFAULT_AXIS_KEYWORDS)
+    impact_map = copy.deepcopy(_DEFAULT_AXIS_IMPACT)
+    user_impact_map = copy.deepcopy(_DEFAULT_AXIS_USER_IMPACT)
+
+    incoming_axes = payload.get("axes") if isinstance(payload, dict) else None
+    if not isinstance(incoming_axes, list):
+        raise ValueError("Criteria payload must contain an axes array.")
+
+    requested_order: List[str] = []
+    for index, incoming in enumerate(incoming_axes, start=1):
+        if not isinstance(incoming, dict):
+            continue
+        proposed_id = _normalize_custom_axis_id(incoming.get("id"), f"custom_axis_{index}")
+        if proposed_id in axes_by_id and proposed_id not in default_axis_ids and proposed_id in requested_order:
+            proposed_id = _unique_axis_id(proposed_id, axes_by_id)
+        axis_id = proposed_id
+        if axis_id not in axes_by_id:
+            axes_by_id[axis_id] = _blank_custom_axis(axis_id, index)
+            keyword_map[axis_id] = []
+            impact_map[axis_id] = "This custom axis affects the quality and credibility of the audited experience."
+            user_impact_map[axis_id] = "this custom area may create avoidable user friction"
+        requested_order.append(axis_id)
+        current = axes_by_id[axis_id]
+        for field in EDITABLE_AXIS_FIELDS:
+            if field not in incoming:
+                continue
+            if field in {"focus", "look_for", "healthy_signals", "failure_modes", "out_of_scope", "evidence_expectations"}:
+                cleaned = _clean_string_list(incoming.get(field))
+                if cleaned:
+                    current[field] = cleaned
+            elif field == "severity_ladder":
+                current[field] = _clean_severity_ladder(incoming.get(field), current.get(field) or {})
+            else:
+                text = _clean_criteria_text(incoming.get(field))
+                if text:
+                    current[field] = text
+        keywords = _clean_string_list(incoming.get("keywords"))
+        if keywords:
+            keyword_map[axis_id] = keywords
+        business_impact = _clean_criteria_text(incoming.get("business_impact"))
+        if business_impact:
+            impact_map[axis_id] = business_impact
+        user_impact = _clean_criteria_text(incoming.get("user_impact"))
+        if user_impact:
+            user_impact_map[axis_id] = user_impact
+
+    default_order = [axis["id"] for axis in _DEFAULT_AXIS_DEFINITIONS]
+    ordered_ids: List[str] = []
+    for axis_id in requested_order:
+        if axis_id in axes_by_id and axis_id not in ordered_ids:
+            ordered_ids.append(axis_id)
+    for axis_id in default_order:
+        if axis_id in axes_by_id and axis_id not in ordered_ids:
+            ordered_ids.append(axis_id)
+
+    AXIS_DEFINITIONS = [axes_by_id[axis_id] for axis_id in ordered_ids]
+    AXIS_KEYWORDS = {axis_id: keyword_map[axis_id] for axis_id in ordered_ids if axis_id in keyword_map}
+    AXIS_IMPACT = {axis_id: impact_map[axis_id] for axis_id in ordered_ids if axis_id in impact_map}
+    AXIS_USER_IMPACT = {axis_id: user_impact_map[axis_id] for axis_id in ordered_ids if axis_id in user_impact_map}
+
+
+def load_audit_criteria_config() -> Dict[str, Any]:
+    if not AUDIT_CRITERIA_CONFIG_PATH.exists():
+        _apply_criteria_payload(default_audit_criteria_payload())
+        return current_audit_criteria_payload(source="defaults")
+    try:
+        payload = json.loads(AUDIT_CRITERIA_CONFIG_PATH.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("Criteria file must contain a JSON object.")
+        _apply_criteria_payload(payload)
+        return current_audit_criteria_payload(source="custom")
+    except Exception as exc:
+        print(f"Warning: could not load audit criteria from {AUDIT_CRITERIA_CONFIG_PATH}: {exc}")
+        _apply_criteria_payload(default_audit_criteria_payload())
+        return current_audit_criteria_payload(source="defaults")
+
+
+def current_audit_criteria_payload(*, source: str = "current") -> Dict[str, Any]:
+    return _criteria_payload_from_parts(
+        copy.deepcopy(AXIS_DEFINITIONS),
+        copy.deepcopy(AXIS_KEYWORDS),
+        copy.deepcopy(AXIS_IMPACT),
+        copy.deepcopy(AXIS_USER_IMPACT),
+        source=source,
+    )
+
+
+def save_audit_criteria_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise ValueError("Criteria payload must be a JSON object.")
+    _apply_criteria_payload(payload)
+    saved = current_audit_criteria_payload(source="custom")
+    AUDIT_CRITERIA_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    AUDIT_CRITERIA_CONFIG_PATH.write_text(json.dumps(saved, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return saved
+
+
+def reset_audit_criteria_payload() -> Dict[str, Any]:
+    global AXIS_DEFINITIONS, AXIS_KEYWORDS, AXIS_IMPACT, AXIS_USER_IMPACT
+    AXIS_DEFINITIONS = copy.deepcopy(_DEFAULT_AXIS_DEFINITIONS)
+    AXIS_KEYWORDS = copy.deepcopy(_DEFAULT_AXIS_KEYWORDS)
+    AXIS_IMPACT = copy.deepcopy(_DEFAULT_AXIS_IMPACT)
+    AXIS_USER_IMPACT = copy.deepcopy(_DEFAULT_AXIS_USER_IMPACT)
+    if AUDIT_CRITERIA_CONFIG_PATH.exists():
+        AUDIT_CRITERIA_CONFIG_PATH.unlink()
+    return current_audit_criteria_payload(source="defaults")
+
+
+load_audit_criteria_config()
 
 
 def clean_text(value: Any) -> str:

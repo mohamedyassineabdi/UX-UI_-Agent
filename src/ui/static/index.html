@@ -819,6 +819,23 @@
         border-color: rgba(255, 107, 107, 0.78);
       }
 
+      .criteria-launcher {
+        bottom: 22px;
+        left: 22px;
+        border-radius: 999px;
+        height: 52px;
+        min-height: 52px;
+        padding: 0;
+        position: fixed;
+        width: 52px;
+        z-index: 40;
+      }
+
+      .criteria-launcher .icon {
+        height: 22px;
+        width: 22px;
+      }
+
       .icon {
         display: inline-block;
         flex: 0 0 auto;
@@ -1812,6 +1829,108 @@
         line-height: 1.5;
         margin: 0 0 26px;
         max-width: 720px;
+      }
+
+      .criteria-modal {
+        display: flex;
+        flex-direction: column;
+        height: min(900px, 92vh);
+        max-width: 1160px;
+        overflow: hidden;
+      }
+
+      .criteria-editor-layout {
+        display: grid;
+        flex: 1 1 auto;
+        gap: 22px;
+        grid-template-columns: minmax(210px, 0.28fr) minmax(0, 1fr);
+        margin-top: 24px;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .criteria-axis-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 0;
+      }
+
+      .criteria-axis-list {
+        align-content: start;
+        display: grid;
+        flex: 1 1 auto;
+        gap: 8px;
+        grid-auto-rows: max-content;
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 6px;
+      }
+
+      .criteria-axis-tab {
+        background: rgba(255, 255, 255, 0.055);
+        border: 1px solid rgba(168, 160, 209, 0.16);
+        border-radius: 12px;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.98rem;
+        font-weight: 850;
+        line-height: 1.2;
+        min-height: 48px;
+        padding: 10px 14px;
+        text-align: left;
+      }
+
+      .criteria-axis-tab.active {
+        background: linear-gradient(180deg, #ffe828 0%, #ffe100 100%);
+        border-color: rgba(255, 234, 117, 0.76);
+        color: #252535;
+      }
+
+      .criteria-add-axis {
+        flex: 0 0 auto;
+        justify-content: center;
+        min-height: 48px;
+        width: 100%;
+      }
+
+      .criteria-editor-form {
+        display: grid;
+        gap: 18px;
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 10px;
+      }
+
+      .criteria-editor-form textarea {
+        background: rgba(16, 16, 28, 0.46);
+        border: 1px solid rgba(168, 160, 209, 0.18);
+        border-radius: 14px;
+        color: var(--text);
+        font: inherit;
+        min-height: 108px;
+        padding: 14px 16px;
+        resize: vertical;
+        width: 100%;
+      }
+
+      .criteria-editor-form textarea.small {
+        min-height: 76px;
+      }
+
+      .criteria-editor-actions {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: flex-end;
+        margin-top: 18px;
+      }
+
+      .criteria-status {
+        color: var(--muted);
+        font-weight: 750;
+        margin-right: auto;
       }
 
       .scan-layout {
@@ -2841,6 +2960,18 @@
           align-items: stretch;
           flex-direction: column;
         }
+
+        .criteria-launcher {
+          bottom: 14px;
+          height: 46px;
+          left: 14px;
+          min-height: 46px;
+          width: 46px;
+        }
+
+        .criteria-editor-layout {
+          grid-template-columns: 1fr;
+        }
       }
 
       .theme-switcher {
@@ -3119,11 +3250,23 @@
       }
 
       :root[data-theme="light"] .field input,
-      :root[data-theme="light"] .field select {
+      :root[data-theme="light"] .field select,
+      :root[data-theme="light"] .criteria-editor-form textarea {
         background: rgba(255, 255, 255, 0.78);
         border-color: rgba(50, 48, 78, 0.14);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
         color: var(--text);
+      }
+
+      :root[data-theme="light"] .criteria-axis-tab {
+        background: rgba(255, 255, 255, 0.66);
+        border-color: rgba(50, 48, 78, 0.13);
+        color: var(--muted);
+      }
+
+      :root[data-theme="light"] .criteria-axis-tab.active {
+        background: linear-gradient(180deg, #ffe828 0%, #ffe100 100%);
+        color: #252535;
       }
 
       :root[data-theme="light"] .field input::placeholder {
@@ -3262,6 +3405,8 @@
           image: "M5 5h14v14H5zM8 15l3-3 2 2 3-4 3 5M8.5 9.5h.01",
           moon: "M21 12.8A8.5 8.5 0 1111.2 3a6.5 6.5 0 009.8 9.8z",
           phone: "M9 3h6a2 2 0 012 2v14a2 2 0 01-2 2H9a2 2 0 01-2-2V5a2 2 0 012-2zM11 18h2",
+          plus: "M12 5v14M5 12h14",
+          settings: "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M2 14h4M10 8h4M18 16h4",
           spark: "M12 3l1.7 5.2L19 10l-5.3 1.8L12 17l-1.7-5.2L5 10l5.3-1.8L12 3z",
           sun: "M12 4V2M12 22v-2M4.93 4.93 3.52 3.52M20.48 20.48l-1.41-1.41M4 12H2M22 12h-2M4.93 19.07l-1.41 1.41M20.48 3.52l-1.41 1.41M12 8a4 4 0 100 8 4 4 0 000-8z",
           upload: "M12 16V5M7 10l5-5 5 5M5 19h14",
@@ -3289,6 +3434,21 @@
       function defaultScreenshotLabel(file, index) {
         const stem = (file.name || "").replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
         return stem || `Screenshot ${index + 1}`;
+      }
+
+      function listToText(values) {
+        return Array.isArray(values) ? values.filter(Boolean).join("\n") : "";
+      }
+
+      function textToList(value) {
+        return String(value || "")
+          .split(/\r?\n/)
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+
+      function cloneCriteriaPayload(payload) {
+        return JSON.parse(JSON.stringify(payload || { axes: [] }));
       }
 
       const OGL_IMPORT_URL = "https://cdn.jsdelivr.net/npm/ogl/dist/ogl.mjs";
@@ -4077,6 +4237,11 @@
         const [processProgress, setProcessProgress] = useState(0);
         const [launchStep, setLaunchStep] = useState("choose");
         const [auditUnlocked, setAuditUnlocked] = useState(false);
+        const [isCriteriaOpen, setIsCriteriaOpen] = useState(false);
+        const [criteriaPayload, setCriteriaPayload] = useState(null);
+        const [criteriaDraft, setCriteriaDraft] = useState(null);
+        const [criteriaStatus, setCriteriaStatus] = useState("");
+        const [isCriteriaBusy, setIsCriteriaBusy] = useState(false);
         const auditSectionRef = useRef(null);
         const screenshotFilesRef = useRef([]);
 
@@ -4129,6 +4294,12 @@
           discoverMobileTarget(false);
           return undefined;
         }, [isMobileLiveAudit, mobileDiscovery, isDiscoveringMobile]);
+
+        useEffect(() => {
+          if (!isCriteriaOpen || criteriaDraft || isCriteriaBusy) return undefined;
+          loadCriteria();
+          return undefined;
+        }, [isCriteriaOpen, criteriaDraft, isCriteriaBusy]);
 
         useEffect(() => {
           function updateTopbarFade() {
@@ -4216,6 +4387,64 @@
 
         function goBackToExperienceChoice() {
           setLaunchStep("choose");
+        }
+
+        async function loadCriteria() {
+          setIsCriteriaBusy(true);
+          setCriteriaStatus("Loading criteria...");
+          try {
+            const response = await apiFetch("/api/criteria");
+            const payload = await readApiJson(response, "Unable to load audit criteria.");
+            if (!response.ok) throw new Error(payload.error || "Unable to load audit criteria.");
+            const cloned = cloneCriteriaPayload(payload);
+            setCriteriaPayload(cloned);
+            setCriteriaDraft(cloneCriteriaPayload(cloned));
+            setCriteriaStatus(payload.source === "custom" ? "Custom criteria loaded." : "Default criteria loaded.");
+          } catch (criteriaError) {
+            setCriteriaStatus(criteriaError.message || "Unable to load audit criteria.");
+          } finally {
+            setIsCriteriaBusy(false);
+          }
+        }
+
+        async function saveCriteria(draft) {
+          setIsCriteriaBusy(true);
+          setCriteriaStatus("Saving criteria...");
+          try {
+            const response = await apiFetch("/api/criteria", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(draft),
+            });
+            const payload = await readApiJson(response, "Unable to save audit criteria.");
+            if (!response.ok) throw new Error(payload.error || "Unable to save audit criteria.");
+            const cloned = cloneCriteriaPayload(payload);
+            setCriteriaPayload(cloned);
+            setCriteriaDraft(cloneCriteriaPayload(cloned));
+            setCriteriaStatus("Criteria saved. New audits will use these definitions.");
+          } catch (criteriaError) {
+            setCriteriaStatus(criteriaError.message || "Unable to save audit criteria.");
+          } finally {
+            setIsCriteriaBusy(false);
+          }
+        }
+
+        async function resetCriteria() {
+          setIsCriteriaBusy(true);
+          setCriteriaStatus("Restoring default criteria...");
+          try {
+            const response = await apiFetch("/api/criteria/reset", { method: "POST" });
+            const payload = await readApiJson(response, "Unable to reset audit criteria.");
+            if (!response.ok) throw new Error(payload.error || "Unable to reset audit criteria.");
+            const cloned = cloneCriteriaPayload(payload);
+            setCriteriaPayload(cloned);
+            setCriteriaDraft(cloneCriteriaPayload(cloned));
+            setCriteriaStatus("Default criteria restored.");
+          } catch (criteriaError) {
+            setCriteriaStatus(criteriaError.message || "Unable to reset audit criteria.");
+          } finally {
+            setIsCriteriaBusy(false);
+          }
         }
 
         function setImageFiles(fileList) {
@@ -4647,7 +4876,245 @@
               )
             )
           ),
+          auditUnlocked &&
+            transitionProgress > 0.45 &&
+            e(
+              "button",
+              {
+                "aria-label": "Edit audit criteria",
+                className: "secondary compact criteria-launcher",
+                title: "Edit audit criteria",
+                type: "button",
+                onClick: () => setIsCriteriaOpen(true),
+              },
+              e(Icon, { name: "settings" })
+            ),
+          isCriteriaOpen &&
+            e(CriteriaModal, {
+              criteriaDraft,
+              criteriaPayload,
+              criteriaStatus,
+              isBusy: isCriteriaBusy,
+              onClose: () => setIsCriteriaOpen(false),
+              onReload: loadCriteria,
+              onReset: resetCriteria,
+              onSave: saveCriteria,
+              setCriteriaDraft,
+            }),
           isModalOpen && job && e(ProgressModal, { job, error, isStopping, onClose: () => setIsModalOpen(false), onStop: handleStopAudit })
+        );
+      }
+
+      function CriteriaModal({ criteriaDraft, criteriaStatus, isBusy, onClose, onReload, onReset, onSave, setCriteriaDraft }) {
+        const axes = Array.isArray(criteriaDraft?.axes) ? criteriaDraft.axes : [];
+        const [selectedAxisId, setSelectedAxisId] = useState("");
+        const selectedAxis = axes.find((axis) => axis.id === selectedAxisId) || axes[0] || null;
+
+        useEffect(() => {
+          if (!selectedAxisId && axes[0]?.id) setSelectedAxisId(axes[0].id);
+          if (selectedAxisId && axes.length && !axes.some((axis) => axis.id === selectedAxisId)) setSelectedAxisId(axes[0].id);
+        }, [axes.length, selectedAxisId]);
+
+        function updateAxis(field, value) {
+          if (!selectedAxis) return;
+          setCriteriaDraft((current) => {
+            const next = cloneCriteriaPayload(current);
+            next.axes = (next.axes || []).map((axis) => (axis.id === selectedAxis.id ? { ...axis, [field]: value } : axis));
+            return next;
+          });
+        }
+
+        function updateSeverity(level, value) {
+          if (!selectedAxis) return;
+          setCriteriaDraft((current) => {
+            const next = cloneCriteriaPayload(current);
+            next.axes = (next.axes || []).map((axis) => {
+              if (axis.id !== selectedAxis.id) return axis;
+              return { ...axis, severity_ladder: { ...(axis.severity_ladder || {}), [level]: value } };
+            });
+            return next;
+          });
+        }
+
+        function uniqueAxisId(existingAxes) {
+          const used = new Set((existingAxes || []).map((axis) => axis.id));
+          let index = (existingAxes || []).length + 1;
+          let id = `custom_axis_${index}`;
+          while (used.has(id)) {
+            index += 1;
+            id = `custom_axis_${index}`;
+          }
+          return id;
+        }
+
+        function addAxis() {
+          const id = uniqueAxisId(axes);
+          const nextAxis = {
+            id,
+            name: "New audit axis",
+            short_name: "New axis",
+            description: "Describe what this UX/UI axis evaluates.",
+            focus: [],
+            core_question: "What should the audit decide for this axis?",
+            look_for: ["Add the observable signals the audit should look for."],
+            healthy_signals: ["Describe what a strong result looks like."],
+            failure_modes: ["Describe the visible or measurable failures to flag."],
+            out_of_scope: ["Describe what should not be penalized under this axis."],
+            severity_ladder: {
+              high: "The issue creates a major user or business risk.",
+              medium: "The issue creates meaningful friction but does not block the journey.",
+              low: "The issue is localized or mostly polish-related.",
+            },
+            evidence_expectations: ["Describe the evidence that should support findings for this axis."],
+            keywords: [],
+            business_impact: "Explain the business impact of this axis.",
+            user_impact: "explain the user impact of this axis",
+            default_fix: "Describe the default recommendation for this axis.",
+          };
+          setCriteriaDraft((current) => {
+            const next = cloneCriteriaPayload(current);
+            next.axes = [...(next.axes || []), nextAxis];
+            return next;
+          });
+          setSelectedAxisId(id);
+        }
+
+        const listField = (label, field, rows = 5) =>
+          e(
+            "div",
+            { className: "field" },
+            e("label", null, label),
+            e("textarea", {
+              rows,
+              value: listToText(selectedAxis?.[field]),
+              onChange: (event) => updateAxis(field, textToList(event.target.value)),
+            })
+          );
+
+        const textField = (label, field, placeholder = "", small = false) =>
+          e(
+            "div",
+            { className: "field" },
+            e("label", null, label),
+            small
+              ? e("input", {
+                  value: selectedAxis?.[field] || "",
+                  placeholder,
+                  onChange: (event) => updateAxis(field, event.target.value),
+                })
+              : e("textarea", {
+                  className: "small",
+                  rows: 3,
+                  value: selectedAxis?.[field] || "",
+                  placeholder,
+                  onChange: (event) => updateAxis(field, event.target.value),
+                })
+          );
+
+        return e(
+          "div",
+          { className: "modal-backdrop" },
+          e(
+            "section",
+            { className: "modal criteria-modal", role: "dialog", "aria-modal": "true", "aria-label": "Audit criteria editor" },
+            e(
+              "div",
+              { className: "modal-head" },
+              e("div", { className: "ey-pill" }, "Criteria"),
+              e("button", { className: "ghost", type: "button", onClick: onClose, "aria-label": "Close criteria editor" }, e(Icon, { name: "close" }))
+            ),
+            e("h2", null, "Edit audit criteria"),
+            e("p", { className: "stage" }, "Update the UX/UI axes used by new audits. Existing reports keep the criteria snapshot they were generated with."),
+            !criteriaDraft &&
+              e(
+                "div",
+                { className: "success-actions" },
+                e("button", { className: "primary", type: "button", onClick: onReload, disabled: isBusy }, isBusy ? "Loading..." : "Load criteria")
+              ),
+            selectedAxis &&
+              e(
+                "div",
+                { className: "criteria-editor-layout" },
+                e(
+                  "div",
+                  { className: "criteria-axis-panel" },
+                  e(
+                    "div",
+                    { className: "criteria-axis-list", role: "tablist", "aria-label": "Audit axes" },
+                    axes.map((axis) =>
+                      e(
+                        "button",
+                        {
+                          key: axis.id,
+                          className: `criteria-axis-tab ${axis.id === selectedAxis.id ? "active" : ""}`.trim(),
+                          type: "button",
+                          onClick: () => setSelectedAxisId(axis.id),
+                        },
+                        axis.short_name || axis.name || axis.id
+                      )
+                    )
+                  ),
+                  e(
+                    "button",
+                    { className: "ghost compact criteria-add-axis", type: "button", onClick: addAxis, disabled: isBusy },
+                    e(Icon, { name: "plus" }),
+                    "Add axis"
+                  )
+                ),
+                e(
+                  "div",
+                  { className: "criteria-editor-form" },
+                  e(
+                    "div",
+                    { className: "field-grid" },
+                    textField("Axis name", "name", "Performance and Task Execution", true),
+                    textField("Short name", "short_name", "Performance & Task", true)
+                  ),
+                  textField("Description", "description"),
+                  textField("Core question", "core_question"),
+                  listField("Focus sheets, one per line", "focus", 4),
+                  listField("What to look for, one per line", "look_for"),
+                  listField("Healthy signals, one per line", "healthy_signals"),
+                  listField("Failure modes, one per line", "failure_modes"),
+                  listField("Out of scope, one per line", "out_of_scope", 4),
+                  listField("Evidence expectations, one per line", "evidence_expectations", 4),
+                  listField("Keywords, one per line", "keywords", 5),
+                  e(
+                    "div",
+                    { className: "field-grid" },
+                    e(
+                      "div",
+                      { className: "field" },
+                      e("label", null, "High severity definition"),
+                      e("textarea", { className: "small", value: selectedAxis.severity_ladder?.high || "", onChange: (event) => updateSeverity("high", event.target.value) })
+                    ),
+                    e(
+                      "div",
+                      { className: "field" },
+                      e("label", null, "Medium severity definition"),
+                      e("textarea", { className: "small", value: selectedAxis.severity_ladder?.medium || "", onChange: (event) => updateSeverity("medium", event.target.value) })
+                    )
+                  ),
+                  e(
+                    "div",
+                    { className: "field" },
+                    e("label", null, "Low severity definition"),
+                    e("textarea", { className: "small", value: selectedAxis.severity_ladder?.low || "", onChange: (event) => updateSeverity("low", event.target.value) })
+                  ),
+                  textField("Default recommendation", "default_fix"),
+                  textField("Business impact", "business_impact"),
+                  textField("User impact sentence", "user_impact")
+                )
+              ),
+            e(
+              "div",
+              { className: "criteria-editor-actions" },
+              e("span", { className: "criteria-status" }, criteriaStatus || ""),
+              e("button", { className: "ghost", type: "button", onClick: onReload, disabled: isBusy }, "Reload"),
+              e("button", { className: "ghost", type: "button", onClick: onReset, disabled: isBusy }, "Reset defaults"),
+              e("button", { className: "primary", type: "button", onClick: () => onSave(criteriaDraft), disabled: isBusy || !criteriaDraft }, isBusy ? "Saving..." : "Save criteria")
+            )
+          )
         );
       }
 

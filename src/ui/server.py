@@ -1359,6 +1359,15 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
                 }
             )
             return
+        if parsed.path == "/api/criteria":
+            try:
+                from src.gtm_audit.common import AUDIT_CRITERIA_CONFIG_PATH, current_audit_criteria_payload, load_audit_criteria_config
+
+                load_audit_criteria_config()
+                self._send_json(current_audit_criteria_payload(source="custom" if AUDIT_CRITERIA_CONFIG_PATH.exists() else "defaults"))
+            except Exception as exc:
+                self._send_json({"error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+            return
         if parsed.path == "/api/mobile/discovery":
             try:
                 self._send_json(_mobile_discovery_payload())
@@ -1459,6 +1468,27 @@ class AuditRequestHandler(BaseHTTPRequestHandler):
                 self._send_json({"url": url})
             except ValueError as exc:
                 self._send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            except Exception as exc:
+                self._send_json({"error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+            return
+
+        if parsed.path == "/api/criteria":
+            try:
+                from src.gtm_audit.common import save_audit_criteria_payload
+
+                data = self._read_json_body()
+                self._send_json(save_audit_criteria_payload(data))
+            except ValueError as exc:
+                self._send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            except Exception as exc:
+                self._send_json({"error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+            return
+
+        if parsed.path == "/api/criteria/reset":
+            try:
+                from src.gtm_audit.common import reset_audit_criteria_payload
+
+                self._send_json(reset_audit_criteria_payload())
             except Exception as exc:
                 self._send_json({"error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
             return
