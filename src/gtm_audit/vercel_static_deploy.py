@@ -31,9 +31,12 @@ def _safe_clear_dir(path: Path) -> None:
     resolved = path.resolve()
     if not _inside(resolved, GENERATED_DIR):
         raise RuntimeError(f"Refusing to clear non-generated directory: {resolved}")
-    if resolved.exists():
-        shutil.rmtree(resolved)
     resolved.mkdir(parents=True, exist_ok=True)
+    for child in resolved.iterdir():
+        if child.is_dir():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
 
 
 def _is_external_or_special(href: str) -> bool:
