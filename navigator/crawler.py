@@ -56,6 +56,10 @@ WEAK_AUTH_HINTS = {
     "signup",
     "register",
     "create account",
+    "se connecter",
+    "connexion",
+    "s'inscrire",
+    "inscription",
 }
 
 WEAK_CTA_HINTS = {
@@ -153,6 +157,11 @@ MENU_STRUCTURE_SELECTORS = [
     ".drawer",
     ".mobile-menu",
     ".offcanvas",
+    ".aside",
+    "#user-aside",
+    ".aside-contents",
+    ".vc_tta-tabs-container",
+    ".vc_tta-tabs-list",
     ".sidebar",
     ".navbar",
     ".navigation",
@@ -192,6 +201,10 @@ OVERLAY_SELECTORS = [
     '.menu-drawer',
     '.mobile-menu',
     '.offcanvas',
+    '.aside',
+    '#user-aside',
+    '.aside-contents',
+    '.vc_tta-tabs-container',
     '.sidebar',
     '.HeaderMenu',
     '.header__submenu',
@@ -377,6 +390,10 @@ def looks_like_category_or_nav_url(base_url: str, url: Optional[str]) -> bool:
     category_words = (
         "category", "categorie", "catalog", "collection", "shop",
         "products", "produits", "rayon", "menu", "blog",
+        "magazine", "video", "videos", "contact", "about", "qui-sommes",
+        "medecin", "médecin", "pharmacie", "medicament", "médicament",
+        "clinique", "laboratoire", "veterinaire", "vétérinaire",
+        "question-medicale", "questions-medicales", "question",
     )
     return any(word in path_lower for word in category_words)
 
@@ -394,6 +411,7 @@ def weak_is_auth(name: str, url: Optional[str]) -> bool:
             "/login",
             "/signin",
             "/sign-in",
+            "/mon-compte",
             "/register",
             "/signup",
             "/sign-up",
@@ -769,11 +787,11 @@ async def detect_auth_on_current_page(page: Page, current_url: str, debug: bool)
         if any(k in abs_href.lower() for k in ["/search", "/cart", "/checkout", "/wishlist"]):
             continue
 
-        if any(x in lower for x in ["sign in", "signin", "login", "log in"]):
+        if any(x in lower for x in ["sign in", "signin", "login", "log in", "se connecter", "connexion", "mon-compte"]):
             if not signin:
                 signin = {"name": text or "Sign in", "url": abs_href}
 
-        if any(x in lower for x in ["sign up", "signup", "register", "create account", "get started", "start now"]):
+        if any(x in lower for x in ["sign up", "signup", "register", "create account", "get started", "start now", "s'inscrire", "inscription"]):
             if not signup:
                 signup = {"name": text or "Sign up", "url": abs_href}
 
@@ -1297,7 +1315,7 @@ def overlay_is_menu_like(overlay: Dict[str, Any]) -> bool:
 
     keyword_match = any(
         token in text
-        for token in ["navigation", "menu", "submenu", "dropdown", "popover", "popup", "positioner", "mega", "drawer"]
+        for token in ["navigation", "menu", "submenu", "dropdown", "popover", "popup", "positioner", "mega", "drawer", "aside", "offcanvas"]
     )
     dialog_only = "dialog" in text and not keyword_match
     if dialog_only:
@@ -2267,48 +2285,63 @@ async def extract_menu_toggle_candidates(page: Page, debug: bool) -> List[Dict[s
 
       const nodes = Array.from(document.querySelectorAll(
         [
+          'a',
           'button',
           '[role="button"]',
           'summary',
           '[aria-controls]',
+          '[id*="aside" i]',
           '[aria-label*="menu" i]',
           '[aria-label*="nav" i]',
           '[class*="menu" i]',
           '[class*="nav" i]',
           '[class*="hamburger" i]',
           '[class*="toggler" i]',
-          '[class*="toggle" i]'
+          '[class*="toggle" i]',
+          'img[src*="menu" i]',
+          'img[alt*="menu" i]'
         ].join(',')
       )).filter(visible);
 
       const out = [];
       let count = 0;
 
-      for (const el of nodes) {
-        const rect = el.getBoundingClientRect();
-        const text = cleanText(el.innerText || el.textContent || '');
-        const aria = cleanText(el.getAttribute('aria-label') || '');
-        const title = cleanText(el.getAttribute('title') || '');
-        const className = String(el.className || '');
-        const controlId = cleanText(el.getAttribute('aria-controls') || '');
-        const id = cleanText(el.getAttribute('id') || '');
-        const haystack = `${text} ${aria} ${title} ${className} ${controlId} ${id}`.toLowerCase();
-        const tag = el.tagName.toLowerCase();
+      for (const node of nodes) {
+        const control = node.closest('a, button, [role="button"], summary, [aria-controls]') || node;
+        if (!visible(control)) continue;
+
+        const rect = control.getBoundingClientRect();
+        const childImage = control.querySelector('img, svg');
+        const img = childImage || (((node.tagName || '').toLowerCase() === 'img') ? node : null);
+        const text = cleanText(control.innerText || control.textContent || '');
+        const aria = cleanText(control.getAttribute('aria-label') || '');
+        const title = cleanText(control.getAttribute('title') || '');
+        const className = String(control.className || '');
+        const controlId = cleanText(control.getAttribute('aria-controls') || '');
+        const id = cleanText(control.getAttribute('id') || '');
+        const imageText = img
+          ? cleanText(`${img.getAttribute('src') || ''} ${img.getAttribute('alt') || ''} ${img.getAttribute('title') || ''}`)
+          : '';
+        const haystack = `${text} ${aria} ${title} ${className} ${controlId} ${id} ${imageText}`.toLowerCase();
+        const tag = control.tagName.toLowerCase();
 
         let score = 0;
         if (haystack.includes('menu')) score += 5;
+        if (haystack.includes('menu.svg')) score += 6;
+        if (haystack.includes('aside-toggle')) score += 6;
+        if (haystack.includes('aside')) score += 4;
         if (haystack.includes('navigation') || haystack.includes('nav')) score += 4;
         if (haystack.includes('toggler') || haystack.includes('toggle') || haystack.includes('hamburger')) score += 4;
         if (controlId) score += 2;
         if (text.toLowerCase() === 'menu') score += 3;
         if (rect.top < 420) score += 2;
         if (rect.width < 240) score += 1;
-        if (tag === 'button' || el.getAttribute('role') === 'button') score += 1;
+        if (tag === 'button' || control.getAttribute('role') === 'button') score += 1;
 
         if (score < 4) continue;
 
         const toggleId = `menu_toggle_${count++}`;
-        el.setAttribute('data-menu-toggle-id', toggleId);
+        control.setAttribute('data-menu-toggle-id', toggleId);
 
         out.push({
           toggle_id: toggleId,
@@ -2378,6 +2411,11 @@ async def extract_visible_navigation_link_candidates(page: Page, homepage: str, 
           '.menu a[href]',
           '.nav a[href]',
           '.drawer a[href]',
+          '.aside a[href]',
+          '#user-aside a[href]',
+          '.aside-contents a[href]',
+          '.vc_tta-tabs-container a[href]',
+          '.vc_tta-tabs-list a[href]',
           '.sidebar a[href]',
           '[class*="nav" i] a[href]',
           '[id*="nav" i] a[href]',
@@ -2541,7 +2579,7 @@ async def extract_structural_navigation_link_candidates(page: Page, homepage: st
         parent_text = clean_text(item.get("parent_text", ""))
 
         score = 0
-        if any(token in selector_text for token in ["menu", "nav", "category", "categorie", "mega", "drawer"]):
+        if any(token in selector_text for token in ["menu", "nav", "category", "categorie", "mega", "drawer", "aside", "offcanvas"]):
             score += 4
         if CATEGORY_LIKE_PATH_RE.match(urlparse(url).path.rstrip("/") or "/"):
             score += 4

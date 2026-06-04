@@ -1,270 +1,125 @@
 {
-  "homepage": "https://weefizz.com/index.html",
+  "homepage": "https://med.tn/",
   "language": "fr",
   "auth": {
-    "signin": null,
+    "signin": {
+      "name": "Se connecter",
+      "url": "https://www.med.tn/mon-compte"
+    },
     "signup": null
   },
   "search": null,
   "navigation": [
     {
-      "name": "Accueil",
-      "url": "https://weefizz.com/index.html",
-      "type": "menu",
-      "children": [
-        {
-          "name": "General",
-          "type": "section",
-          "children": [
-            {
-              "name": "Accueil",
-              "type": "link",
-              "url": "https://weefizz.com/index.html",
-              "children": []
-            },
-            {
-              "name": "Contact",
-              "type": "link",
-              "url": "https://weefizz.com/contact.html",
-              "children": []
-            },
-            {
-              "name": "Demander une démo",
-              "type": "link",
-              "url": "https://calendar.app.google/RfDGqcEcm7hdHTky5",
-              "children": []
-            },
-            {
-              "name": "Technologie",
-              "type": "link",
-              "url": "https://weefizz.com/technologie.html",
-              "children": []
-            },
-            {
-              "name": "WeeFizz Fashion",
-              "type": "link",
-              "url": "https://weefizz.com/fashion.html",
-              "children": []
-            },
-            {
-              "name": "WeeFizz PRO",
-              "type": "link",
-              "url": "https://weefizz.com/pro.html",
-              "children": []
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Contact",
-      "url": "https://weefizz.com/contact.html",
+      "name": "Clinique",
+      "url": "https://www.med.tn/clinique",
       "type": "link",
       "children": []
     },
     {
-      "name": "Technologie",
-      "url": "https://weefizz.com/technologie.html",
-      "type": "menu",
-      "children": [
-        {
-          "name": "General",
-          "type": "section",
-          "children": [
-            {
-              "name": "Accueil",
-              "type": "link",
-              "url": "https://weefizz.com/index.html",
-              "children": []
-            },
-            {
-              "name": "Contact",
-              "type": "link",
-              "url": "https://weefizz.com/contact.html",
-              "children": []
-            },
-            {
-              "name": "Demander une démo",
-              "type": "link",
-              "url": "https://calendar.app.google/RfDGqcEcm7hdHTky5",
-              "children": []
-            },
-            {
-              "name": "Technologie",
-              "type": "link",
-              "url": "https://weefizz.com/technologie.html",
-              "children": []
-            },
-            {
-              "name": "WeeFizz Fashion",
-              "type": "link",
-              "url": "https://weefizz.com/fashion.html",
-              "children": []
-            },
-            {
-              "name": "WeeFizz PRO",
-              "type": "link",
-              "url": "https://weefizz.com/pro.html",
-              "children": []
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "WeeFizz accueil",
-      "url": "https://weefizz.com/index.html",
+      "name": "Laboratoire",
+      "url": "https://www.med.tn/medecin/laboratoire-danalyses-de-biologie-medicale",
       "type": "link",
       "children": []
     },
     {
-      "name": "WeeFizz Fashion",
-      "url": "https://weefizz.com/fashion.html",
-      "type": "menu",
-      "children": [
-        {
-          "name": "General",
-          "type": "section",
-          "children": [
-            {
-              "name": "Accueil",
-              "type": "link",
-              "url": "https://weefizz.com/index.html",
-              "children": []
-            },
-            {
-              "name": "Contact",
-              "type": "link",
-              "url": "https://weefizz.com/contact.html",
-              "children": []
-            },
-            {
-              "name": "Demander une démo",
-              "type": "link",
-              "url": "https://calendar.app.google/RfDGqcEcm7hdHTky5",
-              "children": []
-            },
-            {
-              "name": "Technologie",
-              "type": "link",
-              "url": "https://weefizz.com/technologie.html",
-              "children": []
-            },
-            {
-              "name": "WeeFizz Fashion",
-              "type": "link",
-              "url": "https://weefizz.com/fashion.html",
-              "children": []
-            },
-            {
-              "name": "WeeFizz PRO",
-              "type": "link",
-              "url": "https://weefizz.com/pro.html",
-              "children": []
-            }
-          ]
-        }
-      ]
+      "name": "Magazine Médical",
+      "url": "https://www.med.tn/magazine-medical",
+      "type": "link",
+      "children": []
     },
     {
-      "name": "WeeFizz PRO",
-      "url": "https://weefizz.com/pro.html",
-      "type": "menu",
-      "children": [
-        {
-          "name": "General",
-          "type": "section",
-          "children": [
-            {
-              "name": "Accueil",
-              "type": "link",
-              "url": "https://weefizz.com/index.html",
-              "children": []
-            },
-            {
-              "name": "Contact",
-              "type": "link",
-              "url": "https://weefizz.com/contact.html",
-              "children": []
-            },
-            {
-              "name": "Demander une démo",
-              "type": "link",
-              "url": "https://calendar.app.google/RfDGqcEcm7hdHTky5",
-              "children": []
-            },
-            {
-              "name": "Technologie",
-              "type": "link",
-              "url": "https://weefizz.com/technologie.html",
-              "children": []
-            },
-            {
-              "name": "WeeFizz Fashion",
-              "type": "link",
-              "url": "https://weefizz.com/fashion.html",
-              "children": []
-            },
-            {
-              "name": "WeeFizz PRO",
-              "type": "link",
-              "url": "https://weefizz.com/pro.html",
-              "children": []
-            }
-          ]
-        }
-      ]
+      "name": "Médicament",
+      "url": "https://www.med.tn/medicament",
+      "type": "link",
+      "children": []
     },
     {
-      "name": "✕",
-      "url": null,
-      "type": "menu",
+      "name": "Nous contacter",
+      "url": "https://www.med.tn/contact",
+      "type": "link",
+      "children": []
+    },
+    {
+      "name": "Pharmacie",
+      "url": "https://www.med.tn/pharmacie",
+      "type": "link",
+      "children": []
+    },
+    {
+      "name": "Professionnel de santé",
+      "url": "https://www.med.tn/medecin",
+      "type": "link",
+      "children": []
+    },
+    {
+      "name": "Questions médicales",
+      "url": "https://www.med.tn/question-medicale",
+      "type": "link",
+      "children": []
+    },
+    {
+      "name": "Qui sommes nous ?",
+      "url": "https://www.med.tn/qui-sommes-nous",
+      "type": "link",
+      "children": []
+    },
+    {
+      "name": "Videos",
+      "url": "https://www.med.tn/videos",
+      "type": "link",
+      "children": []
+    },
+    {
+      "name": "Vétérinaire",
+      "url": "https://www.med.tn/medecin/veterinaire",
+      "type": "link",
       "children": []
     }
   ],
   "extra": {
     "desktop": {
-      "forms_detected": 0,
-      "total_internal_links": 28,
-      "external_links": 4,
-      "title": "WeeFizz — La data morphologique entre l'humain et le vêtement",
-      "page_size_kb": 95.24,
-      "images_found": 20,
+      "forms_detected": 5,
+      "total_internal_links": 151,
+      "external_links": 9,
+      "title": "Med.tn : Prenez rendez-vous en ligne avec un professionnel de santé - med.tn",
+      "page_size_kb": 268.8,
+      "images_found": 66,
       "mode": "desktop",
       "page_language": "fr",
       "ai_recovery": {
-        "used": false,
-        "reason": "not_needed",
-        "clicked_candidate": null,
-        "ai_response": null,
-        "improved": false,
-        "error": null
-      }
-    },
-    "mobile": {
-      "forms_detected": 0,
-      "total_internal_links": 28,
-      "external_links": 4,
-      "title": "WeeFizz — La data morphologique entre l'humain et le vêtement",
-      "page_size_kb": 93.16,
-      "images_found": 20,
-      "mode": "mobile",
-      "page_language": "fr",
-      "ai_recovery": {
         "used": true,
-        "reason": "ai_failed:too_few_menu_items",
+        "reason": "ai_failed:no_children_detected",
         "clicked_candidate": null,
         "ai_response": null,
         "improved": false,
         "error": "Ollama request failed: Client error '400 Bad Request' for url 'http://127.0.0.1:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400"
       }
     },
-    "menu_count": 7,
-    "navbar_score": 11.0,
+    "mobile": {
+      "forms_detected": 5,
+      "total_internal_links": 147,
+      "external_links": 9,
+      "title": "Med.tn : Prenez rendez-vous en ligne avec un professionnel de santé - med.tn",
+      "page_size_kb": 265.73,
+      "images_found": 64,
+      "mode": "mobile",
+      "page_language": "fr",
+      "ai_recovery": {
+        "used": true,
+        "reason": "ai_failed:no_children_detected",
+        "clicked_candidate": null,
+        "ai_response": null,
+        "improved": false,
+        "error": "Ollama request failed: Client error '400 Bad Request' for url 'http://127.0.0.1:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400"
+      }
+    },
+    "menu_count": 11,
+    "navbar_score": 8.0,
     "source_container": "merged(desktop+mobile)",
-    "sitemap_found": "https://weefizz.com/sitemap.xml",
-    "robots_txt": "https://weefizz.com/robots.txt",
-    "crawl_time_ms": 65322
+    "sitemap_found": "https://www.med.tn/sitemap.xml",
+    "robots_txt": "https://med.tn/robots.txt",
+    "crawl_time_ms": 26214
   },
   "requested_language": "en-US",
   "language_warning": "Requested English, but detected page language was fr."

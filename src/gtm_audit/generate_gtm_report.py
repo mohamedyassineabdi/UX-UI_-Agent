@@ -588,6 +588,105 @@ def render_axis_tile(axis: Dict[str, Any], index: int) -> str:
     """
 
 
+def render_independent_review(payload: Dict[str, Any]) -> str:
+    review = payload.get("independentReview")
+    if not isinstance(review, dict):
+        return ""
+
+    context = review.get("review_context") if isinstance(review.get("review_context"), dict) else {}
+    missed = [item for item in (review.get("missed_issues") or []) if isinstance(item, dict)]
+    questioned = [item for item in (review.get("agent_findings_to_question") or []) if isinstance(item, dict)]
+    kept = [item for item in (review.get("agent_findings_to_keep") or []) if isinstance(item, dict)]
+    insertions = [item for item in (review.get("final_report_insertions") or []) if isinstance(item, dict)]
+
+    if not (missed or questioned or kept or insertions):
+        return ""
+
+    def issue_card(item: Dict[str, Any], index: int) -> str:
+        severity = severity_tone(item.get("severity"))
+        title = clean_text(item.get("title")) or "Independent review issue"
+        category = clean_text(item.get("category")) or "UX/UI"
+        page = clean_text(item.get("page"))
+        evidence = clean_text(item.get("evidence"))
+        why = clean_text(item.get("why_it_matters"))
+        recommendation = clean_text(item.get("recommendation"))
+        confidence = clean_text(item.get("confidence")) or "Medium"
+        return f"""
+        <article class="qa-card tone-{html.escape(severity)}">
+          <div class="qa-card-top">
+            <span class="qa-index">{index:02d}</span>
+            <span class="severity-dot severity-{html.escape(severity)}">{html.escape(severity_label(severity))}</span>
+          </div>
+          <h3>{html.escape(title)}</h3>
+          <p class="qa-meta">{html.escape(category)}{f' · {html.escape(page)}' if page else ''} · Confidence: {html.escape(confidence)}</p>
+          {f'<p><strong>Evidence:</strong> {html.escape(evidence)}</p>' if evidence else ''}
+          {f'<p><strong>Why it matters:</strong> {html.escape(why)}</p>' if why else ''}
+          {f'<p><strong>Recommended move:</strong> {html.escape(recommendation)}</p>' if recommendation else ''}
+        </article>
+        """
+
+    def question_card(item: Dict[str, Any], index: int) -> str:
+        title = clean_text(item.get("title_or_reference")) or "Finding to review"
+        problem = clean_text(item.get("problem")) or "Needs review"
+        reason = clean_text(item.get("reason"))
+        action = clean_text(item.get("suggested_action")) or "Verify"
+        return f"""
+        <article class="qa-note-card">
+          <span class="qa-index">{index:02d}</span>
+          <h4>{html.escape(title)}</h4>
+          <p class="qa-meta">{html.escape(problem)} · Suggested action: {html.escape(action)}</p>
+          {f'<p>{html.escape(reason)}</p>' if reason else ''}
+        </article>
+        """
+
+    def kept_card(item: Dict[str, Any], index: int) -> str:
+        title = clean_text(item.get("title")) or "Finding to keep"
+        reason = clean_text(item.get("reason"))
+        strength = clean_text(item.get("evidence_strength")) or "Medium"
+        return f"""
+        <article class="qa-note-card">
+          <span class="qa-index">{index:02d}</span>
+          <h4>{html.escape(title)}</h4>
+          <p class="qa-meta">Evidence strength: {html.escape(strength)}</p>
+          {f'<p>{html.escape(reason)}</p>' if reason else ''}
+        </article>
+        """
+
+    missed_html = "".join(issue_card(item, index) for index, item in enumerate(missed, start=1))
+    questioned_html = "".join(question_card(item, index) for index, item in enumerate(questioned, start=1))
+    kept_html = "".join(kept_card(item, index) for index, item in enumerate(kept, start=1))
+    insertion_html = "".join(
+        f"""
+        <li>
+          <strong>{html.escape(clean_text(item.get("section")) or "Report note")}:</strong>
+          {html.escape(clean_text(item.get("text")))}
+        </li>
+        """
+        for item in insertions
+        if clean_text(item.get("text"))
+    )
+    used_files = ", ".join(clean_text(item) for item in (context.get("used_files") or []) if clean_text(item))
+    notes = clean_text(context.get("notes"))
+
+    return f"""
+    <section class="section-panel independent-review-section" id="independent-review">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Independent QA Review</p>
+          <h2>External review additions and corrections</h2>
+          <p class="qa-lede">This section separates the external ChatGPT QA pass from the automated audit findings. Use it to add high-confidence missed issues and to downgrade findings that need manual verification.</p>
+          {f'<p class="qa-source"><strong>Inputs reviewed:</strong> {html.escape(used_files)}</p>' if used_files else ''}
+          {f'<p class="qa-source">{html.escape(notes)}</p>' if notes else ''}
+        </div>
+      </div>
+      {f'<h3 class="qa-subhead">Missed issues to add</h3><div class="qa-grid">{missed_html}</div>' if missed_html else ''}
+      {f'<h3 class="qa-subhead">Automated findings to question</h3><div class="qa-note-grid">{questioned_html}</div>' if questioned_html else ''}
+      {f'<h3 class="qa-subhead">Automated findings to keep</h3><div class="qa-note-grid">{kept_html}</div>' if kept_html else ''}
+      {f'<h3 class="qa-subhead">Final report insertion notes</h3><ul class="qa-insertion-list">{insertion_html}</ul>' if insertion_html else ''}
+    </section>
+    """
+
+
 def render_axis_section(
     axis: Dict[str, Any],
     index: int,
@@ -1210,6 +1309,7 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
         """
         for index, item in enumerate(reco_items)
     )
+    independent_review_html = render_independent_review(payload)
     strongest_axis = summary.get("strongestAxis") or {}
     weakest_axis = summary.get("weakestAxis") or {}
     strongest = axis_label(strongest_axis.get("id"), strongest_axis.get("shortName") or strongest_axis.get("name")) if strongest_axis else ""
@@ -1767,6 +1867,92 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
     .section-head p {{
       max-width: 46ch;
       font-size: 0.96rem;
+    }}
+    .independent-review-section {{
+      margin-top: 44px;
+    }}
+    .qa-lede,
+    .qa-source {{
+      margin-top: 8px;
+      max-width: 76ch;
+    }}
+    .qa-subhead {{
+      margin: 28px 0 14px;
+      font-size: 1.15rem;
+      letter-spacing: 0;
+    }}
+    .qa-grid,
+    .qa-note-grid {{
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }}
+    .qa-card,
+    .qa-note-card {{
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+      padding: 18px;
+      border: 1px solid rgba(32,39,51,0.10);
+      border-radius: 2px;
+      background: rgba(255,255,255,0.86);
+      box-shadow: 0 16px 32px rgba(32,39,51,0.05);
+    }}
+    .qa-card {{
+      border-left: 4px solid var(--gold);
+    }}
+    .qa-card.tone-high {{
+      border-left-color: var(--red);
+    }}
+    .qa-card.tone-medium {{
+      border-left-color: #caa23b;
+    }}
+    .qa-card.tone-low {{
+      border-left-color: var(--teal);
+    }}
+    .qa-card-top {{
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }}
+    .qa-index {{
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+    }}
+    .qa-card h3,
+    .qa-note-card h4 {{
+      font-size: 1rem;
+      line-height: 1.28;
+      letter-spacing: 0;
+    }}
+    .qa-card p,
+    .qa-note-card p {{
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }}
+    .qa-meta {{
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 650;
+    }}
+    .qa-insertion-list {{
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }}
+    .qa-insertion-list li {{
+      padding: 14px 16px;
+      border: 1px solid rgba(32,39,51,0.09);
+      background: rgba(255,255,255,0.72);
+      color: var(--muted);
+    }}
+    .qa-insertion-list strong {{
+      color: var(--ink);
     }}
     .context-grid,
     .method-grid {{
@@ -2741,6 +2927,7 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
         <a href="#methodology">Methodology</a>
         <a href="#priorities">Findings</a>
         <a href="#scores">Scores</a>
+        {f'<a href="#independent-review">QA Review</a>' if independent_review_html else ''}
         <a href="#recommendations">Recommendations</a>
       </nav>
     </header>
@@ -2806,6 +2993,8 @@ def render_html(payload: Dict[str, Any], output_dir: Path) -> str:
       </div>
       {issue_tabs_html}
     </section>
+
+    {independent_review_html}
 
     <section class="section-panel recommendations-section" id="recommendations">
       <div class="reco-stage">
